@@ -74,24 +74,25 @@ func Recover(next http.Handler) http.Handler {
 
 // CORS allows configured origins (permissive in dev).
 func CORS(allowedOrigins string) func(http.Handler) http.Handler {
-	origins := strings.Split(allowedOrigins, ",")
+	origins := make(map[string]struct{})
+	for _, value := range strings.Split(allowedOrigins, ",") {
+		if origin := strings.TrimSpace(value); origin != "" {
+			origins[origin] = struct{}{}
+		}
+	}
 	allowAll := allowedOrigins == "" || allowedOrigins == "*"
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := r.Header.Get("Origin")
 			if allowAll {
 				w.Header().Set("Access-Control-Allow-Origin", "*")
-			} else {
-				for _, o := range origins {
-					if strings.TrimSpace(o) == origin {
-						w.Header().Set("Access-Control-Allow-Origin", origin)
-						break
-					}
-				}
+			} else if _, ok := origins[origin]; ok {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				w.Header().Add("Vary", "Origin")
 			}
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID")
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)
 				return
