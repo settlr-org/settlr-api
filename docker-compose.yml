@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-settlr}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  api:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://$${POSTGRES_USER}:$${POSTGRES_PASSWORD}@postgres:5432/$${POSTGRES_DB}?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET}
+      PORT: 8080
+      APP_ENV: production
+      APP_URL: ${APP_URL:-https://settlr.theswissknife.com}
+      API_URL: ${API_URL:-https://settlrapi.theswissknife.com}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://settlr.theswissknife.com,https://arch.tailbd5522.ts.net}
+      MAIL_PROVIDER: ${MAIL_PROVIDER:-}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      MAIL_FROM_EMAIL: ${MAIL_FROM_EMAIL:-noreply@settlr.app}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Settlr}
+    ports:
+      - "127.0.0.1:18080:8080"
+    volumes:
+      - uploads:/app/uploads
+    restart: unless-stopped
+volumes:
+  pgdata:
+  uploads:
