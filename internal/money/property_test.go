@@ -65,7 +65,7 @@ func TestProperty_SplitByPercentage_Random(t *testing.T) {
 		bps := make([]int64, n)
 		remaining := int64(10000)
 		for i := 0; i < n-1; i++ {
-			v := int64(rand.Intn(int(remaining+1)))
+			v := int64(rand.Intn(int(remaining + 1)))
 			bps[i] = v
 			remaining -= v
 		}

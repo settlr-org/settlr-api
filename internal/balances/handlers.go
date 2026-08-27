@@ -139,7 +139,7 @@ func (h *Handler) GetMyBalances(w http.ResponseWriter, r *http.Request) {
 	}
 	net := totalOwed - totalOwing
 	httpx.WriteJSON(w, 200, map[string]any{
-		"data": data,
+		"data":     data,
 		"currency": userCurrency,
 		"summary": map[string]any{
 			"you_are_owed": totalOwed,

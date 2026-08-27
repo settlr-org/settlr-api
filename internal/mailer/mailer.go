@@ -12,19 +12,19 @@ import (
 )
 
 type Config struct {
-	Provider   string // "brevo" | "smtp" | "log" ("" = auto-detect)
+	Provider    string // "brevo" | "smtp" | "log" ("" = auto-detect)
 	BrevoAPIKey string
-	SMTPHost   string
-	SMTPPort   string
-	SMTPUser   string
-	SMTPPass   string
-	FromEmail  string
-	FromName   string
-	AppURL     string
+	SMTPHost    string
+	SMTPPort    string
+	SMTPUser    string
+	SMTPPass    string
+	FromEmail   string
+	FromName    string
+	AppURL      string
 }
 
 type Mailer struct {
-	cfg Config
+	cfg    Config
 	client *http.Client
 }
 

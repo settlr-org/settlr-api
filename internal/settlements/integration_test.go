@@ -21,11 +21,11 @@ import (
 func newSettleTestServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, func(uuid.UUID) string) {
 	t.Helper()
 	cfg := config.Config{
-		JWTSecret:        "test-jwt-secret-32-chars-min!!!!",
-		JWTRefreshSecret: "test-refresh-secret-32-chars!!",
-		JWTExpiryMinutes: 15,
+		JWTSecret:         "test-jwt-secret-32-chars-min!!!!",
+		JWTRefreshSecret:  "test-refresh-secret-32-chars!!",
+		JWTExpiryMinutes:  15,
 		RefreshExpiryDays: 30,
-		Env:              "test",
+		Env:               "test",
 	}
 	authSvc := &auth.Service{Pool: pool, Cfg: cfg}
 	authHandler := &auth.Handler{Svc: authSvc}
@@ -97,7 +97,7 @@ func TestIntegration_SettlementFlow(t *testing.T) {
 		"amount":      10000,
 		"paid_by":     aliceID.String(),
 		"split_mode":  "EQUAL",
-		"splits": []map[string]string{{"user_id": aliceID.String()}, {"user_id": bobID.String()}},
+		"splits":      []map[string]string{{"user_id": aliceID.String()}, {"user_id": bobID.String()}},
 	})
 	req, _ = http.NewRequest("POST", srv.URL+"/api/v1/groups/"+gid+"/expenses", bytes.NewReader(expBody))
 	req.Header.Set("Content-Type", "application/json")

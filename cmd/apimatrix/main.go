@@ -102,7 +102,9 @@ func main() {
 	var reg struct {
 		AccessToken  string `json:"access_token"`
 		RefreshToken string `json:"refresh_token"`
-		User         struct{ ID string `json:"id"` } `json:"user"`
+		User         struct {
+			ID string `json:"id"`
+		} `json:"user"`
 	}
 	s, _ = c.do("POST", "/api/v1/auth/register", map[string]any{"name": "Matrix A", "email": "ma" + sfx + "@x.io", "password": "password123"}, &reg)
 	expect("API-004 register A", s, 201)
@@ -111,14 +113,18 @@ func main() {
 	var regB struct {
 		AccessToken  string `json:"access_token"`
 		RefreshToken string `json:"refresh_token"`
-		User         struct{ ID string `json:"id"` } `json:"user"`
+		User         struct {
+			ID string `json:"id"`
+		} `json:"user"`
 	}
 	s, _ = c.do("POST", "/api/v1/auth/register", map[string]any{"name": "Matrix B", "email": "mb" + sfx + "@x.io", "password": "password123"}, &regB)
 	B := &client{regB.AccessToken}
 	BID := regB.User.ID
 	var regC struct {
 		AccessToken string `json:"access_token"`
-		User        struct{ ID string `json:"id"` } `json:"user"`
+		User        struct {
+			ID string `json:"id"`
+		} `json:"user"`
 	}
 	s, _ = c.do("POST", "/api/v1/auth/register", map[string]any{"name": "Matrix C", "email": "mc" + sfx + "@x.io", "password": "password123"}, &regC)
 	C := &client{regC.AccessToken}
@@ -262,7 +268,11 @@ func main() {
 
 	// ===== balances / debts / stats / activity =====
 	s, _ = A.do("GET", "/api/v1/groups/"+G+"/balances", nil, nil)
-	var bal struct{ Data []struct{ Amount int64 `json:"amount"` } `json:"data"` }
+	var bal struct {
+		Data []struct {
+			Amount int64 `json:"amount"`
+		} `json:"data"`
+	}
 	// fetch fresh balances with current A token
 	s2, raw2 := func() (int, string) { return httpReq("GET", "/api/v1/groups/"+G+"/balances", A.token) }()
 	_ = s2
@@ -319,7 +329,9 @@ func main() {
 	expect("API-068 my invites", s, 200)
 	var regD struct {
 		AccessToken string `json:"access_token"`
-		User        struct{ ID string `json:"id"` } `json:"user"`
+		User        struct {
+			ID string `json:"id"`
+		} `json:"user"`
 	}
 	s, _ = c.do("POST", "/api/v1/auth/register", map[string]any{"name": "Matrix D", "email": "newbie" + sfx + "@x.io", "password": "password123"}, &regD)
 	D := &client{regD.AccessToken}

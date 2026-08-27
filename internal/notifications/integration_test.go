@@ -19,11 +19,11 @@ import (
 func newNotifTestServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, func(uuid.UUID) string) {
 	t.Helper()
 	cfg := config.Config{
-		JWTSecret:        "test-jwt-secret-32-chars-min!!!!",
-		JWTRefreshSecret: "test-refresh-secret-32-chars!!",
-		JWTExpiryMinutes: 15,
+		JWTSecret:         "test-jwt-secret-32-chars-min!!!!",
+		JWTRefreshSecret:  "test-refresh-secret-32-chars!!",
+		JWTExpiryMinutes:  15,
 		RefreshExpiryDays: 30,
-		Env:              "test",
+		Env:               "test",
 	}
 	authSvc := &auth.Service{Pool: pool, Cfg: cfg}
 	authHandler := &auth.Handler{Svc: authSvc}
