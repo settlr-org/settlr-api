@@ -2,6 +2,7 @@ package settlements
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +18,17 @@ import (
 	"github.com/nabinkhanal00/settlr-api/internal/groups"
 	"github.com/nabinkhanal00/settlr-api/internal/testutil"
 )
+
+func ensureFriendsSettle(t *testing.T, pool *pgxpool.Pool, a, b uuid.UUID) {
+	t.Helper()
+	aa, bb := a.String(), b.String()
+	if aa > bb {
+		aa, bb = bb, aa
+	}
+	if _, err := pool.Exec(context.Background(), `INSERT INTO friendships (id, user_id, friend_id, status, action_by) VALUES (gen_random_uuid(), $1::uuid, $2::uuid, 'ACCEPTED', $1::uuid) ON CONFLICT (user_id, friend_id) DO UPDATE SET status='ACCEPTED'`, aa, bb); err != nil {
+		t.Fatalf("make friends: %v", err)
+	}
+}
 
 func newSettleTestServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, func(uuid.UUID) string) {
 	t.Helper()
@@ -70,6 +82,7 @@ func TestIntegration_SettlementFlow(t *testing.T) {
 
 	aliceID, _ := registerHelper(t, srv, "Alice", "alice-settle@test.local")
 	bobID, _ := registerHelper(t, srv, "Bob", "bob-settle@test.local")
+	ensureFriendsSettle(t, pool, aliceID, bobID)
 	aliceTok := tokenFor(aliceID)
 
 	// Create group

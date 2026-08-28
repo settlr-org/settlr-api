@@ -2,14 +2,29 @@ package expenses
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/nabinkhanal00/settlr-api/internal/testutil"
 )
+
+func ensureFriends(t *testing.T, pool *pgxpool.Pool, a, b string) {
+	t.Helper()
+	// ordered pair
+	if a > b {
+		a, b = b, a
+	}
+	_, err := pool.Exec(context.Background(), `INSERT INTO friendships (id, user_id, friend_id, status, action_by) VALUES (gen_random_uuid(), $1::uuid, $2::uuid, 'ACCEPTED', $1::uuid) ON CONFLICT (user_id, friend_id) DO UPDATE SET status='ACCEPTED'`, a, b)
+	if err != nil {
+		t.Fatalf("make friends %s %s: %v", a, b, err)
+	}
+}
 
 func TestIntegration_ConcurrentExpenses(t *testing.T) {
 	pool := testutil.CleanDB(t)
@@ -18,6 +33,7 @@ func TestIntegration_ConcurrentExpenses(t *testing.T) {
 
 	aliceID := registerUserViaAPI(t, srv, "AliceConc", "alice-conc@test.local", "password123")
 	bobID := registerUserViaAPI(t, srv, "BobConc", "bob-conc@test.local", "password123")
+	ensureFriends(t, pool, aliceID.String(), bobID.String())
 	aliceTok := tokenFor(aliceID)
 
 	body, _ := json.Marshal(map[string]string{"name": "Conc Group"})

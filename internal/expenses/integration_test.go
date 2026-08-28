@@ -2,6 +2,7 @@ package expenses
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -18,6 +19,17 @@ import (
 	"github.com/nabinkhanal00/settlr-api/internal/settlements"
 	"github.com/nabinkhanal00/settlr-api/internal/testutil"
 )
+
+func ensureFriends(t *testing.T, pool *pgxpool.Pool, a, b uuid.UUID) {
+	t.Helper()
+	aa, bb := a.String(), b.String()
+	if aa > bb {
+		aa, bb = bb, aa
+	}
+	if _, err := pool.Exec(context.Background(), `INSERT INTO friendships (id, user_id, friend_id, status, action_by) VALUES (gen_random_uuid(), $1::uuid, $2::uuid, 'ACCEPTED', $1::uuid) ON CONFLICT (user_id, friend_id) DO UPDATE SET status='ACCEPTED'`, aa, bb); err != nil {
+		t.Fatalf("make friends: %v", err)
+	}
+}
 
 func newTestServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, func(uuid.UUID) string) {
 	t.Helper()
@@ -96,6 +108,7 @@ func TestIntegration_FullWorkflow(t *testing.T) {
 	// Create two users
 	aliceID := registerUserViaAPI(t, srv, "Alice", "alice-int@test.local", "password123")
 	bobID := registerUserViaAPI(t, srv, "Bob", "bob-int@test.local", "password123")
+	ensureFriends(t, pool, aliceID, bobID)
 	aliceTok := tokenFor(aliceID)
 	_ = tokenFor(bobID) // bob's token not needed for this flow, but create
 
@@ -404,6 +417,7 @@ func TestIntegration_UpdateExpense_NonMemberRejected(t *testing.T) {
 	aliceID := registerUserViaAPI(t, srv, "AliceUpd", "alice-upd@test.local", "password123")
 	bobID := registerUserViaAPI(t, srv, "BobUpd", "bob-upd@test.local", "password123")
 	charlieID := registerUserViaAPI(t, srv, "CharlieUpd", "charlie-upd@test.local", "password123")
+	ensureFriends(t, pool, aliceID, bobID)
 	aliceTok := tokenFor(aliceID)
 
 	// Alice creates group with Bob
