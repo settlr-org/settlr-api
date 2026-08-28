@@ -398,6 +398,12 @@ func (h *Handler) AddMember(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "user_id or email required"}})
 		return
 	}
+	viewerID, _, _ := h.mustBeMember(r, groupID)
+	var isFriend bool
+	if err := h.Pool.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM friendships WHERE LEAST(user_id, friend_id)=LEAST($1::uuid,$2::uuid) AND GREATEST(user_id, friend_id)=GREATEST($1::uuid,$2::uuid) AND status='ACCEPTED')`, viewerID, targetID).Scan(&isFriend); err != nil || !isFriend {
+		httpx.WriteJSON(w, 403, map[string]any{"error": map[string]string{"code": "FORBIDDEN", "message": "only friends can be added to a group"}})
+		return
+	}
 	newRole := "MEMBER"
 	if req.Role != nil {
 		if *req.Role != "ADMIN" && *req.Role != "MEMBER" {
@@ -611,6 +617,18 @@ func (h *Handler) CreateInvite(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid email"}})
 		return
 	}
+	uid, _ := httpx.GetUserID(r.Context())
+	invitedBy, _ := uuid.Parse(uid)
+	var friendID uuid.UUID
+	if err := h.Pool.QueryRow(r.Context(), `SELECT id FROM users WHERE lower(email)=lower($1)`, email).Scan(&friendID); err != nil {
+		httpx.WriteJSON(w, 403, map[string]any{"error": map[string]string{"code": "FORBIDDEN", "message": "only friends can be invited to a group"}})
+		return
+	}
+	var isFriend bool
+	if err := h.Pool.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM friendships WHERE LEAST(user_id, friend_id)=LEAST($1::uuid,$2::uuid) AND GREATEST(user_id, friend_id)=GREATEST($1::uuid,$2::uuid) AND status='ACCEPTED')`, invitedBy, friendID).Scan(&isFriend); err != nil || !isFriend {
+		httpx.WriteJSON(w, 403, map[string]any{"error": map[string]string{"code": "FORBIDDEN", "message": "only friends can be invited to a group"}})
+		return
+	}
 	// Already member?
 	var exists bool
 	_ = h.Pool.QueryRow(r.Context(), `SELECT true FROM users u JOIN group_members gm ON gm.user_id=u.id WHERE gm.group_id=$1 AND lower(u.email)=lower($2)`, groupID, email).Scan(&exists)
@@ -619,8 +637,6 @@ func (h *Handler) CreateInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	raw, hash := auth.GenerateRefreshToken()
-	uid, _ := httpx.GetUserID(r.Context())
-	invitedBy, _ := uuid.Parse(uid)
 	inviteID := uuid.New()
 	_, err := h.Pool.Exec(r.Context(),
 		`INSERT INTO group_invites (id, group_id, email, token_hash, invited_by) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (group_id, lower(email)) WHERE status='PENDING' DO UPDATE SET token_hash=$4, invited_by=$5, created_at=now(), expires_at=now()+interval '7 days'`,
@@ -721,9 +737,9 @@ func (h *Handler) AcceptInvite(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(r.Context())
 	hash := auth.HashToken(token)
-	var inviteID, groupID uuid.UUID
+	var inviteID, groupID, invitedBy uuid.UUID
 	var email, status string
-	err = tx.QueryRow(r.Context(), `SELECT id, group_id, email, status FROM group_invites WHERE token_hash=$1 FOR UPDATE`, hash).Scan(&inviteID, &groupID, &email, &status)
+	err = tx.QueryRow(r.Context(), `SELECT id, group_id, email, invited_by, status FROM group_invites WHERE token_hash=$1 FOR UPDATE`, hash).Scan(&inviteID, &groupID, &email, &invitedBy, &status)
 	if err == pgx.ErrNoRows {
 		httpx.WriteJSON(w, 404, map[string]any{"error": map[string]string{"code": "NOT_FOUND", "message": "invalid or expired invite"}})
 		return
@@ -745,6 +761,11 @@ func (h *Handler) AcceptInvite(w http.ResponseWriter, r *http.Request) {
 	_ = tx.QueryRow(r.Context(), `SELECT lower(email) FROM users WHERE id=$1`, userID).Scan(&userEmail)
 	if userEmail != strings.ToLower(email) {
 		httpx.WriteJSON(w, 403, map[string]any{"error": map[string]string{"code": "FORBIDDEN", "message": "invite email does not match your account"}})
+		return
+	}
+	var areFriends bool
+	if err := tx.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM friendships WHERE LEAST(user_id, friend_id)=LEAST($1::uuid,$2::uuid) AND GREATEST(user_id, friend_id)=GREATEST($1::uuid,$2::uuid) AND status='ACCEPTED')`, userID, invitedBy).Scan(&areFriends); err != nil || !areFriends {
+		httpx.WriteJSON(w, 403, map[string]any{"error": map[string]string{"code": "FORBIDDEN", "message": "only friends can join this group"}})
 		return
 	}
 	var alreadyMember bool

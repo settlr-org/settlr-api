@@ -67,6 +67,9 @@ func TestIntegration_GroupCreateAndMemberFlow(t *testing.T) {
 	aliceID, aliceTok := registerViaAPI(t, srv, "Alice", "alice-group@test.local")
 	bobID, _ := registerViaAPI(t, srv, "Bob", "bob-group@test.local")
 	_ = tokenFor(bobID) // ensure bob exists
+	if _, err := pool.Exec(t.Context(), `INSERT INTO friendships (user_id, friend_id, status, action_by) VALUES (LEAST($1::uuid,$2::uuid), GREATEST($1::uuid,$2::uuid), 'ACCEPTED', $1)`, aliceID, bobID); err != nil {
+		t.Fatalf("make test users friends: %v", err)
+	}
 
 	// Create group
 	body, _ := json.Marshal(map[string]string{"name": "Test Group"})
