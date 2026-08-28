@@ -103,7 +103,7 @@ func main() {
 	expensesHandler := &expenses.Handler{Pool: pool}
 	balancesHandler := &balances.Handler{Pool: pool}
 	settlementsHandler := &settlements.Handler{Pool: pool}
-	friendsHandler := &friends.Handler{Pool: pool}
+	friendsHandler := &friends.Handler{Pool: pool, Mailer: mailSender}
 	notificationsHandler := &notifications.Handler{Pool: pool}
 	categoriesHandler := &categories.Handler{Pool: pool}
 	statsHandler := &stats.Handler{Pool: pool}

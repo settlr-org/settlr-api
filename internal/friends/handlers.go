@@ -4,20 +4,26 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/nabinkhanal00/settlr-api/internal/auth"
 	"github.com/nabinkhanal00/settlr-api/internal/httpx"
+	"github.com/nabinkhanal00/settlr-api/internal/mailer"
 )
 
 type Handler struct {
-	Pool *pgxpool.Pool
+	Pool   *pgxpool.Pool
+	Mailer *mailer.Mailer
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/v1/friends", authMw(http.HandlerFunc(h.ListFriends)))
+	mux.Handle("POST /api/v1/friends/invite", authMw(http.HandlerFunc(h.InviteByEmail)))
+	mux.Handle("POST /api/v1/friend-invites/{token}/accept", authMw(http.HandlerFunc(h.AcceptEmailInvite)))
 	mux.Handle("POST /api/v1/friends/{id}/request", authMw(http.HandlerFunc(h.SendRequest)))
 	mux.Handle("POST /api/v1/friends/{id}/accept", authMw(http.HandlerFunc(h.Accept)))
 	mux.Handle("POST /api/v1/friends/{id}/reject", authMw(http.HandlerFunc(h.Reject)))
@@ -25,6 +31,89 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) h
 	mux.Handle("POST /api/v1/friends/{id}/block", authMw(http.HandlerFunc(h.Block)))
 	mux.Handle("GET /api/v1/friends/requests", authMw(http.HandlerFunc(h.ListRequests)))
 	mux.Handle("GET /api/v1/friends/{id}/ledger", authMw(http.HandlerFunc(h.GetLedger)))
+}
+
+func (h *Handler) InviteByEmail(w http.ResponseWriter, r *http.Request) {
+	uid := currentUserID(r)
+	var req struct {
+		Email string `json:"email"`
+	}
+	if err := httpx.DecodeJSON(r, &req); err != nil || !strings.Contains(strings.TrimSpace(req.Email), "@") {
+		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "valid email required"}})
+		return
+	}
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	var target uuid.UUID
+	if err := h.Pool.QueryRow(r.Context(), `SELECT id FROM users WHERE lower(email)=lower($1)`, email).Scan(&target); err == nil {
+		if target == uid {
+			httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "you cannot invite yourself"}})
+			return
+		}
+		a, b := orderedPair(uid, target)
+		_, err = h.Pool.Exec(r.Context(), `INSERT INTO friendships (id, user_id, friend_id, status, action_by) VALUES ($1,$2,$3,'ACCEPTED',$4) ON CONFLICT DO UPDATE SET status='ACCEPTED', action_by=$4, updated_at=now()`, uuid.New(), a, b, uid)
+		if err != nil {
+			httpx.WriteError(w, r, err)
+			return
+		}
+		httpx.WriteJSON(w, 201, map[string]any{"status": "ACCEPTED", "user_id": target})
+		return
+	}
+	raw, hash := auth.GenerateRefreshToken()
+	id := uuid.New()
+	_, err := h.Pool.Exec(r.Context(), `INSERT INTO friend_invites (id, email, token_hash, invited_by) VALUES ($1,$2,$3,$4) ON CONFLICT (lower(email), invited_by) WHERE status='PENDING' DO UPDATE SET token_hash=$3, created_at=now(), expires_at=now()+interval '7 days'`, id, email, hash, uid)
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	var inviter string
+	_ = h.Pool.QueryRow(r.Context(), `SELECT name FROM users WHERE id=$1`, uid).Scan(&inviter)
+	if h.Mailer != nil {
+		subject, html := h.Mailer.FriendInviteEmail(email, inviter, raw)
+		h.Mailer.SendAsync(email, subject, html)
+	}
+	httpx.WriteJSON(w, 201, map[string]any{"invite_id": id, "email": email, "expires_at": "7d"})
+}
+
+func (h *Handler) AcceptEmailInvite(w http.ResponseWriter, r *http.Request) {
+	uid := currentUserID(r)
+	tx, err := h.Pool.Begin(r.Context())
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	defer tx.Rollback(r.Context())
+	var id, inviter uuid.UUID
+	var email, status string
+	var expires time.Time
+	err = tx.QueryRow(r.Context(), `SELECT id, email, invited_by, status, expires_at FROM friend_invites WHERE token_hash=$1 FOR UPDATE`, auth.HashToken(r.PathValue("token"))).Scan(&id, &email, &inviter, &status, &expires)
+	if err == pgx.ErrNoRows || time.Now().After(expires) {
+		httpx.WriteJSON(w, 404, map[string]any{"error": map[string]string{"code": "NOT_FOUND", "message": "invalid or expired friend invite"}})
+		return
+	}
+	if err != nil || status != "PENDING" {
+		httpx.WriteJSON(w, 409, map[string]any{"error": map[string]string{"code": "CONFLICT", "message": "invite has already been accepted"}})
+		return
+	}
+	var userEmail string
+	_ = tx.QueryRow(r.Context(), `SELECT lower(email) FROM users WHERE id=$1`, uid).Scan(&userEmail)
+	if userEmail != strings.ToLower(email) {
+		httpx.WriteJSON(w, 403, map[string]any{"error": map[string]string{"code": "FORBIDDEN", "message": "invite email does not match your account"}})
+		return
+	}
+	a, b := orderedPair(uid, inviter)
+	if _, err = tx.Exec(r.Context(), `INSERT INTO friendships (id, user_id, friend_id, status, action_by) VALUES ($1,$2,$3,'ACCEPTED',$4) ON CONFLICT DO UPDATE SET status='ACCEPTED', updated_at=now()`, uuid.New(), a, b, inviter); err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	if _, err = tx.Exec(r.Context(), `UPDATE friend_invites SET status='ACCEPTED' WHERE id=$1`, id); err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	if err = tx.Commit(r.Context()); err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, 200, map[string]any{"message": "friend invite accepted", "user_id": inviter})
 }
 
 func currentUserID(r *http.Request) uuid.UUID {

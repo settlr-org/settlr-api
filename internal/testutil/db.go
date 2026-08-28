@@ -188,7 +188,7 @@ func TruncateAll(t *testing.T, pool *pgxpool.Pool) {
 	ctx := context.Background()
 	// Truncate in order respecting FKs
 	_, err := pool.Exec(ctx, `
-		TRUNCATE activity_events, notifications, settlements, expense_splits, expenses, categories, friendships, group_members, groups, email_verification_tokens, password_reset_tokens, sessions, users, group_invites, expense_comments, expense_attachments RESTART IDENTITY CASCADE;
+		TRUNCATE activity_events, notifications, settlements, expense_splits, expenses, categories, friendships, group_members, groups, email_verification_tokens, password_reset_tokens, sessions, users, group_invites, friend_invites, expense_comments, expense_attachments RESTART IDENTITY CASCADE;
 	`)
 	if err != nil {
 		// Fallback: try truncating known tables individually

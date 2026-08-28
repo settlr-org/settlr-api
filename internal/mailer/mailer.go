@@ -197,3 +197,15 @@ func (m *Mailer) GroupInviteEmail(to, groupName, inviterName, token string) (str
 	)
 	return subject, html
 }
+
+func (m *Mailer) FriendInviteEmail(to, inviterName, token string) (string, string) {
+	link := m.cfg.AppURL + "/invite/" + token
+	subject := inviterName + " invited you to connect on Settlr"
+	html := wrapLayout(
+		"You're invited",
+		fmt.Sprintf("<p><b>%s</b> invited you to become friends on Settlr. Accept to start tracking shared expenses together.</p>", inviterName),
+		"Accept friend invite",
+		link,
+	)
+	return subject, html
+}

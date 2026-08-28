@@ -64,13 +64,13 @@ func (h *Handler) ListGroups(w http.ResponseWriter, r *http.Request) {
 		rows, err = h.Pool.Query(r.Context(),
 			`SELECT g.id, g.name, g.description, coalesce(g.avatar_url,''), g.currency, coalesce(g.group_type,'OTHER'), coalesce(g.simplify_debts,true), g.created_by, g.created_at, g.updated_at, g.archived_at, g.information
 			 FROM groups g JOIN group_members gm ON gm.group_id=g.id
-			 WHERE gm.user_id=$1 AND g.archived_at IS NULL AND g.name ILIKE '%' || $2 || '%'
+			 WHERE gm.user_id=$1 AND g.archived_at IS NULL AND g.group_type <> 'DIRECT' AND g.name ILIKE '%' || $2 || '%'
 			 ORDER BY g.updated_at DESC`, userID, q)
 	} else {
 		rows, err = h.Pool.Query(r.Context(),
 			`SELECT g.id, g.name, g.description, coalesce(g.avatar_url,''), g.currency, coalesce(g.group_type,'OTHER'), coalesce(g.simplify_debts,true), g.created_by, g.created_at, g.updated_at, g.archived_at, g.information
 			 FROM groups g JOIN group_members gm ON gm.group_id=g.id
-			 WHERE gm.user_id=$1 AND g.archived_at IS NULL
+			 WHERE gm.user_id=$1 AND g.archived_at IS NULL AND g.group_type <> 'DIRECT'
 			 ORDER BY g.updated_at DESC`, userID)
 	}
 	if err != nil {
