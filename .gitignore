@@ -1,6 +1,8 @@
 .env
 .env.*
 !.env.example
+!.env.staging.example
+!.env.production.example
 uploads/
 certbot_certs/
 certbot_www/

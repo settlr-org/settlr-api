@@ -1,9 +1,9 @@
 services:
   postgres:
-    image: postgres:18-alpine
+    container_name: settlr-postgres-staging
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-settlr}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-dev-password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-staging-password-change-me}
       POSTGRES_DB: ${POSTGRES_DB:-settlr}
     volumes:
       - pgdata:/var/lib/postgresql
@@ -13,19 +13,19 @@ services:
       timeout: 5s
       retries: 5
   api:
-    build: .
+    container_name: settlr-backend-staging
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgres://settlr:local-dev-password@postgres:5432/settlr?sslmode=disable}
-      JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret-0123456789abcdef-change-me-32chars}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-local-dev-refresh-secret-0123456789abcdef-change-me-32chars}
+      DATABASE_URL: ${DATABASE_URL:-postgres://settlr:staging-password-change-me@postgres:5432/settlr?sslmode=disable}
+      JWT_SECRET: ${JWT_SECRET:-staging-jwt-secret-change-me-32chars-minimum-012345}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-staging-refresh-secret-change-me-32chars-min-012345}
       PORT: 8080
-      APP_ENV: ${APP_ENV:-staging}
-      APP_URL: ${APP_URL:-https://settlr.theswissknife.com}
-      API_URL: ${API_URL:-https://settlrapi.theswissknife.com}
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://settlr.theswissknife.com,https://arch.tailbd5522.ts.net}
+      APP_ENV: staging
+      APP_URL: https://settlr-staging.vercel.app
+      API_URL: https://settlrapi.theswissknife.com
+      CORS_ORIGINS: https://settlr-staging.vercel.app,https://settlr.theswissknife.com,https://arch.tailbd5522.ts.net
       MAIL_PROVIDER: ${MAIL_PROVIDER:-}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
       SMTP_HOST: ${SMTP_HOST:-}

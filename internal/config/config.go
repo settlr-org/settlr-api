@@ -46,15 +46,16 @@ func Load() (Config, error) {
 			AppURL:      env("APP_URL", "http://localhost:8081"),
 		},
 	}
-	if strings.EqualFold(cfg.Env, "production") {
+	isStrict := strings.EqualFold(cfg.Env, "production") || strings.EqualFold(cfg.Env, "staging")
+	if isStrict {
 		if strings.Contains(cfg.JWTSecret, "dev-jwt-secret") || len(cfg.JWTSecret) < 32 {
-			return Config{}, fmt.Errorf("JWT_SECRET must be set to a random value of at least 32 characters in production")
+			return Config{}, fmt.Errorf("JWT_SECRET must be set to a random value of at least 32 characters in %s", cfg.Env)
 		}
 		if strings.Contains(cfg.JWTRefreshSecret, "dev-refresh-secret") || len(cfg.JWTRefreshSecret) < 32 {
-			return Config{}, fmt.Errorf("JWT_REFRESH_SECRET must be set to a random value of at least 32 characters in production")
+			return Config{}, fmt.Errorf("JWT_REFRESH_SECRET must be set to a random value of at least 32 characters in %s", cfg.Env)
 		}
 		if cfg.CORSOrigins == "*" || strings.TrimSpace(cfg.CORSOrigins) == "" {
-			return Config{}, fmt.Errorf("CORS_ORIGINS must explicitly list allowed origins in production")
+			return Config{}, fmt.Errorf("CORS_ORIGINS must explicitly list allowed origins in %s", cfg.Env)
 		}
 	}
 	return cfg, nil
