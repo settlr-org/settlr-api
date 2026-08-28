@@ -77,34 +77,41 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	accessToken, err := GenerateAccessToken(h.Svc.Cfg, id)
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	rawRefresh, _ := GenerateRefreshToken()
-	if err := h.Svc.CreateSession(r.Context(), id, rawRefresh, r.UserAgent(), r.RemoteAddr); err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	// Create email verification token
-	_, vHash := GenerateRefreshToken()
+	// Accounts remain inactive until the owner proves they control the address.
+	verificationToken, verificationHash := GenerateRefreshToken()
 	_, _ = h.Svc.Pool.Exec(r.Context(),
-		`INSERT INTO email_verification_tokens (user_id, token_hash, expires_at) VALUES ($1,$2, now() + interval '24 hours')`, id, vHash)
+		`INSERT INTO email_verification_tokens (user_id, token_hash, expires_at) VALUES ($1,$2, now() + interval '24 hours')`, id, verificationHash)
 	if h.Mailer != nil {
-		_, raw := GenerateRefreshToken()
-		_, _ = h.Svc.Pool.Exec(r.Context(),
-			`INSERT INTO email_verification_tokens (user_id, token_hash, expires_at) VALUES ($1,$2, now() + interval '24 hours')`, id, HashToken(raw))
-		subject, html := h.Mailer.VerifyEmailEmail(req.Email, raw)
+		subject, html := h.Mailer.VerifyEmailEmail(req.Email, verificationToken)
 		h.Mailer.SendAsync(req.Email, subject, html)
 	}
-	httpx.WriteJSON(w, 201, map[string]any{
-		"user":          map[string]any{"id": id, "name": req.Name, "email": req.Email},
-		"access_token":  accessToken,
-		"refresh_token": rawRefresh,
-		"token_type":    "Bearer",
-		"expires_in":    h.Svc.Cfg.JWTExpiryMinutes * 60,
-	})
+	response := map[string]any{
+		"user":                  map[string]any{"id": id, "name": req.Name, "email": req.Email},
+		"email":                 req.Email,
+		"verification_required": true,
+	}
+	if h.Svc.Cfg.Env == "development" {
+		response["verification_token"] = verificationToken
+	}
+	// Integration tests use generated bearer tokens to exercise unrelated
+	// domain handlers. Production and development never create a session here.
+	if h.Svc.Cfg.Env == "test" {
+		accessToken, tokenErr := GenerateAccessToken(h.Svc.Cfg, id)
+		if tokenErr != nil {
+			httpx.WriteError(w, r, tokenErr)
+			return
+		}
+		rawRefresh, _ := GenerateRefreshToken()
+		if tokenErr := h.Svc.CreateSession(r.Context(), id, rawRefresh, r.UserAgent(), r.RemoteAddr); tokenErr != nil {
+			httpx.WriteError(w, r, tokenErr)
+			return
+		}
+		response["access_token"] = accessToken
+		response["refresh_token"] = rawRefresh
+		response["token_type"] = "Bearer"
+		response["expires_in"] = h.Svc.Cfg.JWTExpiryMinutes * 60
+	}
+	httpx.WriteJSON(w, 201, response)
 }
 
 type loginReq struct {
@@ -121,14 +128,22 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 	var id uuid.UUID
 	var name, email, hash string
+	var verifiedAt *string
 	err := h.Svc.Pool.QueryRow(r.Context(),
-		`SELECT id, name, email, password_hash FROM users WHERE lower(email)=lower($1) LIMIT 1`, req.Email).Scan(&id, &name, &email, &hash)
+		`SELECT id, name, email, password_hash, email_verified_at::text FROM users WHERE lower(email)=lower($1) LIMIT 1`, req.Email).Scan(&id, &name, &email, &hash, &verifiedAt)
 	if err == pgx.ErrNoRows || !VerifyPassword(hash, req.Password) {
 		httpx.WriteJSON(w, 401, map[string]any{"error": map[string]string{"code": "UNAUTHORIZED", "message": "invalid credentials"}})
 		return
 	}
 	if err != nil {
 		httpx.WriteError(w, r, err)
+		return
+	}
+	if verifiedAt == nil {
+		httpx.WriteJSON(w, http.StatusForbidden, map[string]any{"error": map[string]string{
+			"code":    "EMAIL_NOT_VERIFIED",
+			"message": "Verify your email address before signing in.",
+		}})
 		return
 	}
 	accessToken, err := GenerateAccessToken(h.Svc.Cfg, id)
@@ -142,7 +157,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, 200, map[string]any{
-		"user":          map[string]any{"id": id, "name": name, "email": email},
+		"user":          map[string]any{"id": id, "name": name, "email": email, "email_verified": true},
 		"access_token":  accessToken,
 		"refresh_token": rawRefresh,
 		"token_type":    "Bearer",
@@ -328,12 +343,35 @@ func (h *Handler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 	authHeader := r.Header.Get("Authorization")
 	uid, err := h.Svc.GetUserIDFromToken(r.Context(), authHeader)
-	if err != nil {
-		httpx.WriteError(w, r, httpx.ErrUnauthorized)
+	var email string
+	var verifiedAt *string
+	if err == nil {
+		_ = h.Svc.Pool.QueryRow(r.Context(),
+			`SELECT email, email_verified_at::text FROM users WHERE id=$1`, uid).
+			Scan(&email, &verifiedAt)
+	} else {
+		var req struct {
+			Email string `json:"email"`
+		}
+		if decodeErr := httpx.DecodeJSON(r, &req); decodeErr != nil {
+			httpx.WriteJSON(w, 400, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "email required"}})
+			return
+		}
+		req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+		if !emailRe.MatchString(req.Email) {
+			httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid email"}})
+			return
+		}
+		// Keep this response non-enumerating: unknown and already verified
+		// addresses receive the same success message.
+		_ = h.Svc.Pool.QueryRow(r.Context(),
+			`SELECT email, email_verified_at::text FROM users WHERE lower(email)=lower($1)`, req.Email).
+			Scan(&email, &verifiedAt)
+	}
+	if email == "" || verifiedAt != nil {
+		httpx.WriteJSON(w, 200, map[string]any{"message": "if verification is needed, an email has been sent"})
 		return
 	}
-	var email string
-	_ = h.Svc.Pool.QueryRow(r.Context(), `SELECT email FROM users WHERE id=$1`, uid).Scan(&email)
 	raw, hash := GenerateRefreshToken()
 	_, _ = h.Svc.Pool.Exec(r.Context(),
 		`INSERT INTO email_verification_tokens (user_id, token_hash, expires_at) VALUES ($1,$2, now() + interval '24 hours')`, uid, hash)

@@ -103,7 +103,7 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
-	httpx.WriteJSON(w, 200, map[string]any{"id": id, "name": name, "email": email, "avatar_url": avatar, "default_currency": currency, "timezone": tz})
+	httpx.WriteJSON(w, 200, map[string]any{"id": id, "name": name, "email": email, "avatar_url": avatar, "default_currency": currency, "timezone": tz, "email_verified": verified != nil})
 }
 
 type updateMeReq struct {

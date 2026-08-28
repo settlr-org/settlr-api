@@ -43,8 +43,8 @@
       "post": {
         "summary": "register",
         "responses": {
-          "200": {
-            "description": "OK"
+          "201": {
+            "description": "Account created; email verification required before sign-in"
           }
         }
       }
@@ -55,6 +55,9 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "403": {
+            "description": "Email verification required"
           }
         }
       }
@@ -111,7 +114,7 @@
     },
     "/api/v1/auth/resend-verification": {
       "post": {
-        "summary": "resend-verification",
+        "summary": "Resend verification for the authenticated user or supplied email",
         "responses": {
           "200": {
             "description": "OK"
