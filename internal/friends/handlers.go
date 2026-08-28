@@ -24,6 +24,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) h
 	mux.Handle("GET /api/v1/friends", authMw(http.HandlerFunc(h.ListFriends)))
 	mux.Handle("POST /api/v1/friends/invite", authMw(http.HandlerFunc(h.InviteByEmail)))
 	mux.Handle("POST /api/v1/friend-invites/{token}/accept", authMw(http.HandlerFunc(h.AcceptEmailInvite)))
+	mux.Handle("GET /api/v1/friends/{id}/balance", authMw(http.HandlerFunc(h.GetBalance)))
 	mux.Handle("POST /api/v1/friends/{id}/request", authMw(http.HandlerFunc(h.SendRequest)))
 	mux.Handle("POST /api/v1/friends/{id}/accept", authMw(http.HandlerFunc(h.Accept)))
 	mux.Handle("POST /api/v1/friends/{id}/reject", authMw(http.HandlerFunc(h.Reject)))
@@ -31,6 +32,39 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) h
 	mux.Handle("POST /api/v1/friends/{id}/block", authMw(http.HandlerFunc(h.Block)))
 	mux.Handle("GET /api/v1/friends/requests", authMw(http.HandlerFunc(h.ListRequests)))
 	mux.Handle("GET /api/v1/friends/{id}/ledger", authMw(http.HandlerFunc(h.GetLedger)))
+}
+
+func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
+	uid := currentUserID(r)
+	otherID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid user id"}})
+		return
+	}
+	a, b := orderedPair(uid, otherID)
+	var status string
+	if err := h.Pool.QueryRow(r.Context(), `SELECT status FROM friendships WHERE user_id=$1 AND friend_id=$2`, a, b).Scan(&status); err != nil || status != "ACCEPTED" {
+		httpx.WriteJSON(w, 403, map[string]any{"error": map[string]string{"code": "FORBIDDEN", "message": "friendship not active"}})
+		return
+	}
+	gid, err := ensureDirectGroup(r.Context(), h.Pool, a, b)
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	var amount int64
+	var currency string
+	err = h.Pool.QueryRow(r.Context(), `
+		SELECT COALESCE((SELECT SUM(ROUND(amount * COALESCE(exchange_rate, 1))::bigint) FROM expenses WHERE group_id=$1 AND paid_by=$2 AND deleted_at IS NULL),0)
+		 - COALESCE((SELECT SUM(ROUND(s.amount * COALESCE(e.exchange_rate, 1))::bigint) FROM expense_splits s JOIN expenses e ON e.id=s.expense_id WHERE e.group_id=$1 AND s.user_id=$2 AND e.deleted_at IS NULL),0)
+		 + COALESCE((SELECT SUM(amount) FROM settlements WHERE group_id=$1 AND from_user=$2 AND deleted_at IS NULL),0)
+		 - COALESCE((SELECT SUM(amount) FROM settlements WHERE group_id=$1 AND to_user=$2 AND deleted_at IS NULL),0),
+		 (SELECT currency FROM groups WHERE id=$1)`, gid, uid).Scan(&amount, &currency)
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, 200, map[string]any{"amount": amount, "currency": currency})
 }
 
 func (h *Handler) InviteByEmail(w http.ResponseWriter, r *http.Request) {
