@@ -14,7 +14,7 @@ import (
 	"github.com/nabinkhanal00/settlr-api/internal/testutil"
 )
 
-func ensureFriends(t *testing.T, pool *pgxpool.Pool, a, b string) {
+func ensureFriendsConc(t *testing.T, pool *pgxpool.Pool, a, b string) {
 	t.Helper()
 	// ordered pair
 	if a > b {
@@ -33,7 +33,7 @@ func TestIntegration_ConcurrentExpenses(t *testing.T) {
 
 	aliceID := registerUserViaAPI(t, srv, "AliceConc", "alice-conc@test.local", "password123")
 	bobID := registerUserViaAPI(t, srv, "BobConc", "bob-conc@test.local", "password123")
-	ensureFriends(t, pool, aliceID.String(), bobID.String())
+	ensureFriendsConc(t, pool, aliceID.String(), bobID.String())
 	aliceTok := tokenFor(aliceID)
 
 	body, _ := json.Marshal(map[string]string{"name": "Conc Group"})
