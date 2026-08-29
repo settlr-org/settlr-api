@@ -22,11 +22,10 @@ import (
 
 func ensureFriends(t *testing.T, pool *pgxpool.Pool, a, b uuid.UUID) {
 	t.Helper()
+	ctx := context.Background()
 	aa, bb := a.String(), b.String()
-	if aa > bb {
-		aa, bb = bb, aa
-	}
-	if _, err := pool.Exec(context.Background(), `INSERT INTO friendships (id, user_id, friend_id, status, action_by) VALUES (gen_random_uuid(), $1::uuid, $2::uuid, 'ACCEPTED', $1::uuid) ON CONFLICT (user_id, friend_id) DO UPDATE SET status='ACCEPTED'`, aa, bb); err != nil {
+	_, _ = pool.Exec(ctx, `DELETE FROM friendships WHERE (user_id=$1::uuid AND friend_id=$2::uuid) OR (user_id=$2::uuid AND friend_id=$1::uuid)`, aa, bb)
+	if _, err := pool.Exec(ctx, `INSERT INTO friendships (id, user_id, friend_id, status, action_by) VALUES (gen_random_uuid(), LEAST($1::uuid,$2::uuid), GREATEST($1::uuid,$2::uuid), 'ACCEPTED', $1::uuid)`, aa, bb); err != nil {
 		t.Fatalf("make friends: %v", err)
 	}
 }

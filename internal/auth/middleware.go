@@ -19,5 +19,3 @@ func Middleware(svc *Service) func(http.Handler) http.Handler {
 		})
 	}
 }
-
-

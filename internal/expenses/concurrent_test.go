@@ -16,12 +16,9 @@ import (
 
 func ensureFriendsConc(t *testing.T, pool *pgxpool.Pool, a, b string) {
 	t.Helper()
-	// ordered pair
-	if a > b {
-		a, b = b, a
-	}
-	_, err := pool.Exec(context.Background(), `INSERT INTO friendships (id, user_id, friend_id, status, action_by) VALUES (gen_random_uuid(), $1::uuid, $2::uuid, 'ACCEPTED', $1::uuid) ON CONFLICT (user_id, friend_id) DO UPDATE SET status='ACCEPTED'`, a, b)
-	if err != nil {
+	ctx := context.Background()
+	_, _ = pool.Exec(ctx, `DELETE FROM friendships WHERE (user_id=$1::uuid AND friend_id=$2::uuid) OR (user_id=$2::uuid AND friend_id=$1::uuid)`, a, b)
+	if _, err := pool.Exec(ctx, `INSERT INTO friendships (id, user_id, friend_id, status, action_by) VALUES (gen_random_uuid(), LEAST($1::uuid,$2::uuid), GREATEST($1::uuid,$2::uuid), 'ACCEPTED', $1::uuid)`, a, b); err != nil {
 		t.Fatalf("make friends %s %s: %v", a, b, err)
 	}
 }
