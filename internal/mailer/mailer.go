@@ -49,8 +49,6 @@ func FromConfig(cfg Config) *Mailer {
 	return &Mailer{cfg: cfg, client: &http.Client{Timeout: 10 * time.Second}}
 }
 
-func (m *Mailer) Provider() string { return m.cfg.Provider }
-
 // Send delivers an email. It never panics and returns an error for callers
 // that care; request paths should call it in a goroutine.
 func (m *Mailer) Send(to, subject, html string) error {

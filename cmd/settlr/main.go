@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/nabinkhanal00/settlr-api/internal/database"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/nabinkhanal00/settlr-api/internal/activity"
@@ -47,7 +48,7 @@ func main() {
 	setupLogger(cfg.Env)
 
 	ctx := context.Background()
-	pool, err := newPool(ctx, cfg.DatabaseURL)
+	pool, err := database.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {
 		slog.Error("database connection failed", "error", err)
 		os.Exit(1)
@@ -199,21 +200,6 @@ func main() {
 		slog.Error("server error", "error", err)
 		os.Exit(1)
 	}
-}
-
-func newPool(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
-	cfg, err := pgxpool.ParseConfig(databaseURL)
-	if err != nil {
-		return nil, err
-	}
-	pool, err := pgxpool.NewWithConfig(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-	if err := pool.Ping(ctx); err != nil {
-		return nil, err
-	}
-	return pool, nil
 }
 
 func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {

@@ -26,20 +26,6 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) h
 	mux.Handle("DELETE /api/v1/recurring/{id}", authMw(http.HandlerFunc(h.Delete)))
 }
 
-func nextRun(from time.Time, frequency string) time.Time {
-	switch frequency {
-	case "DAILY":
-		return from.AddDate(0, 0, 1)
-	case "WEEKLY":
-		return from.AddDate(0, 0, 7)
-	case "MONTHLY":
-		return from.AddDate(0, 1, 0)
-	case "YEARLY":
-		return from.AddDate(1, 0, 0)
-	}
-	return from.AddDate(0, 1, 0)
-}
-
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	groupID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {

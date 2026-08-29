@@ -168,7 +168,6 @@ func (h *Handler) MarkRead(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	_ = pgx.ErrNoRows // keep import
 	httpx.WriteJSON(w, 200, map[string]any{"message": "marked as read"})
 }
 

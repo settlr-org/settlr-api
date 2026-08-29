@@ -307,7 +307,6 @@ func (h *Handler) Reject(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 404, map[string]any{"error": map[string]string{"code": "NOT_FOUND", "message": "no pending request"}})
 		return
 	}
-	_ = strings.Contains("", "") // keep import
 	httpx.WriteJSON(w, 200, map[string]any{"message": "request rejected"})
 }
 

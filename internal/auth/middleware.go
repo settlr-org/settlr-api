@@ -20,16 +20,4 @@ func Middleware(svc *Service) func(http.Handler) http.Handler {
 	}
 }
 
-// OptionalAuth does not require auth but populates user_id if token present.
-func OptionalAuth(svc *Service) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if hdr := r.Header.Get("Authorization"); hdr != "" {
-				if id, err := svc.GetUserIDFromToken(r.Context(), hdr); err == nil {
-					r = r.WithContext(httpx.SetUserID(r.Context(), id.String()))
-				}
-			}
-			next.ServeHTTP(w, r)
-		})
-	}
-}
+

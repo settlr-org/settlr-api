@@ -153,20 +153,6 @@ func (rl *RateLimiter) Allow(key string) bool {
 	return true
 }
 
-func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := r.RemoteAddr
-		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-			ip = strings.Split(fwd, ",")[0]
-		}
-		if !rl.Allow(ip + ":" + r.URL.Path) {
-			WriteJSON(w, http.StatusTooManyRequests, map[string]any{"error": map[string]string{"code": "RATE_LIMITED", "message": "too many requests, please try again later"}})
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 // GetUserID returns authenticated user ID from context, if present.
 func GetUserID(ctx context.Context) (string, bool) {
 	v, ok := ctx.Value(ctxKeyUserID).(string)
