@@ -2,6 +2,7 @@ package comments
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,16 @@ import (
 	"github.com/nabinkhanal00/settlr-api/internal/groups"
 	"github.com/nabinkhanal00/settlr-api/internal/testutil"
 )
+
+func ensureFriendsComments(t *testing.T, pool *pgxpool.Pool, a, b uuid.UUID) {
+	t.Helper()
+	ctx := context.Background()
+	aa, bb := a.String(), b.String()
+	_, _ = pool.Exec(ctx, `DELETE FROM friendships WHERE (user_id=$1::uuid AND friend_id=$2::uuid) OR (user_id=$2::uuid AND friend_id=$1::uuid)`, aa, bb)
+	if _, err := pool.Exec(ctx, `INSERT INTO friendships (id, user_id, friend_id, status, action_by) VALUES (gen_random_uuid(), LEAST($1::uuid,$2::uuid), GREATEST($1::uuid,$2::uuid), 'ACCEPTED', $1::uuid)`, aa, bb); err != nil {
+		t.Fatalf("make friends: %v", err)
+	}
+}
 
 func newCommentsTestServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, func(uuid.UUID) string) {
 	t.Helper()
@@ -67,6 +78,7 @@ func TestIntegration_CommentsFlow(t *testing.T) {
 
 	aliceID, _ := registerCommentsHelper(t, srv, "AliceC", "alice-comments@test.local")
 	bobID, _ := registerCommentsHelper(t, srv, "BobC", "bob-comments@test.local")
+	ensureFriendsComments(t, pool, aliceID, bobID)
 	aliceTok := tokenFor(aliceID)
 	bobTok := tokenFor(bobID)
 
