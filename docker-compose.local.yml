@@ -1,5 +1,9 @@
+name: settlr-local
+
+# Local dependencies only. Run the API on the host with `make dev` for Air reloads.
 services:
   postgres:
+    image: postgres:18-alpine
     container_name: settlr-postgres-local
     environment:
       POSTGRES_USER: settlr
@@ -8,9 +12,9 @@ services:
     volumes:
       - pgdata-local:/var/lib/postgresql
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -19,38 +23,9 @@ services:
     image: axllent/mailpit
     container_name: settlr-mailpit-local
     ports:
-      - "127.0.0.1:1025:1025"
-      - "127.0.0.1:8025:8025"
-    restart: unless-stopped
-
-  api:
-    container_name: settlr-api-local
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgres://settlr:local-dev-password@postgres:5432/settlr_local?sslmode=disable
-      JWT_SECRET: local-dev-jwt-secret-0123456789abcdef-change-me-32chars
-      JWT_REFRESH_SECRET: local-dev-refresh-secret-0123456789abcdef-change-me-32chars
-      PORT: 8080
-      APP_ENV: development
-      APP_URL: http://localhost:3000
-      API_URL: http://localhost:18080
-      CORS_ORIGINS: http://localhost:3000,http://localhost:3001,http://localhost:19006,http://127.0.0.1:3000,http://127.0.0.1:19006
-      MAIL_PROVIDER: smtp
-      SMTP_HOST: mailpit
-      SMTP_PORT: 1025
-      SMTP_USER: ""
-      SMTP_PASS: ""
-      BREVO_API_KEY: ""
-      MAIL_FROM_EMAIL: noreply@localhost
-      MAIL_FROM_NAME: Settlr
-    ports:
-      - "127.0.0.1:18080:8080"
-    volumes:
-      - uploads-local:/app/uploads
+      - "127.0.0.1:1026:1025"
+      - "127.0.0.1:8026:8025"
     restart: unless-stopped
 
 volumes:
   pgdata-local:
-  uploads-local:

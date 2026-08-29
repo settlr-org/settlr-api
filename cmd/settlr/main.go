@@ -75,12 +75,21 @@ func main() {
 	authSvc := &auth.Service{Pool: pool, Cfg: cfg}
 	mailSender := mailer.FromConfig(cfg.Mail)
 	authHandler := &auth.Handler{Svc: authSvc, Mailer: mailSender}
-	rateLimiter := httpx.NewRateLimiter(20, 60*1_000_000_000)
+	rateLimiter := httpx.NewRateLimiter(20, time.Minute)
 
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 200, map[string]any{"status": "ok"})
+	})
+	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if err := pool.Ping(ctx); err != nil {
+			httpx.WriteJSON(w, http.StatusServiceUnavailable, map[string]any{"status": "unavailable"})
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"status": "ready"})
 	})
 	// Docs are not public — require auth (future: admin-only). Only authenticated users can view.
 	mux.Handle("GET /openapi.json", auth.Middleware(authSvc)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -171,7 +180,7 @@ func main() {
 			path = strings.TrimPrefix(r.URL.Path, "/settlr")
 		}
 		if strings.HasPrefix(path, "/api/v1/auth/") {
-			if !rateLimiter.Allow(r.RemoteAddr + ":" + path) {
+			if !rateLimiter.Allow(httpx.ClientIP(r, cfg.TrustProxyHeaders) + ":" + path) {
 				httpx.WriteJSON(w, 429, map[string]any{"error": map[string]string{"code": "RATE_LIMITED", "message": "too many requests"}})
 				return
 			}

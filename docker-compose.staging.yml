@@ -2,8 +2,8 @@ services:
   postgres:
     container_name: settlr-postgres-staging
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-settlr}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-staging-password-change-me}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-settlr}
     volumes:
       - pgdata:/var/lib/postgresql
@@ -18,14 +18,15 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://settlr:staging-password-change-me@postgres:5432/settlr?sslmode=disable
-      JWT_SECRET: 6bd3d8a9918d1a2bfff5591b7c221bb1f327a9727fc8f781721976d3ac9422e4
-      JWT_REFRESH_SECRET: 763275638a34088088b5e15388d3634548377b2101dd65d60ebf64c57a2dd2d1
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET}
       PORT: 8080
       APP_ENV: staging
       APP_URL: https://settlr-staging.vercel.app
-      API_URL: https://settlrapi.theswissknife.com
-      CORS_ORIGINS: https://settlr-staging.vercel.app,https://settlr.theswissknife.com,https://arch.tailbd5522.ts.net
+      API_URL: https://settlrstagingapi.theswissknife.com
+      CORS_ORIGINS: ${CORS_ORIGINS:?set CORS_ORIGINS}
+      TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}
       MAIL_PROVIDER: ${MAIL_PROVIDER:-}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
       SMTP_HOST: ${SMTP_HOST:-}
@@ -38,6 +39,11 @@ services:
       - "127.0.0.1:18080:8080"
     volumes:
       - uploads:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/readyz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     restart: unless-stopped
 volumes:
   pgdata:

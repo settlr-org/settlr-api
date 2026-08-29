@@ -18,6 +18,7 @@ type Config struct {
 	AppURL            string
 	Env               string
 	CORSOrigins       string
+	TrustProxyHeaders bool
 	Mail              mailer.Config
 }
 
@@ -32,6 +33,7 @@ func Load() (Config, error) {
 		AppURL:            env("APP_URL", "http://localhost:8081"),
 		Env:               env("APP_ENV", "development"),
 		CORSOrigins:       env("CORS_ORIGINS", "*"),
+		TrustProxyHeaders: env("TRUST_PROXY_HEADERS", "false") == "true",
 		Mail: mailer.Config{
 			Provider:    env("MAIL_PROVIDER", ""),
 			BrevoAPIKey: env("BREVO_API_KEY", ""),
