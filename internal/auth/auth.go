@@ -135,17 +135,6 @@ func (s *Service) CreateSession(ctx context.Context, userID uuid.UUID, rawToken,
 	return err
 }
 
-func (s *Service) FindSessionByToken(ctx context.Context, rawToken string) (sessionID uuid.UUID, userID uuid.UUID, err error) {
-	hash := HashToken(rawToken)
-	err = s.Pool.QueryRow(ctx,
-		`SELECT id, user_id FROM sessions WHERE refresh_token_hash=$1 AND revoked_at IS NULL AND expires_at > now()`,
-		hash).Scan(&sessionID, &userID)
-	if err == pgx.ErrNoRows {
-		return uuid.Nil, uuid.Nil, httpx.ErrUnauthorized
-	}
-	return sessionID, userID, err
-}
-
 func (s *Service) RotateSession(ctx context.Context, oldRaw, newRaw string) (uuid.UUID, error) {
 	oldHash := HashToken(oldRaw)
 	newHash := HashToken(newRaw)

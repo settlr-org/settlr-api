@@ -18,9 +18,9 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgres://settlr:staging-password-change-me@postgres:5432/settlr?sslmode=disable}
-      JWT_SECRET: ${JWT_SECRET:-staging-jwt-secret-change-me-32chars-minimum-012345}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-staging-refresh-secret-change-me-32chars-min-012345}
+      DATABASE_URL: postgres://settlr:staging-password-change-me@postgres:5432/settlr?sslmode=disable
+      JWT_SECRET: 6bd3d8a9918d1a2bfff5591b7c221bb1f327a9727fc8f781721976d3ac9422e4
+      JWT_REFRESH_SECRET: 763275638a34088088b5e15388d3634548377b2101dd65d60ebf64c57a2dd2d1
       PORT: 8080
       APP_ENV: staging
       APP_URL: https://settlr-staging.vercel.app

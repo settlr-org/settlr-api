@@ -16,7 +16,6 @@ type Config struct {
 	JWTExpiryMinutes  int
 	RefreshExpiryDays int
 	AppURL            string
-	APIURL            string
 	Env               string
 	CORSOrigins       string
 	Mail              mailer.Config
@@ -31,7 +30,6 @@ func Load() (Config, error) {
 		JWTExpiryMinutes:  15,
 		RefreshExpiryDays: 30,
 		AppURL:            env("APP_URL", "http://localhost:8081"),
-		APIURL:            env("API_URL", "http://localhost:8080"),
 		Env:               env("APP_ENV", "development"),
 		CORSOrigins:       env("CORS_ORIGINS", "*"),
 		Mail: mailer.Config{

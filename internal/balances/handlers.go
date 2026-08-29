@@ -163,10 +163,6 @@ func (h *Handler) computeBalances(r *http.Request, groupID uuid.UUID) (map[uuid.
 		m[uid] = 0
 	}
 	// Aggregate expenses: paid and splits
-	type agg struct {
-		uid uuid.UUID
-		sum int64
-	}
 	// Paid
 	paidRows, _ := h.Pool.Query(r.Context(),
 		`SELECT paid_by, SUM(ROUND(amount * COALESCE(exchange_rate, 1))::bigint) FROM expenses WHERE group_id=$1 AND deleted_at IS NULL GROUP BY paid_by`, groupID)

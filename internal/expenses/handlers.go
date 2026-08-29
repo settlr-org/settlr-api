@@ -38,11 +38,6 @@ func mustBeMember(pool *pgxpool.Pool, r *http.Request, groupID uuid.UUID) bool {
 	return exists
 }
 
-func isMemberByID(pool *pgxpool.Pool, ctx interface{ Done() <-chan struct{} }, groupID, userID uuid.UUID) bool {
-	// helper for validation; use context from *http.Request is fine but keep generic
-	return false
-}
-
 type splitInput struct {
 	UserID     string   `json:"user_id"`
 	Amount     *int64   `json:"amount"`
@@ -61,8 +56,6 @@ type createExpenseReq struct {
 	SplitMode    string       `json:"split_mode"`
 	Splits       []splitInput `json:"splits"`
 	ExchangeRate *float64     `json:"exchange_rate"`
-	BaseCurrency *string      `json:"base_currency"`
-	BaseAmount   *int64       `json:"base_amount"`
 }
 
 func validateGroupMembers(pool *pgxpool.Pool, r *http.Request, groupID uuid.UUID, userIDs []uuid.UUID) bool {

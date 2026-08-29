@@ -85,8 +85,7 @@ func expect(name string, got int, want ...int) bool {
 
 func main() {
 	flag.Parse()
-	rand.Seed(1)
-	sfx := fmt.Sprintf("%06d", rand.Intn(900000)+100000)
+	sfx := fmt.Sprintf("%06d", rand.New(rand.NewSource(1)).Intn(900000)+100000)
 
 	// ===== health =====
 	c := &client{}
@@ -424,11 +423,6 @@ func httpReq(method, path, token string) (int, string) {
 	defer resp.Body.Close()
 	b, _ := io.ReadAll(resp.Body)
 	return resp.StatusCode, string(b)
-}
-
-func readBody(method, path, token string) string {
-	_, b := httpReq(method, path, token)
-	return b
 }
 
 func uploadAttachment(c client, expenseID string) int {
