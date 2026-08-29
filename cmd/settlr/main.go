@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/nabinkhanal00/settlr-api/internal/database"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/nabinkhanal00/settlr-api/internal/database"
 
 	"github.com/nabinkhanal00/settlr-api/internal/activity"
 	"github.com/nabinkhanal00/settlr-api/internal/attachments"
