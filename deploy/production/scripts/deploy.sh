@@ -16,5 +16,14 @@ if [[ "${SETTLR_SKIP_IMAGE_PULL:-false}" != true ]]; then
   docker compose --project-directory "$root_dir" --env-file "$env_file" -f "$root_dir/docker-compose.production.yml" pull api
 fi
 docker compose --project-directory "$root_dir" --env-file "$env_file" -f "$root_dir/docker-compose.production.yml" up -d --remove-orphans
-curl --fail --silent --show-error http://127.0.0.1:18080/readyz >/dev/null
+for attempt in $(seq 1 30); do
+  if curl --fail --silent --show-error http://127.0.0.1:18080/readyz >/dev/null; then
+    break
+  fi
+  if [[ "$attempt" == 30 ]]; then
+    echo 'API did not become ready within 60 seconds' >&2
+    exit 1
+  fi
+  sleep 2
+done
 docker compose --project-directory "$root_dir" --env-file "$env_file" -f "$root_dir/docker-compose.production.yml" ps
