@@ -51,7 +51,7 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     outputs:
-      dockerhub_image: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/settlr-api@${{ steps.build.outputs.digest }}
+      image_digest: ${{ steps.build.outputs.digest }}
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
@@ -102,7 +102,7 @@ jobs:
         env:
           HETZNER_HOST: ${{ secrets.HETZNER_HOST }}
           HETZNER_USER: ${{ secrets.HETZNER_USER }}
-          IMAGE: ${{ needs.publish-container.outputs.dockerhub_image }}
+          IMAGE: docker.io/nabinkhanal688/settlr-api@${{ needs.publish-container.outputs.image_digest }}
         run: |
           ssh -4 -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new \
             "$HETZNER_USER@$HETZNER_HOST" "sudo -n /usr/local/sbin/settlr-deploy-image '$IMAGE'"
