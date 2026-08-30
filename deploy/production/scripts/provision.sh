@@ -35,9 +35,10 @@ find "$root_dir/deploy/production/scripts" -type f -name '*.sh' -exec chmod 0700
 if [[ ! -f /etc/settlr/production.env ]]; then
   install -m 0600 -o root -g root "$root_dir/deploy/production/production.env.example" /etc/settlr/production.env
 fi
-if [[ ! -f /etc/settlr/ghcr-read-token ]]; then
-  install -m 0600 -o root -g root /dev/null /etc/settlr/ghcr-read-token
+if [[ ! -f /etc/settlr/dockerhub-read-token ]]; then
+  install -m 0600 -o root -g root /dev/null /etc/settlr/dockerhub-read-token
 fi
+install -m 0700 -o root -g root "$root_dir/deploy/production/scripts/deploy-image.sh" /usr/local/sbin/settlr-deploy-image
 
 # Bootstrap only HTTP so that the ACME HTTP-01 request can succeed. The full
 # TLS configuration is installed by issue-certificate.sh after DNS cutover.
@@ -63,8 +64,8 @@ systemctl enable --now settlr-backup.timer
 cat <<'EOF'
 Provisioning complete. Before deployment:
   1. Fill /etc/settlr/production.env with NEW production-only values and chmod 0600 it.
-  2. Put a fine-grained GitHub package-read token in /etc/settlr/ghcr-read-token (root:root 0600).
+  2. Put a Docker Hub read token in /etc/settlr/dockerhub-read-token (root:root 0600).
   3. Point the DNS A/AAAA record for settlrapi.theswissknife.com at this VPS, then run
      /opt/settlr/deploy/production/scripts/issue-certificate.sh.
-  4. Set GHCR_USERNAME and run deploy/production/scripts/deploy.sh.
+  4. Set DOCKERHUB_USERNAME and run deploy/production/scripts/deploy.sh.
 EOF
