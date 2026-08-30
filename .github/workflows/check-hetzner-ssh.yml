@@ -23,4 +23,4 @@ jobs:
           HETZNER_USER: ${{ secrets.HETZNER_USER }}
         run: |
           ssh -6 -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new \
-            "$HETZNER_USER@[$HETZNER_HOST]" 'hostname; id -un'
+            "$HETZNER_USER@$HETZNER_HOST" 'hostname; id -un'
