@@ -15,7 +15,7 @@ services:
       retries: 5
   api:
     container_name: settlr-backend-production
-    build: .
+    image: ${API_IMAGE:?set API_IMAGE to an immutable GHCR image digest}
     depends_on:
       postgres:
         condition: service_healthy
@@ -26,8 +26,9 @@ services:
       PORT: 8080
       APP_ENV: production
       APP_URL: ${APP_URL:-https://settlr.theswissknife.com}
-      API_URL: ${API_URL:-https://api.settlr.theswissknife.com}
+      API_URL: ${API_URL:-https://settlrapi.theswissknife.com}
       CORS_ORIGINS: ${CORS_ORIGINS:-https://settlr.theswissknife.com}
+      TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}
       MAIL_PROVIDER: ${MAIL_PROVIDER:-}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
       SMTP_HOST: ${SMTP_HOST:-}
@@ -40,6 +41,11 @@ services:
       - "127.0.0.1:18080:8080"
     volumes:
       - uploads:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/readyz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     restart: unless-stopped
 volumes:
   pgdata:

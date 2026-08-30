@@ -2,8 +2,7 @@ name: API CI and container release
 on:
   pull_request:
   push:
-    branches: [main]
-    tags: ['v*']
+    branches: [staging]
   workflow_dispatch:
 permissions:
   contents: read
@@ -48,7 +47,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
   publish-container:
-    if: github.event_name == 'push'
+    # A successful staging build produces the immutable candidate consumed by
+    # the separately approved production deployment process.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
     needs: verify
     runs-on: ubuntu-latest
     steps:

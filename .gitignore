@@ -4,6 +4,7 @@
 !.env.staging.example
 !.env.production.example
 uploads/
+tmp/
 certbot_certs/
 certbot_www/
 *.log

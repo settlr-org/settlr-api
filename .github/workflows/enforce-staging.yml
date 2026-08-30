@@ -1,0 +1,52 @@
+name: Enforce staging → main
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check-source:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Only staging may PR to main
+        run: |
+          HEAD="${{ github.head_ref }}"
+          echo "PR head: $HEAD → base: ${{ github.base_ref }}"
+          if [[ "$HEAD" != "staging" ]]; then
+            echo "::error::Only PRs from 'staging' can be merged to 'main'. Got: '$HEAD'"
+            echo "::error::Create your PR as: staging → main (not $HEAD → main)"
+            exit 1
+          fi
+          echo "✓ PR from staging to main allowed"
+
+  block-direct-push:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Block direct pushes to main (only merges from staging)
+        run: |
+          # Allow merges (2 parents) and commits that are merges from staging
+          PARENTS=$(git rev-list --parents -n 1 HEAD | wc -w)
+          MSG=$(git log -1 --pretty=%B)
+          echo "Parents: $PARENTS, Message: $MSG"
+          if [[ "$PARENTS" -gt 2 ]]; then
+            echo "✓ Merge commit to main (parents=$PARENTS) — allowed if from staging"
+            # Verify at least one parent is staging tip by checking merge message
+            if [[ "$MSG" == *"staging"* ]]; then
+              echo "✓ Merge from staging detected"
+              exit 0
+            fi
+            echo "::warning::Merge to main without 'staging' in message — was this from staging?"
+            exit 0
+          fi
+          # Single-parent push = direct commit, not a merge — block
+          echo "::error::Direct pushes to 'main' are blocked. Push to 'staging' and open PR staging → main"
+          exit 1

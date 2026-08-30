@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -141,6 +142,13 @@ func (rl *RateLimiter) Allow(key string) bool {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 	now := time.Now()
+	// Bound memory in a long-running process. Entries are only useful until
+	// their window expires, so prune them while holding the existing lock.
+	for bucketKey, existing := range rl.buckets {
+		if now.After(existing.reset) {
+			delete(rl.buckets, bucketKey)
+		}
+	}
 	b, ok := rl.buckets[key]
 	if !ok || now.After(b.reset) {
 		rl.buckets[key] = &bucket{count: 1, reset: now.Add(rl.window)}
@@ -151,6 +159,23 @@ func (rl *RateLimiter) Allow(key string) bool {
 	}
 	b.count++
 	return true
+}
+
+// ClientIP returns a normalized client IP. Forwarded headers are trusted only
+// when the deployment explicitly opts in after putting the API behind a proxy.
+func ClientIP(r *http.Request, trustProxyHeaders bool) string {
+	if trustProxyHeaders {
+		if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+			if ip := strings.TrimSpace(strings.Split(forwarded, ",")[0]); net.ParseIP(ip) != nil {
+				return ip
+			}
+		}
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil && net.ParseIP(host) != nil {
+		return host
+	}
+	return r.RemoteAddr
 }
 
 // GetUserID returns authenticated user ID from context, if present.

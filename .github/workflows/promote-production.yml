@@ -1,0 +1,27 @@
+name: Approve production API candidate
+on:
+  workflow_dispatch:
+    inputs:
+      image_digest:
+        description: Immutable GHCR image digest that passed staging
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate-candidate:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Require an immutable image digest
+        run: |
+          case "${{ inputs.image_digest }}" in
+            ghcr.io/*@sha256:*) ;;
+            *) echo "::error::Provide a full GHCR image digest, not a tag."; exit 1 ;;
+          esac
+      - name: Deployment handoff
+        run: |
+          echo "Approved candidate: ${{ inputs.image_digest }}"
+          echo "Set API_IMAGE to this exact digest in the protected production environment, then run docker compose -f docker-compose.production.yml up -d."
