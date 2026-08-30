@@ -1,0 +1,8 @@
+[Unit]
+Description=Create encrypted Settlr production backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/settlr/deploy/production/scripts/backup.sh

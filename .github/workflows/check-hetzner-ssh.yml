@@ -1,0 +1,26 @@
+name: Check Hetzner SSH connectivity
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ssh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure the dedicated deployment key
+        env:
+          SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+      - name: Verify IPv6 SSH access
+        env:
+          HETZNER_HOST: ${{ secrets.HETZNER_HOST }}
+          HETZNER_USER: ${{ secrets.HETZNER_USER }}
+        run: |
+          ssh -6 -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new \
+            "$HETZNER_USER@[$HETZNER_HOST]" 'hostname; id -un'

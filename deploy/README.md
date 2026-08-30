@@ -1,50 +1,35 @@
-# Deployment notes — 3 environments: local / staging / production
+# Settlr deployment environments
 
-| Env | API | Web (Vercel) | DB volume | `APP_ENV` | Compose file | Email |
-|-----|-----|--------------|-----------|-----------|--------------|-------|
-| **local** | `http://localhost:18080` | `http://localhost:3000` | `pgdata-local` (`settlr_local`) | `development` | `docker-compose.yml` + `docker-compose.local.yml` | Mailpit `mailpit:1025` UI `http://localhost:8025` |
-| **staging** | `https://settlrapi.theswissknife.com` (Cloudflare -> `127.0.0.1:18080` on this machine) | `https://settlr-staging.vercel.app` (Vercel project `settlr-staging`) + Tailscale `https://arch.tailbd5522.ts.net/settlr` | `pgdata` (`settlr`) | `staging` | `docker-compose.yml` + `docker-compose.staging.yml` (or base alone, `APP_ENV` defaults to `staging`) | Brevo (staging key) |
-| **production** | `https://api.settlr.theswissknife.com` (dedicated VM) | `https://settlr.theswissknife.com` (Vercel project `settlr`) + `https://settlr-kappa.vercel.app` | `pgdata` on new VM | `production` | `docker-compose.production.yml` | Brevo (production key) |
+| Environment | API hostname | Host | Data/secrets |
+|---|---|---|---|
+| Local | `http://localhost:18080` | developer machine | local-only Compose volumes and Mailpit |
+| Staging | `https://settlrstagingapi.theswissknife.com` | current machine | existing staging volumes and staging-only credentials |
+| Production | `https://settlrapi.theswissknife.com` | isolated Hetzner VPS | `settlr-production` volumes and new production-only credentials |
 
-The existing Cloudflare Worker remains the public edge for `settlrapi.theswissknife.com` and routes to this machine for staging. Nginx proxies to `127.0.0.1:18080`; `arch.tailbd5522.ts.net` is an additional accepted API origin/path for staging. Keep Cloudflare and Nginx configuration outside Git unless sanitized; inject secrets at runtime and maintain encrypted PostgreSQL/upload backups per environment. Never share `pgdata` or JWT secrets between environments.
+`settlrstagingapi.theswissknife.com` is staging-only. Never repoint it, reuse its data, or copy its JWT, Postgres, uploads, or Brevo values to production.
 
-## Local
+## Production VPS
 
-```bash
-cp .env.example .env  # then edit secrets if needed
-docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
-curl http://localhost:18080/health
-open http://localhost:8025  # Mailpit inbox
-docker compose -f docker-compose.yml -f docker-compose.local.yml logs -f api
-```
+The versioned production-host bundle is under [`production/`](./production). It installs Docker, Compose, Nginx, Certbot, UFW, a loopback-only API stack, and daily encrypted backups. Secrets are never committed: the only production environment file is `/etc/settlr/production.env` owned by `root:root` with mode `0600`.
 
-Local uses `Mailpit` (`axllent/mailpit`). Registration emails land at `http://localhost:8025`; no Brevo key needed. `APP_ENV=development` leaks `verification_token`/`reset_token` in JSON for testing — staging/production never do.
+1. On the fresh VPS, clone this repository to `/opt/settlr`, then run `deploy/production/scripts/provision.sh` as root.
+2. Populate `/etc/settlr/production.env` from `deploy/production/production.env.example`, generating new Postgres/JWT/Brevo values and supplying an off-VPS age recipient. Validate it with `deploy/production/scripts/validate-production-env.sh`.
+3. Store a Docker Hub read token in `/etc/settlr/dockerhub-read-token` (`root:root`, `0600`). Set `DOCKERHUB_USERNAME` only for the deploy command.
+4. Set the Cloudflare A/AAAA records for `settlrapi.theswissknife.com` to the VPS. Before cutover, test the HTTP Nginx vhost using `curl --resolve settlrapi.theswissknife.com:80:VPS_IP http://settlrapi.theswissknife.com/health`; it should redirect to HTTPS. With DNS live, run `LETSENCRYPT_EMAIL=ops@example.com deploy/production/scripts/issue-certificate.sh`.
+5. Set `API_IMAGE` to a full Docker Hub `@sha256:` digest that passed the staging gate, then run `DOCKERHUB_USERNAME=... deploy/production/scripts/deploy.sh` as root. Verify `curl http://127.0.0.1:18080/readyz`, container health, and `curl --resolve settlrapi.theswissknife.com:443:VPS_IP https://settlrapi.theswissknife.com/readyz` before relying on public DNS.
 
-## Staging (this machine)
+Nginx is the sole public ingress and proxies only to `127.0.0.1:18080`; Compose never publishes Postgres. Production CORS permits only `https://settlr.theswissknife.com`, and trusted proxy headers are enabled only because that loopback boundary exists.
 
-```bash
-# on host: /etc/settlr/staging.env or .env (never committed)
-docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
-# or: docker compose up -d  (base defaults APP_ENV=staging)
-curl http://127.0.0.1:18080/health
-curl https://arch.tailbd5522.ts.net/settlr/health
-docker compose -f docker-compose.yml -f docker-compose.staging.yml logs -f api
-```
+## Cutover and rollback
 
-Vercel project `settlr-staging` builds from `nabinkhanal00/settlr-web` `main` with `NEXT_PUBLIC_API_URL=https://settlrapi.theswissknife.com` and proxy `API_URL` matching. Uses Vercel-given `*.vercel.app` DNS.
+After DNS and certificate verification, confirm external `/health` and `/readyz`, a CORS preflight from `https://settlr.theswissknife.com`, registration/verification delivery, login/refresh/logout, and an authenticated expense workflow. Confirm staging remains healthy at `https://settlrstagingapi.theswissknife.com/health` without changing that machine.
 
-## Production (dedicated server, future)
+Record the deployed digest and the old DNS/origin before cutover. Production intentionally begins empty: no migration is required. Roll back by restoring the prior DNS/origin and, if necessary, putting the prior pinned digest in `/etc/settlr/production.env` and re-running `deploy.sh`.
 
-```bash
-docker compose -f docker-compose.production.yml up -d
-curl http://127.0.0.1:18080/health
-curl https://api.settlr.theswissknife.com/health
-```
+## Backup and restore drill
 
-Pin GHCR image by SHA or `v*` tag, run migrations on startup (handled by `cmd/settlr/main.go`), verify `/health` before cutting over.
+`settlr-backup.timer` runs daily at 03:15 UTC. It writes separate age-encrypted Postgres dumps and uploads archives to `/var/backups/settlr`, deleting files older than 14 days. The age private key must be kept outside the VPS.
 
-# Delivery pipeline
+For a restore drill on an isolated host, decrypt a matching pair with `age -d -i /secure/off-vps-age-key.txt`, start an empty production Compose stack, restore the database with `pg_restore --clean --if-exists --username settlr --dbname settlr`, and extract the uploads archive into the `settlr-production_production-uploads` volume. Validate `/readyz` and a sample attachment before considering the drill successful.
 
-Pull requests enforce `gofmt`, `go vet`, race-enabled tests, a production binary build, and a Docker Buildx build. Pushes to `main` and version tags publish immutable branch/tag/SHA images to GitHub Container Registry.
-
-The host deployment remains intentionally separate from image publishing because server access and rollout policy are environment-specific. Each environment should pull a pinned SHA or version tag, run migrations through application startup, verify `/health`, and only then replace the prior container.
+These are VPS-local backups. They protect against an application/data mistake but **do not survive loss of the VPS**; copy encrypted backup artifacts to separate storage for disaster recovery.
