@@ -43,7 +43,7 @@ func Load() (Config, error) {
 			SMTPPort:    env("SMTP_PORT", "587"),
 			SMTPUser:    env("SMTP_USER", ""),
 			SMTPPass:    env("SMTP_PASS", ""),
-			FromEmail:   env("MAIL_FROM_EMAIL", "noreply@settlr.app"),
+			FromEmail:   env("MAIL_FROM_EMAIL", "mail@theswissknife.com"),
 			FromName:    env("MAIL_FROM_NAME", "Settlr"),
 			AppURL:      env("APP_URL", "http://localhost:8081"),
 		},
