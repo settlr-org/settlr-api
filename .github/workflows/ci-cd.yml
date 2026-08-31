@@ -1,8 +1,8 @@
-name: API CI
+name: API CI and container release
 on:
   pull_request:
   push:
-    branches: [main, staging]
+    branches: [staging, main]
   workflow_dispatch:
 permissions:
   contents: read
@@ -60,10 +60,16 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - uses: docker/metadata-action@v6
         id: meta
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: |
+            ghcr.io/${{ github.repository }}
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/settlr-api
           tags: |
             type=ref,event=branch
             type=ref,event=tag
@@ -85,71 +91,20 @@ jobs:
       group: settlr-production-deploy
       cancel-in-progress: false
     steps:
-      - name: Check Hetzner secrets present
-        id: check
-        run: |
-          if [ -z "${{ secrets.HETZNER_HOST }}" ] || [ -z "${{ secrets.HETZNER_SSH_KEY }}" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "Hetzner secrets not set — skipping deploy (public fork safe)"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Configure SSH
-        if: steps.check.outputs.skip == 'false'
+      - name: Configure dedicated deployment key
         env:
           SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
         run: |
           install -d -m 700 ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "${{ secrets.HETZNER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
-      - name: Deploy GHCR digest via docker compose
-        if: steps.check.outputs.skip == 'false'
+      - name: Deploy the approved Docker Hub digest
         env:
           HETZNER_HOST: ${{ secrets.HETZNER_HOST }}
           HETZNER_USER: ${{ secrets.HETZNER_USER }}
-          IMAGE: ghcr.io/${{ github.repository }}@${{ needs.publish-container.outputs.image_digest }}
+          IMAGE: docker.io/nabinkhanal688/settlr-api@${{ needs.publish-container.outputs.image_digest }}
         run: |
-          set -e
-          echo "Deploying $IMAGE to $HETZNER_USER@$HETZNER_HOST"
-          # Prefer legacy helper if present, else docker compose directly (both accept GHCR)
           ssh -4 -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new \
-            "$HETZNER_USER@$HETZNER_HOST" bash -se -- "$IMAGE" <<'EOSSH'
-            set -e
-            IMAGE="$1"
-            # Update pinned digest in production env if present
-            if [ -f /etc/settlr/production.env ]; then
-              if grep -q "^API_IMAGE=" /etc/settlr/production.env; then
-                sudo sed -i "s|^API_IMAGE=.*|API_IMAGE=$IMAGE|" /etc/settlr/production.env
-              else
-                echo "API_IMAGE=$IMAGE" | sudo tee -a /etc/settlr/production.env >/dev/null
-              fi
-            fi
-            # Try legacy helper first (now GHCR-aware); fall back to compose
-            if sudo -n /usr/local/sbin/settlr-deploy-image "$IMAGE" 2>/dev/null; then
-              echo "deployed via settlr-deploy-image"
-            else
-              echo "settlr-deploy-image not available or failed, falling back to docker compose"
-              # Find compose project dir (host-specific, keep outside git)
-              for dir in /opt/settlr /srv/settlr "$HOME/settlr" /home/settlr; do
-                if [ -f "$dir/docker-compose.yml" ] || [ -f "$dir/compose.yml" ]; then
-                  cd "$dir"
-                  # Ensure GHCR auth for pull (uses GITHUB_TOKEN via deploy key or host config)
-                  sudo docker compose --env-file /etc/settlr/production.env pull api || sudo docker compose pull api || true
-                  sudo docker compose --env-file /etc/settlr/production.env up -d --no-deps api || sudo docker compose up -d --no-deps api
-                  break
-                fi
-              done
-            fi
-            # Best-effort health check (local first, then public placeholder — soft-fail for forks)
-            curl --fail --retry 5 --retry-delay 3 --silent http://127.0.0.1:18080/health || true
-            EOSSH
-      - name: Verify public readiness (soft-fail for placeholder)
-        run: |
-          # Public repo uses https://api.example.com as placeholder for the real domain;
-          # don't fail the workflow when running on forks without that DNS.
-          if curl --fail --retry 10 --retry-delay 3 --silent --show-error https://api.example.com/readyz; then
-            echo "public readiness ok"
-          else
-            echo "public readiness check skipped (placeholder domain or not yet deployed) — see Hetzner deploy step"
-          fi
+            "$HETZNER_USER@$HETZNER_HOST" "sudo -n /usr/local/sbin/settlr-deploy-image '$IMAGE'"
+      - name: Verify public readiness
+        run: curl --fail --retry 10 --retry-delay 3 --silent --show-error https://settlrapi.theswissknife.com/readyz
