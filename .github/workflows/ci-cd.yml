@@ -93,18 +93,25 @@ jobs:
     steps:
       - name: Configure dedicated deployment key
         env:
-          SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
         run: |
           install -d -m 700 ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
       - name: Deploy the approved Docker Hub digest
         env:
-          HETZNER_HOST: ${{ secrets.HETZNER_HOST }}
-          HETZNER_USER: ${{ secrets.HETZNER_USER }}
-          IMAGE: docker.io/nabinkhanal688/settlr-api@${{ needs.publish-container.outputs.image_digest }}
+          HOST: ${{ secrets.HOST }}
+          USER: ${{ secrets.USER }}
+          IMAGE: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/settlr-api@${{ needs.publish-container.outputs.image_digest }}
         run: |
           ssh -4 -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new \
-            "$HETZNER_USER@$HETZNER_HOST" "sudo -n /usr/local/sbin/settlr-deploy-image '$IMAGE'"
+            "$USER@$HOST" "sudo -n /usr/local/sbin/settlr-deploy-image '$IMAGE'"
       - name: Verify public readiness
-        run: curl --fail --retry 10 --retry-delay 3 --silent --show-error https://settlrapi.theswissknife.com/readyz
+        env:
+          HEALTH_URL: ${{ secrets.PRODUCTION_API_URL }}
+        run: |
+          if [ -z "$HEALTH_URL" ]; then
+            echo "PRODUCTION_API_URL not set — skipping public readiness check (public fork)"
+            exit 0
+          fi
+          curl --fail --retry 10 --retry-delay 3 --silent --show-error "$HEALTH_URL/readyz"
