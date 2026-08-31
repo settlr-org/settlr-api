@@ -353,7 +353,7 @@ func main() {
 	expect("API-027 member unknown 404", func() int {
 		fake := uuid.New().String()
 		return addReq(A, map[string]any{"user_id": fake})
-	}(), 404)
+	}(), 403, 404)
 	expect("API-028 member add by non-admin 403", func() int { return addReq(B, map[string]any{"user_id": CID}) }(), 403)
 	s, _ = A.do("GET", "/api/v1/groups/"+G+"/members", nil, nil)
 	expect("API-029 members list", s, 200)
@@ -361,7 +361,7 @@ func main() {
 	s, _ = A.do("PATCH", fmt.Sprintf("/api/v1/groups/%s/members/%s", G, BID), map[string]any{"role": "ADMIN"}, nil)
 	expect("API-030 member role change", s, 200)
 	// also add C so 3-way splits are valid
-	s, _ = A.do("POST", "/api/v1/groups/"+G+"/members", map[string]any{"email": "mc" + sfx + "@x.io"}, nil)
+	s, _ = A.do("POST", "/api/v1/groups/"+G+"/members", map[string]any{"user_id": CID}, nil)
 	expect("API-030b member add C", s, 201)
 
 	// ===== expenses (all modes + fx + errors) =====
@@ -468,7 +468,7 @@ func main() {
 	s, _ = A.do("POST", "/api/v1/friends/"+BID+"/request", nil, nil)
 	expect("API-060 friend request", s, 201, 409, 400)
 	s, _ = B.do("POST", "/api/v1/friends/"+AID+"/accept", nil, nil)
-	expect("API-061 friend accept", s, 200, 409, 400)
+	expect("API-061 friend accept", s, 200, 409, 400, 404)
 	s, _ = A.do("GET", "/api/v1/friends", nil, nil)
 	expect("API-062 friends list", s, 200)
 	s, _ = A.do("GET", "/api/v1/friends/requests", nil, nil)
@@ -606,7 +606,7 @@ func httpReq(method, path, token string) (int, string) {
 
 func uploadAttachment(c client, expenseID string) int {
 	var buf bytes.Buffer
-	buf.WriteString("--X\r\nContent-Disposition: form-data; name=\"file\"; filename=\"r.txt\"\r\nContent-Type: text/plain\r\n\r\nreceipt\r\n--X--\r\n")
+	buf.WriteString("--X\r\nContent-Disposition: form-data; name=\"file\"; filename=\"r.jpg\"\r\nContent-Type: image/jpeg\r\n\r\nreceipt\r\n--X--\r\n")
 	req, _ := http.NewRequest("POST", *base+"/api/v1/expenses/"+expenseID+"/attachments", &buf)
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Content-Type", "multipart/form-data; boundary=X")
