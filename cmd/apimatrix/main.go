@@ -103,9 +103,9 @@ func main() {
 	expect("API-003 register short pw 422", s, 422)
 
 	var reg struct {
-		AccessToken       string `json:"access_token"`
-		RefreshToken      string `json:"refresh_token"`
-		User              struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		User         struct {
 			ID string `json:"id"`
 		} `json:"user"`
 		VerificationToken string `json:"verification_token"`
@@ -164,9 +164,9 @@ func main() {
 		AID = me.ID
 	}
 	var regB struct {
-		AccessToken       string `json:"access_token"`
-		RefreshToken      string `json:"refresh_token"`
-		User              struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		User         struct {
 			ID string `json:"id"`
 		} `json:"user"`
 		VerificationToken string `json:"verification_token"`
@@ -223,8 +223,8 @@ func main() {
 		BID = me.ID
 	}
 	var regC struct {
-		AccessToken       string `json:"access_token"`
-		User              struct {
+		AccessToken string `json:"access_token"`
+		User        struct {
 			ID string `json:"id"`
 		} `json:"user"`
 		VerificationToken string `json:"verification_token"`
@@ -481,8 +481,8 @@ func main() {
 
 	// ===== invites =====
 	var regD struct {
-		AccessToken       string `json:"access_token"`
-		User              struct {
+		AccessToken string `json:"access_token"`
+		User        struct {
 			ID string `json:"id"`
 		} `json:"user"`
 		VerificationToken string `json:"verification_token"`
