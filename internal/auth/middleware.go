@@ -3,7 +3,7 @@ package auth
 import (
 	"net/http"
 
-	"github.com/nabinkhanal00/settlr-api/internal/httpx"
+	"github.com/settlr-org/settlr-api/internal/httpx"
 )
 
 func Middleware(svc *Service) func(http.Handler) http.Handler {

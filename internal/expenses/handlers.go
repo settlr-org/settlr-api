@@ -13,9 +13,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/nabinkhanal00/settlr-api/internal/auth"
-	"github.com/nabinkhanal00/settlr-api/internal/httpx"
-	"github.com/nabinkhanal00/settlr-api/internal/money"
+	"github.com/settlr-org/settlr-api/internal/auth"
+	"github.com/settlr-org/settlr-api/internal/httpx"
+	"github.com/settlr-org/settlr-api/internal/money"
 )
 
 type Handler struct {

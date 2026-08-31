@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nabinkhanal00/settlr-api/internal/mailer"
+	"github.com/settlr-org/settlr-api/internal/mailer"
 )
 
 type Config struct {

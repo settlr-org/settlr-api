@@ -3,7 +3,7 @@
 set -euo pipefail
 
 [[ $(id -u) -eq 0 ]] || { echo 'run as root' >&2; exit 1; }
-repo_url="${1:-https://github.com/nabinkhanal00/settlr-api.git}"
+repo_url="${1:-https://github.com/settlr-org/settlr-api.git}"
 root_dir=/opt/settlr
 hostname=settlrapi.theswissknife.com
 

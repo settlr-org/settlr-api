@@ -6,7 +6,7 @@ The service is Go `net/http` with PostgreSQL migrations, Argon2id password hashi
 
 ## API contract and additive interfaces
 
-Make OpenAPI the reviewed source of truth and generate `@nabinkhanal00/settlr-api-client` for TypeScript consumers. Add schemas, enums, pagination/error examples, auth requirements, upload limits, and every route currently registered, including personal expenses/budget/stats/export, recurring expenses, rates, payment info, notification preferences, and friend ledgers.
+Make OpenAPI the reviewed source of truth and generate `@settlr-org/settlr-api-client` for TypeScript consumers. Add schemas, enums, pagination/error examples, auth requirements, upload limits, and every route currently registered, including personal expenses/budget/stats/export, recurring expenses, rates, payment info, notification preferences, and friend ledgers.
 
 Add web auth endpoints: `POST /api/v1/auth/web/login`, `POST /api/v1/auth/web/refresh`, and `POST /api/v1/auth/web/logout`. They return only the short-lived access token/user payload and rotate a host-only Secure HttpOnly SameSite cookie. Validate Origin and trusted proxy headers for cookie-authenticated state changes. Existing bearer login/refresh/logout remains for mobile compatibility.
 

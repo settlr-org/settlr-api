@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nabinkhanal00/settlr-api/internal/httpx"
+	"github.com/settlr-org/settlr-api/internal/httpx"
 )
 
 type Handler struct{}

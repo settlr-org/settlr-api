@@ -1,4 +1,4 @@
-module github.com/nabinkhanal00/settlr-api
+module github.com/settlr-org/settlr-api
 
 go 1.26.6
 

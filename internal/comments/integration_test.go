@@ -11,11 +11,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/nabinkhanal00/settlr-api/internal/auth"
-	"github.com/nabinkhanal00/settlr-api/internal/config"
-	"github.com/nabinkhanal00/settlr-api/internal/expenses"
-	"github.com/nabinkhanal00/settlr-api/internal/groups"
-	"github.com/nabinkhanal00/settlr-api/internal/testutil"
+	"github.com/settlr-org/settlr-api/internal/auth"
+	"github.com/settlr-org/settlr-api/internal/config"
+	"github.com/settlr-org/settlr-api/internal/expenses"
+	"github.com/settlr-org/settlr-api/internal/groups"
+	"github.com/settlr-org/settlr-api/internal/testutil"
 )
 
 func ensureFriendsComments(t *testing.T, pool *pgxpool.Pool, a, b uuid.UUID) {

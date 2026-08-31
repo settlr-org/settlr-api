@@ -15,8 +15,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/argon2"
 
-	"github.com/nabinkhanal00/settlr-api/internal/config"
-	"github.com/nabinkhanal00/settlr-api/internal/httpx"
+	"github.com/settlr-org/settlr-api/internal/config"
+	"github.com/settlr-org/settlr-api/internal/httpx"
 )
 
 // Supported currencies — 34 codes matching Spliit supportedCurrencyCodes

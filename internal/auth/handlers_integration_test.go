@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/nabinkhanal00/settlr-api/internal/config"
-	"github.com/nabinkhanal00/settlr-api/internal/testutil"
+	"github.com/settlr-org/settlr-api/internal/config"
+	"github.com/settlr-org/settlr-api/internal/testutil"
 )
 
 func TestRegistrationRequiresEmailVerificationBeforeLogin(t *testing.T) {
