@@ -96,14 +96,15 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 	id, _ := uuid.Parse(uid)
 	var name, email, avatar, currency, tz string
 	var verified *string
+	var hasPassword bool
 	err := h.Pool.QueryRow(r.Context(),
-		`SELECT name, email, coalesce(avatar_url,''), default_currency, timezone, email_verified_at::text FROM users WHERE id=$1`, id).
-		Scan(&name, &email, &avatar, &currency, &tz, &verified)
+		`SELECT name, email, coalesce(avatar_url,''), default_currency, timezone, email_verified_at::text, password_hash IS NOT NULL FROM users WHERE id=$1`, id).
+		Scan(&name, &email, &avatar, &currency, &tz, &verified, &hasPassword)
 	if err != nil {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
-	httpx.WriteJSON(w, 200, map[string]any{"id": id, "name": name, "email": email, "avatar_url": avatar, "default_currency": currency, "timezone": tz, "email_verified": verified != nil})
+	httpx.WriteJSON(w, 200, map[string]any{"id": id, "name": name, "email": email, "avatar_url": avatar, "default_currency": currency, "timezone": tz, "email_verified": verified != nil, "has_password": hasPassword})
 }
 
 type updateMeReq struct {
@@ -176,9 +177,12 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "new password must be >= 8 chars"}})
 		return
 	}
-	var hash string
-	_ = h.Pool.QueryRow(r.Context(), `SELECT password_hash FROM users WHERE id=$1`, id).Scan(&hash)
-	if !auth.VerifyPassword(hash, req.CurrentPassword) {
+	var hash *string
+	if err := h.Pool.QueryRow(r.Context(), `SELECT password_hash FROM users WHERE id=$1`, id).Scan(&hash); err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	if hash != nil && !auth.VerifyPassword(*hash, req.CurrentPassword) {
 		httpx.WriteJSON(w, 401, map[string]any{"error": map[string]string{"code": "UNAUTHORIZED", "message": "current password incorrect"}})
 		return
 	}
