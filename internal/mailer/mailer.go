@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"html"
 	"log/slog"
 	"net/http"
 	"net/smtp"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -26,6 +28,13 @@ type Config struct {
 type Mailer struct {
 	cfg    Config
 	client *http.Client
+}
+
+var htmlTags = regexp.MustCompile(`(?s)<[^>]*>`)
+
+func plainText(htmlContent string) string {
+	text := html.UnescapeString(htmlTags.ReplaceAllString(htmlContent, " "))
+	return strings.Join(strings.Fields(text), " ")
 }
 
 // FromConfig auto-detects the provider when unset:
@@ -81,6 +90,7 @@ func (m *Mailer) sendBrevo(to, subject, html string) error {
 		"to":          []map[string]string{{"email": to}},
 		"subject":     subject,
 		"htmlContent": html,
+		"textContent": plainText(html),
 	}
 	payload, err := json.Marshal(body)
 	if err != nil {
