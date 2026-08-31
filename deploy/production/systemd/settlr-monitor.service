@@ -1,0 +1,8 @@
+[Unit]
+Description=Check Settlr production API, backup, and disk health
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/settlr/deploy/production/scripts/monitor.sh

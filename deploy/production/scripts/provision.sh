@@ -58,8 +58,11 @@ systemctl reload nginx
 
 install -m 0644 -o root -g root "$root_dir/deploy/production/systemd/settlr-backup.service" /etc/systemd/system/settlr-backup.service
 install -m 0644 -o root -g root "$root_dir/deploy/production/systemd/settlr-backup.timer" /etc/systemd/system/settlr-backup.timer
+install -m 0644 -o root -g root "$root_dir/deploy/production/systemd/settlr-monitor.service" /etc/systemd/system/settlr-monitor.service
+install -m 0644 -o root -g root "$root_dir/deploy/production/systemd/settlr-monitor.timer" /etc/systemd/system/settlr-monitor.timer
 systemctl daemon-reload
 systemctl enable --now settlr-backup.timer
+systemctl enable --now settlr-monitor.timer
 
 cat <<'EOF'
 Provisioning complete. Before deployment:
