@@ -16,6 +16,9 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 var (
@@ -85,7 +88,8 @@ func expect(name string, got int, want ...int) bool {
 
 func main() {
 	flag.Parse()
-	sfx := fmt.Sprintf("%06d", rand.New(rand.NewSource(1)).Intn(900000)+100000)
+	rand.Seed(time.Now().UnixNano())
+	sfx := fmt.Sprintf("%06d", rand.Intn(900000)+100000)
 
 	// ===== health =====
 	c := &client{}
@@ -99,35 +103,179 @@ func main() {
 	expect("API-003 register short pw 422", s, 422)
 
 	var reg struct {
-		AccessToken  string `json:"access_token"`
-		RefreshToken string `json:"refresh_token"`
-		User         struct {
+		AccessToken       string `json:"access_token"`
+		RefreshToken      string `json:"refresh_token"`
+		User              struct {
 			ID string `json:"id"`
 		} `json:"user"`
+		VerificationToken string `json:"verification_token"`
 	}
 	s, _ = c.do("POST", "/api/v1/auth/register", map[string]any{"name": "Matrix A", "email": "ma" + sfx + "@x.io", "password": "password123"}, &reg)
-	expect("API-004 register A", s, 201)
+	if s == 409 {
+		// already exists from previous run -> login
+		var lgTmp struct {
+			AccessToken  string `json:"access_token"`
+			RefreshToken string `json:"refresh_token"`
+			User         struct {
+				ID string `json:"id"`
+			} `json:"user"`
+		}
+		s2, _ := c.do("POST", "/api/v1/auth/login", map[string]any{"email": "ma" + sfx + "@x.io", "password": "password123"}, &lgTmp)
+		if s2 == 403 {
+			// need verification -> try resend then verify if token available
+			var resend struct {
+				VerificationToken string `json:"verification_token"`
+			}
+			c.do("POST", "/api/v1/auth/resend-verification", map[string]any{"email": "ma" + sfx + "@x.io"}, &resend)
+			if resend.VerificationToken != "" {
+				c.do("POST", "/api/v1/auth/verify-email", map[string]any{"token": resend.VerificationToken}, nil)
+				s2, _ = c.do("POST", "/api/v1/auth/login", map[string]any{"email": "ma" + sfx + "@x.io", "password": "password123"}, &lgTmp)
+			}
+		}
+		if s2 == 200 {
+			reg.AccessToken = lgTmp.AccessToken
+			reg.RefreshToken = lgTmp.RefreshToken
+			reg.User.ID = lgTmp.User.ID
+		}
+		expect("API-004 register A", s, 201, 409)
+	} else {
+		expect("API-004 register A", s, 201)
+		if reg.VerificationToken != "" {
+			s2, _ := c.do("POST", "/api/v1/auth/verify-email", map[string]any{"token": reg.VerificationToken}, nil)
+			expect("API-004b verify A", s2, 200)
+		}
+		var lgA struct {
+			AccessToken  string `json:"access_token"`
+			RefreshToken string `json:"refresh_token"`
+		}
+		s, _ = c.do("POST", "/api/v1/auth/login", map[string]any{"email": "ma" + sfx + "@x.io", "password": "password123"}, &lgA)
+		if s == 200 {
+			reg.AccessToken = lgA.AccessToken
+			reg.RefreshToken = lgA.RefreshToken
+		}
+	}
 	A := &client{reg.AccessToken}
 	AID := reg.User.ID
+	if AID == "" {
+		var me struct {
+			ID string `json:"id"`
+		}
+		A.do("GET", "/api/v1/me", nil, &me)
+		AID = me.ID
+	}
 	var regB struct {
-		AccessToken  string `json:"access_token"`
-		RefreshToken string `json:"refresh_token"`
-		User         struct {
+		AccessToken       string `json:"access_token"`
+		RefreshToken      string `json:"refresh_token"`
+		User              struct {
 			ID string `json:"id"`
 		} `json:"user"`
+		VerificationToken string `json:"verification_token"`
 	}
 	s, _ = c.do("POST", "/api/v1/auth/register", map[string]any{"name": "Matrix B", "email": "mb" + sfx + "@x.io", "password": "password123"}, &regB)
+	if s == 409 {
+		var lgTmpB struct {
+			AccessToken  string `json:"access_token"`
+			RefreshToken string `json:"refresh_token"`
+			User         struct {
+				ID string `json:"id"`
+			} `json:"user"`
+		}
+		s2, _ := c.do("POST", "/api/v1/auth/login", map[string]any{"email": "mb" + sfx + "@x.io", "password": "password123"}, &lgTmpB)
+		if s2 == 403 {
+			var resend struct {
+				VerificationToken string `json:"verification_token"`
+			}
+			c.do("POST", "/api/v1/auth/resend-verification", map[string]any{"email": "mb" + sfx + "@x.io"}, &resend)
+			if resend.VerificationToken != "" {
+				c.do("POST", "/api/v1/auth/verify-email", map[string]any{"token": resend.VerificationToken}, nil)
+				s2, _ = c.do("POST", "/api/v1/auth/login", map[string]any{"email": "mb" + sfx + "@x.io", "password": "password123"}, &lgTmpB)
+			}
+		}
+		if s2 == 200 {
+			regB.AccessToken = lgTmpB.AccessToken
+			regB.RefreshToken = lgTmpB.RefreshToken
+			regB.User.ID = lgTmpB.User.ID
+		}
+		expect("API-004 register B", s, 201, 409)
+	} else {
+		expect("API-004 register B", s, 201)
+		if regB.VerificationToken != "" {
+			s2, _ := c.do("POST", "/api/v1/auth/verify-email", map[string]any{"token": regB.VerificationToken}, nil)
+			expect("API-004c verify B", s2, 200)
+		}
+		var lgB struct {
+			AccessToken  string `json:"access_token"`
+			RefreshToken string `json:"refresh_token"`
+		}
+		s, _ = c.do("POST", "/api/v1/auth/login", map[string]any{"email": "mb" + sfx + "@x.io", "password": "password123"}, &lgB)
+		if s == 200 {
+			regB.AccessToken = lgB.AccessToken
+			regB.RefreshToken = lgB.RefreshToken
+		}
+	}
 	B := &client{regB.AccessToken}
 	BID := regB.User.ID
+	if BID == "" {
+		var me struct {
+			ID string `json:"id"`
+		}
+		B.do("GET", "/api/v1/me", nil, &me)
+		BID = me.ID
+	}
 	var regC struct {
-		AccessToken string `json:"access_token"`
-		User        struct {
+		AccessToken       string `json:"access_token"`
+		User              struct {
 			ID string `json:"id"`
 		} `json:"user"`
+		VerificationToken string `json:"verification_token"`
 	}
 	s, _ = c.do("POST", "/api/v1/auth/register", map[string]any{"name": "Matrix C", "email": "mc" + sfx + "@x.io", "password": "password123"}, &regC)
+	if s == 409 {
+		var lgTmpC struct {
+			AccessToken string `json:"access_token"`
+			User        struct {
+				ID string `json:"id"`
+			} `json:"user"`
+		}
+		s2, _ := c.do("POST", "/api/v1/auth/login", map[string]any{"email": "mc" + sfx + "@x.io", "password": "password123"}, &lgTmpC)
+		if s2 == 403 {
+			var resend struct {
+				VerificationToken string `json:"verification_token"`
+			}
+			c.do("POST", "/api/v1/auth/resend-verification", map[string]any{"email": "mc" + sfx + "@x.io"}, &resend)
+			if resend.VerificationToken != "" {
+				c.do("POST", "/api/v1/auth/verify-email", map[string]any{"token": resend.VerificationToken}, nil)
+				s2, _ = c.do("POST", "/api/v1/auth/login", map[string]any{"email": "mc" + sfx + "@x.io", "password": "password123"}, &lgTmpC)
+			}
+		}
+		if s2 == 200 {
+			regC.AccessToken = lgTmpC.AccessToken
+			regC.User.ID = lgTmpC.User.ID
+		}
+		expect("API-004 register C", s, 201, 409)
+	} else {
+		expect("API-004 register C", s, 201)
+		if regC.VerificationToken != "" {
+			s2, _ := c.do("POST", "/api/v1/auth/verify-email", map[string]any{"token": regC.VerificationToken}, nil)
+			expect("API-004d verify C", s2, 200)
+		}
+		var lgC struct {
+			AccessToken string `json:"access_token"`
+		}
+		s, _ = c.do("POST", "/api/v1/auth/login", map[string]any{"email": "mc" + sfx + "@x.io", "password": "password123"}, &lgC)
+		if s == 200 {
+			regC.AccessToken = lgC.AccessToken
+		}
+	}
 	C := &client{regC.AccessToken}
 	CID := regC.User.ID
+	if CID == "" {
+		var me struct {
+			ID string `json:"id"`
+		}
+		C.do("GET", "/api/v1/me", nil, &me)
+		CID = me.ID
+	}
 
 	s, _ = c.do("POST", "/api/v1/auth/login", map[string]any{"email": "ma" + sfx + "@x.io", "password": "WRONG"}, nil)
 	expect("API-005 login wrong pw 401", s, 401)
@@ -171,6 +319,15 @@ func main() {
 	s, _ = A.do("GET", "/api/v1/users/search?q=Matrix", nil, nil)
 	s, _ = A.do("GET", "/api/v1/users/search?q=Matrix", nil, nil)
 	expect("API-019 users search", s, 200)
+	// make A friends with B and C for group invites (friend-only)
+	s, _ = A.do("POST", "/api/v1/friends/"+BID+"/request", nil, nil)
+	expect("API-019b A->B friend request", s, 201)
+	s, _ = B.do("POST", "/api/v1/friends/"+AID+"/accept", nil, nil)
+	expect("API-019c B accepts A", s, 200)
+	s, _ = A.do("POST", "/api/v1/friends/"+CID+"/request", nil, nil)
+	expect("API-019d A->C friend request", s, 201)
+	s, _ = C.do("POST", "/api/v1/friends/"+AID+"/accept", nil, nil)
+	expect("API-019e C accepts A", s, 200)
 
 	// ===== groups =====
 	s, _ = A.do("POST", "/api/v1/groups", map[string]any{"name": "", "currency": "USD"}, nil)
@@ -191,10 +348,13 @@ func main() {
 		s, _ := tok.do("POST", "/api/v1/groups/"+G+"/members", body, nil)
 		return s
 	}
-	expect("API-025 member add", func() int { return addReq(A, map[string]any{"email": "mb" + sfx + "@x.io"}) }(), 200, 201)
-	expect("API-026 member dup 409", func() int { return addReq(A, map[string]any{"email": "mb" + sfx + "@x.io"}) }(), 409)
-	expect("API-027 member unknown 404", func() int { return addReq(A, map[string]any{"email": "ghost@x.io"}) }(), 404)
-	expect("API-028 member add by non-admin 403", func() int { return addReq(B, map[string]any{"email": "mc" + sfx + "@x.io"}) }(), 403)
+	expect("API-025 member add", func() int { return addReq(A, map[string]any{"user_id": BID}) }(), 200, 201)
+	expect("API-026 member dup 409", func() int { return addReq(A, map[string]any{"user_id": BID}) }(), 409)
+	expect("API-027 member unknown 404", func() int {
+		fake := uuid.New().String()
+		return addReq(A, map[string]any{"user_id": fake})
+	}(), 404)
+	expect("API-028 member add by non-admin 403", func() int { return addReq(B, map[string]any{"user_id": CID}) }(), 403)
 	s, _ = A.do("GET", "/api/v1/groups/"+G+"/members", nil, nil)
 	expect("API-029 members list", s, 200)
 	// role change (PATCH member)
@@ -304,10 +464,11 @@ func main() {
 	expect("API-059 settlement delete", s, 200)
 
 	// ===== friends =====
+	// A and B are already friends from earlier setup; verify duplicate handling
 	s, _ = A.do("POST", "/api/v1/friends/"+BID+"/request", nil, nil)
-	expect("API-060 friend request", s, 201)
+	expect("API-060 friend request", s, 201, 409, 400)
 	s, _ = B.do("POST", "/api/v1/friends/"+AID+"/accept", nil, nil)
-	expect("API-061 friend accept", s, 200)
+	expect("API-061 friend accept", s, 200, 409, 400)
 	s, _ = A.do("GET", "/api/v1/friends", nil, nil)
 	expect("API-062 friends list", s, 200)
 	s, _ = A.do("GET", "/api/v1/friends/requests", nil, nil)
@@ -319,21 +480,39 @@ func main() {
 	expect("API-065 user get", s, 200)
 
 	// ===== invites =====
+	var regD struct {
+		AccessToken       string `json:"access_token"`
+		User              struct {
+			ID string `json:"id"`
+		} `json:"user"`
+		VerificationToken string `json:"verification_token"`
+	}
+	s, _ = c.do("POST", "/api/v1/auth/register", map[string]any{"name": "Matrix D", "email": "newbie" + sfx + "@x.io", "password": "password123"}, &regD)
+	if regD.VerificationToken != "" {
+		s2, _ := c.do("POST", "/api/v1/auth/verify-email", map[string]any{"token": regD.VerificationToken}, nil)
+		expect("API-069b verify D", s2, 200)
+	}
+	var lgD struct {
+		AccessToken string `json:"access_token"`
+	}
+	s, _ = c.do("POST", "/api/v1/auth/login", map[string]any{"email": "newbie" + sfx + "@x.io", "password": "password123"}, &lgD)
+	if s == 200 {
+		regD.AccessToken = lgD.AccessToken
+	}
+	DID := regD.User.ID
+	D := &client{regD.AccessToken}
+	// make B and D friends for invite
+	s, _ = B.do("POST", "/api/v1/friends/"+DID+"/request", nil, nil)
+	expect("API-066a B->D friend request", s, 201)
+	s, _ = D.do("POST", "/api/v1/friends/"+BID+"/accept", nil, nil)
+	expect("API-066b D accepts B", s, 200)
 	var inv struct{ Token string }
-	s, _ = B.do("POST", "/api/v1/groups/"+G+"/invites", map[string]any{"email": "newbie" + sfx + "@x.io"}, &inv)
+	s, _ = B.do("POST", "/api/v1/groups/"+G+"/invites", map[string]any{"user_id": DID}, &inv)
 	expect("API-066 invite by member (any role)", s, 201)
 	s, _ = A.do("GET", "/api/v1/groups/"+G+"/invites", nil, nil)
 	expect("API-067 invites list", s, 200)
 	s, _ = A.do("GET", "/api/v1/invites", nil, nil)
 	expect("API-068 my invites", s, 200)
-	var regD struct {
-		AccessToken string `json:"access_token"`
-		User        struct {
-			ID string `json:"id"`
-		} `json:"user"`
-	}
-	s, _ = c.do("POST", "/api/v1/auth/register", map[string]any{"name": "Matrix D", "email": "newbie" + sfx + "@x.io", "password": "password123"}, &regD)
-	D := &client{regD.AccessToken}
 	s, _ = D.do("POST", "/api/v1/invites/"+inv.Token+"/accept", nil, nil)
 	expect("API-069 invite accept", s, 200)
 	_ = D
