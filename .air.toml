@@ -1,0 +1,16 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/settlr ./cmd/settlr"
+  bin = "./tmp/settlr"
+  delay = 500
+  exclude_dir = ["tmp", "uploads", ".git"]
+  include_ext = ["go", "sql"]
+  stop_on_error = true
+
+[log]
+  time = true
+
+[misc]
+  clean_on_exit = true
