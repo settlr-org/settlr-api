@@ -103,7 +103,7 @@ func TestIntegration_GroupCreateAndMemberFlow(t *testing.T) {
 	}
 
 	// Invite Bob and accept the invite once.
-	inviteBody, _ := json.Marshal(map[string]string{"email": "bob-group@test.local"})
+	inviteBody, _ := json.Marshal(map[string]string{"user_id": bobID.String()})
 	req, _ = http.NewRequest("POST", srv.URL+"/api/v1/groups/"+gid+"/invites", bytes.NewReader(inviteBody))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+aliceTok)
@@ -115,6 +115,12 @@ func TestIntegration_GroupCreateAndMemberFlow(t *testing.T) {
 	_ = json.NewDecoder(resp.Body).Decode(&invite)
 	resp.Body.Close()
 	token := invite["token"].(string)
+	// The invite itself is the authorization to join. If an old friendship row
+	// disappears before redemption, accepting still restores the direct friend
+	// relationship and adds the invitee to the group atomically.
+	if _, err := pool.Exec(t.Context(), `DELETE FROM friendships WHERE LEAST(user_id, friend_id)=LEAST($1::uuid,$2::uuid) AND GREATEST(user_id, friend_id)=GREATEST($1::uuid,$2::uuid)`, aliceID, bobID); err != nil {
+		t.Fatalf("remove friendship before invite acceptance: %v", err)
+	}
 	req, _ = http.NewRequest("POST", srv.URL+"/api/v1/invites/"+token+"/accept", nil)
 	req.Header.Set("Authorization", "Bearer "+tokenFor(bobID))
 	resp, _ = http.DefaultClient.Do(req)
@@ -122,6 +128,10 @@ func TestIntegration_GroupCreateAndMemberFlow(t *testing.T) {
 		t.Fatalf("accept invite %d", resp.StatusCode)
 	}
 	resp.Body.Close()
+	var friends bool
+	if err := pool.QueryRow(t.Context(), `SELECT EXISTS(SELECT 1 FROM friendships WHERE LEAST(user_id, friend_id)=LEAST($1::uuid,$2::uuid) AND GREATEST(user_id, friend_id)=GREATEST($1::uuid,$2::uuid) AND status='ACCEPTED')`, aliceID, bobID).Scan(&friends); err != nil || !friends {
+		t.Fatalf("invite acceptance should establish an accepted friendship: %v", err)
+	}
 	// A second submission cannot duplicate membership or activity.
 	req, _ = http.NewRequest("POST", srv.URL+"/api/v1/invites/"+token+"/accept", nil)
 	req.Header.Set("Authorization", "Bearer "+tokenFor(bobID))
