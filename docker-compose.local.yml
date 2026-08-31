@@ -1,0 +1,31 @@
+name: settlr-local
+
+# Local dependencies only. Run the API on the host with `make dev` for Air reloads.
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: settlr-postgres-local
+    environment:
+      POSTGRES_USER: settlr
+      POSTGRES_PASSWORD: local-dev-password
+      POSTGRES_DB: settlr_local
+    volumes:
+      - pgdata-local:/var/lib/postgresql
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mailpit:
+    image: axllent/mailpit
+    container_name: settlr-mailpit-local
+    ports:
+      - "127.0.0.1:1026:1025"
+      - "127.0.0.1:8026:8025"
+    restart: unless-stopped
+
+volumes:
+  pgdata-local:
