@@ -31,6 +31,7 @@ services:
       APP_URL: ${APP_URL:-https://settlr.theswissknife.com}
       API_URL: ${API_URL:-https://settlrapi.theswissknife.com}
       CORS_ORIGINS: ${CORS_ORIGINS:-https://settlr.theswissknife.com}
+      GOOGLE_OAUTH_CLIENT_IDS: ${GOOGLE_OAUTH_CLIENT_IDS:-}
       # The API is reachable only through the loopback Nginx proxy below.
       TRUST_PROXY_HEADERS: "true"
       MAIL_PROVIDER: ${MAIL_PROVIDER:-}
