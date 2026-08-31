@@ -91,7 +91,17 @@ jobs:
       group: settlr-production-deploy
       cancel-in-progress: false
     steps:
+      - name: Check deploy secrets
+        id: check
+        run: |
+          if [ -z "${{ secrets.HOST }}" ] || [ -z "${{ secrets.SSH_KEY }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "HOST/SSH_KEY not set — skipping deploy (public fork safe)"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Configure dedicated deployment key
+        if: steps.check.outputs.skip == 'false'
         env:
           SSH_KEY: ${{ secrets.SSH_KEY }}
         run: |
@@ -99,6 +109,7 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
       - name: Deploy the approved Docker Hub digest
+        if: steps.check.outputs.skip == 'false'
         env:
           HOST: ${{ secrets.HOST }}
           USER: ${{ secrets.USER }}
