@@ -33,3 +33,7 @@ Record the deployed digest and the old DNS/origin before cutover. Production int
 For a restore drill on an isolated host, decrypt a matching pair with `age -d -i /secure/off-vps-age-key.txt`, start an empty production Compose stack, restore the database with `pg_restore --clean --if-exists --username settlr --dbname settlr`, and extract the uploads archive into the `settlr-production_production-uploads` volume. Validate `/readyz` and a sample attachment before considering the drill successful.
 
 These are VPS-local backups. They protect against an application/data mistake but **do not survive loss of the VPS**; copy encrypted backup artifacts to separate storage for disaster recovery.
+
+## Monitoring
+
+`settlr-monitor.timer` runs every five minutes and fails its corresponding service if API readiness, either container's health, root filesystem capacity (85%), or the last encrypted Postgres backup (26 hours) is unhealthy. Inspect it with `systemctl status settlr-monitor.service`. Connect this status to an external alert receiver/uptime service; no alert destination is stored in this repository.
