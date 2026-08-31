@@ -26,6 +26,7 @@ services:
       APP_URL: https://settlr-staging.vercel.app
       API_URL: https://settlrstagingapi.theswissknife.com
       CORS_ORIGINS: ${CORS_ORIGINS:?set CORS_ORIGINS}
+      GOOGLE_OAUTH_CLIENT_IDS: ${GOOGLE_OAUTH_CLIENT_IDS:-}
       TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}
       MAIL_PROVIDER: ${MAIL_PROVIDER:-}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
