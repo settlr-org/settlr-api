@@ -9,31 +9,33 @@ import (
 )
 
 type Config struct {
-	Port              string
-	DatabaseURL       string
-	JWTSecret         string
-	JWTRefreshSecret  string
-	JWTExpiryMinutes  int
-	RefreshExpiryDays int
-	AppURL            string
-	Env               string
-	CORSOrigins       string
-	TrustProxyHeaders bool
-	Mail              mailer.Config
+	Port                 string
+	DatabaseURL          string
+	JWTSecret            string
+	JWTRefreshSecret     string
+	JWTExpiryMinutes     int
+	RefreshExpiryDays    int
+	AppURL               string
+	Env                  string
+	CORSOrigins          string
+	TrustProxyHeaders    bool
+	GoogleOAuthClientIDs string
+	Mail                 mailer.Config
 }
 
 func Load() (Config, error) {
 	cfg := Config{
-		Port:              env("PORT", "8080"),
-		DatabaseURL:       env("DATABASE_URL", "postgres://settlr:settlr@localhost:5432/settlr?sslmode=disable"),
-		JWTSecret:         env("JWT_SECRET", "dev-jwt-secret-change-me-32chars!!"),
-		JWTRefreshSecret:  env("JWT_REFRESH_SECRET", "dev-refresh-secret-change-me-32chars!!"),
-		JWTExpiryMinutes:  15,
-		RefreshExpiryDays: 30,
-		AppURL:            env("APP_URL", "http://localhost:8081"),
-		Env:               env("APP_ENV", "development"),
-		CORSOrigins:       env("CORS_ORIGINS", "*"),
-		TrustProxyHeaders: env("TRUST_PROXY_HEADERS", "false") == "true",
+		Port:                 env("PORT", "8080"),
+		DatabaseURL:          env("DATABASE_URL", "postgres://settlr:settlr@localhost:5432/settlr?sslmode=disable"),
+		JWTSecret:            env("JWT_SECRET", "dev-jwt-secret-change-me-32chars!!"),
+		JWTRefreshSecret:     env("JWT_REFRESH_SECRET", "dev-refresh-secret-change-me-32chars!!"),
+		JWTExpiryMinutes:     15,
+		RefreshExpiryDays:    30,
+		AppURL:               env("APP_URL", "http://localhost:8081"),
+		Env:                  env("APP_ENV", "development"),
+		CORSOrigins:          env("CORS_ORIGINS", "*"),
+		TrustProxyHeaders:    env("TRUST_PROXY_HEADERS", "false") == "true",
+		GoogleOAuthClientIDs: env("GOOGLE_OAUTH_CLIENT_IDS", ""),
 		Mail: mailer.Config{
 			Provider:    env("MAIL_PROVIDER", ""),
 			BrevoAPIKey: env("BREVO_API_KEY", ""),

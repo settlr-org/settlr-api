@@ -23,6 +23,7 @@ type Handler struct {
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/auth/register", h.Register)
 	mux.HandleFunc("POST /api/v1/auth/login", h.Login)
+	mux.HandleFunc("POST /api/v1/auth/google", h.GoogleLogin)
 	mux.HandleFunc("POST /api/v1/auth/refresh", h.Refresh)
 	mux.HandleFunc("POST /api/v1/auth/logout", h.Logout)
 	mux.HandleFunc("POST /api/v1/auth/forgot-password", h.ForgotPassword)
@@ -32,6 +33,70 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/auth/sessions", h.ListSessions)
 	mux.HandleFunc("DELETE /api/v1/auth/sessions/{id}", h.RevokeSessionByID)
 	mux.HandleFunc("DELETE /api/v1/auth/sessions", h.RevokeAllSessions)
+}
+
+type googleLoginReq struct {
+	IDToken string `json:"id_token"`
+}
+
+// GoogleLogin accepts an ID token from a platform-specific Google OAuth client.
+// A verified Google email links to the existing Settlr account with that email;
+// otherwise it creates a verified, passwordless account.
+func (h *Handler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
+	var req googleLoginReq
+	if err := httpx.DecodeJSON(r, &req); err != nil || strings.TrimSpace(req.IDToken) == "" {
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "Google ID token is required"}})
+		return
+	}
+	identity, err := VerifyGoogleIDToken(r.Context(), req.IDToken, h.Svc.Cfg.GoogleOAuthClientIDs)
+	if err != nil {
+		status, code, message := http.StatusUnauthorized, "UNAUTHORIZED", "Google sign-in could not be verified"
+		if strings.Contains(err.Error(), "not configured") {
+			status, code, message = http.StatusServiceUnavailable, "OAUTH_NOT_CONFIGURED", "Google sign-in is not configured"
+		}
+		httpx.WriteJSON(w, status, map[string]any{"error": map[string]string{"code": code, "message": message}})
+		return
+	}
+
+	tx, err := h.Svc.Pool.Begin(r.Context())
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	defer tx.Rollback(r.Context())
+	var id uuid.UUID
+	var name, email string
+	err = tx.QueryRow(r.Context(), `
+		SELECT u.id, u.name, u.email
+		FROM oauth_identities oi JOIN users u ON u.id=oi.user_id
+		WHERE oi.provider='google' AND oi.subject=$1 FOR UPDATE`, identity.Subject).Scan(&id, &name, &email)
+	if err == pgx.ErrNoRows {
+		err = tx.QueryRow(r.Context(), `SELECT id, name, email FROM users WHERE lower(email)=lower($1) LIMIT 1 FOR UPDATE`, identity.Email).Scan(&id, &name, &email)
+		if err == pgx.ErrNoRows {
+			id = uuid.New()
+			name = identity.Name
+			if name == "" {
+				name = strings.Split(identity.Email, "@")[0]
+			}
+			email = identity.Email
+			_, err = tx.Exec(r.Context(), `INSERT INTO users (id, name, email, password_hash, email_verified_at) VALUES ($1,$2,$3,NULL,now())`, id, name, email)
+		}
+		if err == nil {
+			_, err = tx.Exec(r.Context(), `INSERT INTO oauth_identities (provider, subject, user_id) VALUES ('google',$1,$2)`, identity.Subject, id)
+		}
+		if err == nil {
+			_, err = tx.Exec(r.Context(), `UPDATE users SET email_verified_at=COALESCE(email_verified_at, now()), updated_at=now() WHERE id=$1`, id)
+		}
+	}
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	if err = tx.Commit(r.Context()); err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	h.writeSession(w, r, id, name, email)
 }
 
 type registerReq struct {
@@ -127,11 +192,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 	var id uuid.UUID
-	var name, email, hash string
+	var name, email string
+	var hash *string
 	var verifiedAt *string
 	err := h.Svc.Pool.QueryRow(r.Context(),
 		`SELECT id, name, email, password_hash, email_verified_at::text FROM users WHERE lower(email)=lower($1) LIMIT 1`, req.Email).Scan(&id, &name, &email, &hash, &verifiedAt)
-	if err == pgx.ErrNoRows || !VerifyPassword(hash, req.Password) {
+	if err == pgx.ErrNoRows || hash == nil || !VerifyPassword(*hash, req.Password) {
 		httpx.WriteJSON(w, 401, map[string]any{"error": map[string]string{"code": "UNAUTHORIZED", "message": "invalid credentials"}})
 		return
 	}
@@ -146,6 +212,10 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		}})
 		return
 	}
+	h.writeSession(w, r, id, name, email)
+}
+
+func (h *Handler) writeSession(w http.ResponseWriter, r *http.Request, id uuid.UUID, name, email string) {
 	accessToken, err := GenerateAccessToken(h.Svc.Cfg, id)
 	if err != nil {
 		httpx.WriteError(w, r, err)
@@ -156,7 +226,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	httpx.WriteJSON(w, 200, map[string]any{
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"user":          map[string]any{"id": id, "name": name, "email": email, "email_verified": true},
 		"access_token":  accessToken,
 		"refresh_token": rawRefresh,

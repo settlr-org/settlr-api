@@ -14,6 +14,12 @@ The versioned production-host bundle is under [`production/`](./production). It 
 
 1. On the fresh VPS, clone this repository to `/opt/settlr`, then run `deploy/production/scripts/provision.sh` as root.
 2. Populate `/etc/settlr/production.env` from `deploy/production/production.env.example`, generating new Postgres/JWT/Brevo values and supplying an off-VPS age recipient. Validate it with `deploy/production/scripts/validate-production-env.sh`.
+
+## Google sign-in
+
+Create one Google OAuth client for the web origin `https://settlr.theswissknife.com`, one iOS client for bundle ID `com.settlr.app`, and one Android client for package `com.settlr.app` (including the signing certificate SHA-1 used by the release build). Put all three client IDs, comma-separated, in the root-only `GOOGLE_OAUTH_CLIENT_IDS` value on the API host. The server validates Google ID tokens against this allow-list before creating a Settlr session.
+
+Set the web client ID as `NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID` in the Vercel production environment. Set the platform IDs as `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`, and `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` in the EAS production environment before building the mobile app. These IDs are public identifiers, not secrets. The clients hide Google sign-in until their respective ID is present.
 3. Store a Docker Hub read token in `/etc/settlr/dockerhub-read-token` (`root:root`, `0600`). Set `DOCKERHUB_USERNAME` only for the deploy command.
 4. Set the Cloudflare A/AAAA records for `settlrapi.theswissknife.com` to the VPS. Before cutover, test the HTTP Nginx vhost using `curl --resolve settlrapi.theswissknife.com:80:VPS_IP http://settlrapi.theswissknife.com/health`; it should redirect to HTTPS. With DNS live, run `LETSENCRYPT_EMAIL=ops@example.com deploy/production/scripts/issue-certificate.sh`.
 5. Set `API_IMAGE` to a full Docker Hub `@sha256:` digest that passed the staging gate, then run `DOCKERHUB_USERNAME=... deploy/production/scripts/deploy.sh` as root. Verify `curl http://127.0.0.1:18080/readyz`, container health, and `curl --resolve settlrapi.theswissknife.com:443:VPS_IP https://settlrapi.theswissknife.com/readyz` before relying on public DNS.
