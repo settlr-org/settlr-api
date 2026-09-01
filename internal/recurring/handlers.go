@@ -3,20 +3,45 @@ package recurring
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	db "github.com/settlr-org/settlr-api/internal/db"
 	"github.com/settlr-org/settlr-api/internal/httpx"
 )
 
 type Handler struct {
-	Pool *pgxpool.Pool
+	Pool    *pgxpool.Pool
+	Queries *db.Queries
+}
+
+func (h *Handler) ensureQueries() *db.Queries {
+	if h.Queries != nil {
+		return h.Queries
+	}
+	if h.Pool != nil {
+		return db.New(h.Pool)
+	}
+	return nil
+}
+
+func (h *Handler) isMember(ctx context.Context, groupID, userID uuid.UUID) bool {
+	q := h.ensureQueries()
+	if q == nil {
+		return false
+	}
+	role, err := q.IsMember(ctx, db.IsMemberParams{GroupID: groupID, UserID: userID})
+	if err != nil {
+		return false
+	}
+	return role != ""
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
@@ -34,9 +59,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
-	var ok bool
-	_ = h.Pool.QueryRow(r.Context(), `SELECT true FROM group_members WHERE group_id=$1 AND user_id=$2`, groupID, userID).Scan(&ok)
-	if !ok {
+	q := h.ensureQueries()
+	if q == nil {
+		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
+		return
+	}
+	if role, err := q.IsMember(r.Context(), db.IsMemberParams{GroupID: groupID, UserID: userID}); err != nil || role == "" {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
@@ -68,7 +96,9 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	currency := req.Currency
 	if currency == "" {
-		_ = h.Pool.QueryRow(r.Context(), `SELECT currency FROM groups WHERE id=$1`, groupID).Scan(&currency)
+		if g, err := q.GetGroup(r.Context(), groupID); err == nil {
+			currency = g.Currency
+		}
 	}
 	if currency == "" {
 		currency = "NPR"
@@ -84,10 +114,24 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		splitsJSON = []byte("[]")
 	}
 	id := uuid.New()
-	_, err = h.Pool.Exec(r.Context(), `
-		INSERT INTO recurring_expenses (id, group_id, created_by, description, amount, currency, category_id, split_mode, splits, paid_by, frequency, next_run_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-		id, groupID, userID, req.Description, req.Amount, currency, req.CategoryID, req.SplitMode, string(splitsJSON), req.PaidBy, req.Frequency, start)
+	categoryID := uuid.Nil
+	if req.CategoryID != nil {
+		categoryID = *req.CategoryID
+	}
+	err = q.CreateRecurringExpense(r.Context(), db.CreateRecurringExpenseParams{
+		ID:          id,
+		GroupID:     groupID,
+		CreatedBy:   userID,
+		Description: req.Description,
+		Amount:      req.Amount,
+		Currency:    currency,
+		CategoryID:  categoryID,
+		SplitMode:   req.SplitMode,
+		Splits:      splitsJSON,
+		PaidBy:      req.PaidBy,
+		Frequency:   req.Frequency,
+		NextRunAt:   pgtype.Timestamptz{Time: start, Valid: true},
+	})
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
@@ -103,35 +147,33 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
-	var ok bool
-	_ = h.Pool.QueryRow(r.Context(), `SELECT true FROM group_members WHERE group_id=$1 AND user_id=$2`, groupID, userID).Scan(&ok)
-	if !ok {
+	q := h.ensureQueries()
+	if q == nil {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
-	rows, err := h.Pool.Query(r.Context(), `
-		SELECT id, description, amount, currency, split_mode, paid_by, frequency, next_run_at, last_run_at, active
-		FROM recurring_expenses WHERE group_id=$1 ORDER BY created_at DESC`, groupID)
+	if role, err := q.IsMember(r.Context(), db.IsMemberParams{GroupID: groupID, UserID: userID}); err != nil || role == "" {
+		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
+		return
+	}
+	rows, err := q.ListRecurringByGroup(r.Context(), groupID)
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	defer rows.Close()
 	var out []map[string]any
-	for rows.Next() {
-		var id, paidBy uuid.UUID
-		var description, splitMode, frequency, currency string
-		var amount int64
-		var nextRun, lastRun *time.Time
-		var active bool
-		if err := rows.Scan(&id, &description, &amount, &currency, &splitMode, &paidBy, &frequency, &nextRun, &lastRun, &active); err != nil {
-			httpx.WriteError(w, r, err)
-			return
+	for _, row := range rows {
+		var nextRun, lastRun any
+		if row.NextRunAt.Valid {
+			nextRun = row.NextRunAt.Time
+		}
+		if row.LastRunAt.Valid {
+			lastRun = row.LastRunAt.Time
 		}
 		out = append(out, map[string]any{
-			"id": id, "description": description, "amount": amount, "currency": currency,
-			"split_mode": splitMode, "paid_by": paidBy, "frequency": frequency,
-			"next_run_at": nextRun, "last_run_at": lastRun, "active": active,
+			"id": row.ID, "description": row.Description, "amount": row.Amount, "currency": row.Currency,
+			"split_mode": row.SplitMode, "paid_by": row.PaidBy, "frequency": row.Frequency,
+			"next_run_at": nextRun, "last_run_at": lastRun, "active": row.Active,
 		})
 	}
 	if out == nil {
@@ -159,22 +201,23 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "nothing to update"}})
 		return
 	}
-	// Only group members of the recurring expense's group may update it
-	var ok bool
-	_ = h.Pool.QueryRow(r.Context(), `
-		SELECT true FROM recurring_expenses re
-		JOIN group_members gm ON gm.group_id=re.group_id AND gm.user_id=$2
-		WHERE re.id=$1`, id, userID).Scan(&ok)
-	if !ok {
+	q := h.ensureQueries()
+	if q == nil {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
-	res, err := h.Pool.Exec(r.Context(), `UPDATE recurring_expenses SET active=$3, updated_at=now() WHERE id=$1 AND group_id IN (SELECT group_id FROM group_members WHERE user_id=$2)`, id, userID, *req.Active)
+	// Only group members of the recurring expense's group may update it
+	ok, err := q.CheckRecurringGroupMember(r.Context(), db.CheckRecurringGroupMemberParams{ID: id, UserID: userID})
+	if err != nil || !ok {
+		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
+		return
+	}
+	rowsAffected, err := q.UpdateRecurringActive(r.Context(), db.UpdateRecurringActiveParams{ID: id, UserID: userID, Active: *req.Active})
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	if res.RowsAffected() == 0 {
+	if rowsAffected == 0 {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
@@ -189,15 +232,17 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
-	res, err := h.Pool.Exec(r.Context(), `
-		DELETE FROM recurring_expenses re
-		USING group_members gm
-		WHERE re.id=$1 AND gm.group_id=re.group_id AND gm.user_id=$2`, id, userID)
+	q := h.ensureQueries()
+	if q == nil {
+		httpx.WriteError(w, r, httpx.ErrNotFound)
+		return
+	}
+	rowsAffected, err := q.DeleteRecurring(r.Context(), db.DeleteRecurringParams{ID: id, UserID: userID})
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	if res.RowsAffected() == 0 {
+	if rowsAffected == 0 {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
@@ -213,30 +258,14 @@ func (h *Handler) RunDue(ctx context.Context) {
 			log.Printf("recurring: begin transaction failed: %v", err)
 			return
 		}
-		var id, groupID, paidBy uuid.UUID
-		var description, currency, splitMode string
-		var amount int64
-		var categoryID *uuid.UUID
-		var splitsJSON []byte
-		var nextRun time.Time
-		err = tx.QueryRow(ctx, `
-			UPDATE recurring_expenses
-			SET next_run_at = CASE frequency
-			                    WHEN 'DAILY' THEN next_run_at + interval '1 day'
-			                    WHEN 'WEEKLY' THEN next_run_at + interval '7 days'
-			                    WHEN 'MONTHLY' THEN next_run_at + interval '1 month'
-			                    ELSE next_run_at + interval '1 year' END,
-			    last_run_at = next_run_at,
-			    updated_at = now()
-			WHERE id = (
-				SELECT id FROM recurring_expenses
-				WHERE active = true AND next_run_at <= now()
-				ORDER BY next_run_at
-				FOR UPDATE SKIP LOCKED
-				LIMIT 1
-			)
-			RETURNING id, group_id, description, amount, currency, split_mode, category_id, splits, paid_by, next_run_at`,
-		).Scan(&id, &groupID, &description, &amount, &currency, &splitMode, &categoryID, &splitsJSON, &paidBy, &nextRun)
+		q := h.ensureQueries()
+		if q == nil {
+			_ = tx.Rollback(ctx)
+			log.Printf("recurring: no queries available")
+			return
+		}
+		qtx := q.WithTx(tx)
+		row, err := qtx.ClaimDueRecurring(ctx)
 		if err != nil {
 			_ = tx.Rollback(ctx)
 			if err != pgx.ErrNoRows {
@@ -247,44 +276,51 @@ func (h *Handler) RunDue(ctx context.Context) {
 
 		// Build splits: reuse stored split definitions, or EQUAL across all members
 		var splits []map[string]any
-		_ = json.Unmarshal(splitsJSON, &splits)
+		_ = json.Unmarshal(row.Splits, &splits)
 		if len(splits) == 0 {
-			mrows, err := tx.Query(ctx, `SELECT user_id FROM group_members WHERE group_id=$1`, groupID)
+			memberIDs, err := qtx.ListRecurringGroupMembers(ctx, row.GroupID)
 			if err != nil {
 				log.Printf("recurring: members query failed: %v", err)
 				_ = tx.Rollback(ctx)
 				continue
 			}
 			var ids []map[string]any
-			for mrows.Next() {
-				var mid uuid.UUID
-				_ = mrows.Scan(&mid)
+			for _, mid := range memberIDs {
 				ids = append(ids, map[string]any{"user_id": mid.String()})
 			}
-			mrows.Close()
 			splits = ids
 		}
 		splitsPayload, _ := json.Marshal(splits)
 		expenseID := uuid.New()
-		_, err = tx.Exec(ctx, `
-			INSERT INTO expenses (id, group_id, description, amount, currency, paid_by, split_mode, category_id, expense_date, created_by)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::date,$6)`,
-			expenseID, groupID, description+" (recurring)", amount, currency, paidBy, splitMode, categoryID, time.Now().Format("2006-01-02"))
+		expenseDate := pgtype.Date{Time: time.Now(), Valid: true}
+		err = qtx.CreateRecurringExpenseInstance(ctx, db.CreateRecurringExpenseInstanceParams{
+			ID:          expenseID,
+			GroupID:     row.GroupID,
+			Description: row.Description + " (recurring)",
+			Amount:      row.Amount,
+			Currency:    row.Currency,
+			PaidBy:      row.PaidBy,
+			SplitMode:   row.SplitMode,
+			CategoryID:  row.CategoryID,
+			Column9:     expenseDate,
+		})
 		if err != nil {
 			log.Printf("recurring: expense insert failed: %v", err)
 			_ = tx.Rollback(ctx)
 			continue
 		}
 		// Insert splits with the same distribution logic as the API path
-		if err := h.insertSplits(ctx, tx, expenseID, groupID, amount, splitMode, splitsPayload); err != nil {
+		if err := h.insertSplits(ctx, qtx, expenseID, row.GroupID, row.Amount, row.SplitMode, splitsPayload); err != nil {
 			log.Printf("recurring: splits insert failed: %v", err)
 			_ = tx.Rollback(ctx)
 			continue
 		}
-		if _, err = tx.Exec(ctx, `
-			INSERT INTO activity_events (group_id, actor_id, type, entity_type, entity_id, payload)
-			VALUES ($1,$2,'EXPENSE_ADDED','expense',$3,json_build_object('description',$4::text,'recurring',true))`,
-			groupID, paidBy, expenseID, description); err != nil {
+		if err = qtx.CreateRecurringActivity(ctx, db.CreateRecurringActivityParams{
+			GroupID:  row.GroupID,
+			ActorID:  row.PaidBy,
+			EntityID: expenseID,
+			Column4:  row.Description,
+		}); err != nil {
 			log.Printf("recurring: activity insert failed: %v", err)
 			_ = tx.Rollback(ctx)
 			continue
@@ -296,13 +332,7 @@ func (h *Handler) RunDue(ctx context.Context) {
 	}
 }
 
-type executor interface {
-	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
-	Query(context.Context, string, ...any) (pgx.Rows, error)
-	QueryRow(context.Context, string, ...any) pgx.Row
-}
-
-func (h *Handler) insertSplits(ctx context.Context, db executor, expenseID uuid.UUID, groupID uuid.UUID, amount int64, splitMode string, splitsPayload []byte) error {
+func (h *Handler) insertSplits(ctx context.Context, q *db.Queries, expenseID uuid.UUID, groupID uuid.UUID, amount int64, splitMode string, splitsPayload []byte) error {
 	var splits []map[string]any
 	if err := json.Unmarshal(splitsPayload, &splits); err != nil {
 		return err
@@ -327,7 +357,7 @@ func (h *Handler) insertSplits(ctx context.Context, db executor, expenseID uuid.
 			if i < int(rem) {
 				amt++
 			}
-			if _, err := db.Exec(ctx, `INSERT INTO expense_splits (id, expense_id, user_id, amount) VALUES (gen_random_uuid(),$1,$2,$3)`, expenseID, uid, amt); err != nil {
+			if err := q.CreateRecurringSplit(ctx, db.CreateRecurringSplitParams{ExpenseID: expenseID, UserID: uid, Amount: amt}); err != nil {
 				return err
 			}
 		}
@@ -335,38 +365,45 @@ func (h *Handler) insertSplits(ctx context.Context, db executor, expenseID uuid.
 	}
 	// EXACT/PERCENTAGE/SHARES: use provided values
 	for _, s := range splits {
-		uid, err := uuid.Parse(s["user_id"].(string))
+		rawUID, ok := s["user_id"].(string)
+		if !ok {
+			continue
+		}
+		uid, err := uuid.Parse(rawUID)
 		if err != nil {
 			continue
 		}
 		switch splitMode {
 		case "EXACT":
 			if v, ok := s["amount"].(float64); ok {
-				if _, err := db.Exec(ctx, `INSERT INTO expense_splits (id, expense_id, user_id, amount) VALUES (gen_random_uuid(),$1,$2,$3)`, expenseID, uid, int64(v)); err != nil {
+				if err := q.CreateRecurringSplit(ctx, db.CreateRecurringSplitParams{ExpenseID: expenseID, UserID: uid, Amount: int64(v)}); err != nil {
 					return err
 				}
 			}
 		case "PERCENTAGE":
 			if v, ok := s["percentage"].(float64); ok {
-				if _, err := db.Exec(ctx, `INSERT INTO expense_splits (id, expense_id, user_id, amount, percentage) VALUES (gen_random_uuid(),$1,$2,$3,$4)`, expenseID, uid, amount*int64(v)/100, v); err != nil {
+				amt := amount * int64(v) / 100
+				var n pgtype.Numeric
+				_ = n.Scan(fmt.Sprintf("%v", v))
+				if err := q.CreateRecurringSplitWithPercentage(ctx, db.CreateRecurringSplitWithPercentageParams{ExpenseID: expenseID, UserID: uid, Amount: amt, Percentage: n}); err != nil {
 					return err
 				}
 			}
 		case "SHARES":
 			if v, ok := s["shares"].(float64); ok {
-				if _, err := db.Exec(ctx, `INSERT INTO expense_splits (id, expense_id, user_id, shares) VALUES (gen_random_uuid(),$1,$2,$3)`, expenseID, uid, int64(v)); err != nil {
+				if err := q.CreateRecurringSplitWithShares(ctx, db.CreateRecurringSplitWithSharesParams{ExpenseID: expenseID, UserID: uid, Shares: pgtype.Int4{Int32: int32(v), Valid: true}}); err != nil {
 					return err
 				}
 			}
 		}
 	}
 	// Ensure sum(splits) == amount for non-equal modes by topping up the payer's share
-	var sum int64
-	if err := db.QueryRow(ctx, `SELECT coalesce(sum(amount),0) FROM expense_splits WHERE expense_id=$1`, expenseID).Scan(&sum); err != nil {
+	sum, err := q.GetRecurringSplitsSum(ctx, expenseID)
+	if err != nil {
 		return err
 	}
 	if diff := amount - sum; diff != 0 {
-		if _, err := db.Exec(ctx, `UPDATE expense_splits SET amount = amount + $3 WHERE expense_id=$1 AND user_id=$2`, expenseID, ids[0], diff); err != nil {
+		if err := q.TopUpRecurringSplit(ctx, db.TopUpRecurringSplitParams{ExpenseID: expenseID, UserID: ids[0], Amount: diff}); err != nil {
 			return err
 		}
 	}

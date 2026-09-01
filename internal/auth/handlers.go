@@ -169,18 +169,12 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 	id := uuid.New()
 	q := h.ensureQueries()
-	if q != nil {
-		err = q.CreateUser(r.Context(), db.CreateUserParams{
-			ID:           id,
-			Name:         req.Name,
-			Email:        req.Email,
-			PasswordHash: pgtype.Text{String: hash, Valid: true},
-		})
-	} else {
-		_, err = h.Svc.Pool.Exec(r.Context(),
-			`INSERT INTO users (id, name, email, password_hash) VALUES ($1,$2,$3,$4)`,
-			id, req.Name, req.Email, hash)
-	}
+	err = q.CreateUser(r.Context(), db.CreateUserParams{
+		ID:           id,
+		Name:         req.Name,
+		Email:        req.Email,
+		PasswordHash: pgtype.Text{String: hash, Valid: true},
+	})
 	if err != nil && strings.Contains(err.Error(), "duplicate") {
 		httpx.WriteJSON(w, 409, map[string]any{"error": map[string]string{"code": "CONFLICT", "message": "email already registered"}})
 		return
@@ -191,12 +185,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 	// Accounts remain inactive until the owner proves they control the address.
 	verificationToken, verificationHash := GenerateRefreshToken()
-	if q != nil {
-		_ = q.CreateEmailVerificationToken(r.Context(), db.CreateEmailVerificationTokenParams{UserID: id, TokenHash: verificationHash})
-	} else {
-		_, _ = h.Svc.Pool.Exec(r.Context(),
-			`INSERT INTO email_verification_tokens (user_id, token_hash, expires_at) VALUES ($1,$2, now() + interval '24 hours')`, id, verificationHash)
-	}
+	_ = q.CreateEmailVerificationToken(r.Context(), db.CreateEmailVerificationTokenParams{UserID: id, TokenHash: verificationHash})
 	if h.Mailer != nil {
 		subject, html := h.Mailer.VerifyEmailEmail(req.Email, verificationToken)
 		h.Mailer.SendAsync(req.Email, subject, html)
@@ -248,53 +237,31 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var hashValid bool
 	var hashStr string
 	var verifiedValid bool
-	if q != nil {
-		row, err := q.GetUserByEmailForLogin(r.Context(), req.Email)
-		if err == pgx.ErrNoRows {
-			httpx.WriteJSON(w, 401, map[string]any{"error": map[string]string{"code": "UNAUTHORIZED", "message": "invalid credentials"}})
-			return
-		}
-		if err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
-		id = row.ID
-		name = row.Name
-		email = row.Email
-		hashValid = row.PasswordHash.Valid
-		hashStr = row.PasswordHash.String
-		verifiedValid = row.EmailVerifiedAt.Valid
-		if !hashValid || !VerifyPassword(hashStr, req.Password) {
-			httpx.WriteJSON(w, 401, map[string]any{"error": map[string]string{"code": "UNAUTHORIZED", "message": "invalid credentials"}})
-			return
-		}
-		if !verifiedValid {
-			httpx.WriteJSON(w, http.StatusForbidden, map[string]any{"error": map[string]string{
-				"code":    "EMAIL_NOT_VERIFIED",
-				"message": "Verify your email address before signing in.",
-			}})
-			return
-		}
-	} else {
-		var hash *string
-		var verifiedAt *string
-		err := h.Svc.Pool.QueryRow(r.Context(),
-			`SELECT id, name, email, password_hash, email_verified_at::text FROM users WHERE lower(email)=lower($1) LIMIT 1`, req.Email).Scan(&id, &name, &email, &hash, &verifiedAt)
-		if err == pgx.ErrNoRows || hash == nil || !VerifyPassword(*hash, req.Password) {
-			httpx.WriteJSON(w, 401, map[string]any{"error": map[string]string{"code": "UNAUTHORIZED", "message": "invalid credentials"}})
-			return
-		}
-		if err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
-		if verifiedAt == nil {
-			httpx.WriteJSON(w, http.StatusForbidden, map[string]any{"error": map[string]string{
-				"code":    "EMAIL_NOT_VERIFIED",
-				"message": "Verify your email address before signing in.",
-			}})
-			return
-		}
+	row, err := q.GetUserByEmailForLogin(r.Context(), req.Email)
+	if err == pgx.ErrNoRows {
+		httpx.WriteJSON(w, 401, map[string]any{"error": map[string]string{"code": "UNAUTHORIZED", "message": "invalid credentials"}})
+		return
+	}
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	id = row.ID
+	name = row.Name
+	email = row.Email
+	hashValid = row.PasswordHash.Valid
+	hashStr = row.PasswordHash.String
+	verifiedValid = row.EmailVerifiedAt.Valid
+	if !hashValid || !VerifyPassword(hashStr, req.Password) {
+		httpx.WriteJSON(w, 401, map[string]any{"error": map[string]string{"code": "UNAUTHORIZED", "message": "invalid credentials"}})
+		return
+	}
+	if !verifiedValid {
+		httpx.WriteJSON(w, http.StatusForbidden, map[string]any{"error": map[string]string{
+			"code":    "EMAIL_NOT_VERIFIED",
+			"message": "Verify your email address before signing in.",
+		}})
+		return
 	}
 	h.writeSession(w, r, id, name, email)
 }
@@ -348,11 +315,7 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	// Get user_id from new session
 	var userID uuid.UUID
 	q := h.ensureQueries()
-	if q != nil {
-		userID, _ = q.GetSessionUserByHash(r.Context(), HashToken(newRaw))
-	} else {
-		_ = h.Svc.Pool.QueryRow(r.Context(), `SELECT user_id FROM sessions WHERE refresh_token_hash=$1`, HashToken(newRaw)).Scan(&userID)
-	}
+	userID, _ = q.GetSessionUserByHash(r.Context(), HashToken(newRaw))
 	accessToken, err := GenerateAccessToken(h.Svc.Cfg, userID)
 	if err != nil {
 		httpx.WriteError(w, r, err)
@@ -388,42 +351,20 @@ func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 	q := h.ensureQueries()
 	var userID uuid.UUID
-	if q != nil {
-		var err error
-		userID, err = q.GetUserIDByEmail(r.Context(), req.Email)
-		if err == pgx.ErrNoRows {
-			httpx.WriteJSON(w, 200, map[string]any{"message": "if the email exists, a reset link has been sent"})
-			return
-		}
-		if err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
-	} else {
-		err := h.Svc.Pool.QueryRow(r.Context(), `SELECT id FROM users WHERE lower(email)=lower($1)`, req.Email).Scan(&userID)
-		if err == pgx.ErrNoRows {
-			httpx.WriteJSON(w, 200, map[string]any{"message": "if the email exists, a reset link has been sent"})
-			return
-		}
-		if err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
+	userID, err := q.GetUserIDByEmail(r.Context(), req.Email)
+	if err == pgx.ErrNoRows {
+		httpx.WriteJSON(w, 200, map[string]any{"message": "if the email exists, a reset link has been sent"})
+		return
+	}
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
 	}
 	raw, hash := GenerateRefreshToken()
 	// Reuse refresh token random gen for reset tokens
-	if q != nil {
-		if err := q.CreatePasswordResetToken(r.Context(), db.CreatePasswordResetTokenParams{UserID: userID, TokenHash: hash}); err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
-	} else {
-		if _, err := h.Svc.Pool.Exec(r.Context(),
-			`INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1,$2, now() + interval '1 hour')`,
-			userID, hash); err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
+	if err := q.CreatePasswordResetToken(r.Context(), db.CreatePasswordResetTokenParams{UserID: userID, TokenHash: hash}); err != nil {
+		httpx.WriteError(w, r, err)
+		return
 	}
 	if h.Mailer != nil {
 		subject, html := h.Mailer.ResetPasswordEmail(req.Email, raw)
@@ -455,28 +396,14 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	hash := HashToken(req.Token)
 	q := h.ensureQueries()
 	var userID uuid.UUID
-	if q != nil {
-		var err error
-		userID, err = q.GetPasswordResetTokenUser(r.Context(), hash)
-		if err == pgx.ErrNoRows {
-			httpx.WriteJSON(w, 400, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid or expired token"}})
-			return
-		}
-		if err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
-	} else {
-		err := h.Svc.Pool.QueryRow(r.Context(),
-			`SELECT user_id FROM password_reset_tokens WHERE token_hash=$1 AND expires_at > now() AND used_at IS NULL`, hash).Scan(&userID)
-		if err == pgx.ErrNoRows {
-			httpx.WriteJSON(w, 400, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid or expired token"}})
-			return
-		}
-		if err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
+	userID, err := q.GetPasswordResetTokenUser(r.Context(), hash)
+	if err == pgx.ErrNoRows {
+		httpx.WriteJSON(w, 400, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid or expired token"}})
+		return
+	}
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
 	}
 	pwHash, err := HashPassword(req.NewPassword)
 	if err != nil {
@@ -490,32 +417,17 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(r.Context())
 	qtx := h.qtx(tx)
-	if qtx != nil {
-		if err = qtx.UpdateUserPassword(r.Context(), db.UpdateUserPasswordParams{PasswordHash: pgtype.Text{String: pwHash, Valid: true}, ID: userID}); err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
-		if err = qtx.MarkPasswordResetUsed(r.Context(), hash); err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
-		if err = qtx.RevokeAllUserSessions(r.Context(), userID); err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
-	} else {
-		if _, err = tx.Exec(r.Context(), `UPDATE users SET password_hash=$1, updated_at=now() WHERE id=$2`, pwHash, userID); err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
-		if _, err = tx.Exec(r.Context(), `UPDATE password_reset_tokens SET used_at=now() WHERE token_hash=$1`, hash); err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
-		if _, err = tx.Exec(r.Context(), `UPDATE sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL`, userID); err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
+	if err = qtx.UpdateUserPassword(r.Context(), db.UpdateUserPasswordParams{PasswordHash: pgtype.Text{String: pwHash, Valid: true}, ID: userID}); err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	if err = qtx.MarkPasswordResetUsed(r.Context(), hash); err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	if err = qtx.RevokeAllUserSessions(r.Context(), userID); err != nil {
+		httpx.WriteError(w, r, err)
+		return
 	}
 	if err = tx.Commit(r.Context()); err != nil {
 		httpx.WriteError(w, r, err)
@@ -535,33 +447,17 @@ func (h *Handler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	hash := HashToken(req.Token)
 	q := h.ensureQueries()
 	var userID uuid.UUID
-	if q != nil {
-		var err error
-		userID, err = q.GetEmailVerificationTokenUser(r.Context(), hash)
-		if err == pgx.ErrNoRows {
-			httpx.WriteJSON(w, 400, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid or expired token"}})
-			return
-		}
-		if err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
-		_ = q.SetEmailVerified(r.Context(), userID)
-		_ = q.MarkEmailVerificationVerified(r.Context(), hash)
-	} else {
-		err := h.Svc.Pool.QueryRow(r.Context(),
-			`SELECT user_id FROM email_verification_tokens WHERE token_hash=$1 AND expires_at > now() AND verified_at IS NULL`, hash).Scan(&userID)
-		if err == pgx.ErrNoRows {
-			httpx.WriteJSON(w, 400, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid or expired token"}})
-			return
-		}
-		if err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
-		_, _ = h.Svc.Pool.Exec(r.Context(), `UPDATE users SET email_verified_at=now(), updated_at=now() WHERE id=$1`, userID)
-		_, _ = h.Svc.Pool.Exec(r.Context(), `UPDATE email_verification_tokens SET verified_at=now() WHERE token_hash=$1`, hash)
+	userID, err := q.GetEmailVerificationTokenUser(r.Context(), hash)
+	if err == pgx.ErrNoRows {
+		httpx.WriteJSON(w, 400, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid or expired token"}})
+		return
 	}
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	_ = q.SetEmailVerified(r.Context(), userID)
+	_ = q.MarkEmailVerificationVerified(r.Context(), hash)
 	httpx.WriteJSON(w, 200, map[string]any{"message": "email verified"})
 }
 
@@ -572,18 +468,10 @@ func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 	var verifiedValid bool
 	q := h.ensureQueries()
 	if err == nil {
-		if q != nil {
-			row, qerr := q.GetUserVerificationByID(r.Context(), uid)
-			if qerr == nil {
-				email = row.Email
-				verifiedValid = row.EmailVerifiedAt.Valid
-			}
-		} else {
-			var verifiedAt *string
-			_ = h.Svc.Pool.QueryRow(r.Context(),
-				`SELECT email, email_verified_at::text FROM users WHERE id=$1`, uid).
-				Scan(&email, &verifiedAt)
-			verifiedValid = verifiedAt != nil
+		row, qerr := q.GetUserVerificationByID(r.Context(), uid)
+		if qerr == nil {
+			email = row.Email
+			verifiedValid = row.EmailVerifiedAt.Valid
 		}
 	} else {
 		var req struct {
@@ -600,26 +488,15 @@ func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 		}
 		// Keep this response non-enumerating: unknown and already verified
 		// addresses receive the same success message.
-		if q != nil {
-			row, qerr := q.GetUserVerificationByEmail(r.Context(), req.Email)
-			if qerr == nil {
-				email = row.Email
-				verifiedValid = row.EmailVerifiedAt.Valid
-				// Need to get uid for token insertion: lookup user id by email
-				if uid == uuid.Nil {
-					if id, ierr := q.GetUserIDByEmail(r.Context(), req.Email); ierr == nil {
-						uid = id
-					}
-				}
-			}
-		} else {
-			var verifiedAt *string
-			_ = h.Svc.Pool.QueryRow(r.Context(),
-				`SELECT email, email_verified_at::text FROM users WHERE lower(email)=lower($1)`, req.Email).
-				Scan(&email, &verifiedAt)
-			verifiedValid = verifiedAt != nil
+		row, qerr := q.GetUserVerificationByEmail(r.Context(), req.Email)
+		if qerr == nil {
+			email = row.Email
+			verifiedValid = row.EmailVerifiedAt.Valid
+			// Need to get uid for token insertion: lookup user id by email
 			if uid == uuid.Nil {
-				_ = h.Svc.Pool.QueryRow(r.Context(), `SELECT id FROM users WHERE lower(email)=lower($1)`, req.Email).Scan(&uid)
+				if id, ierr := q.GetUserIDByEmail(r.Context(), req.Email); ierr == nil {
+					uid = id
+				}
 			}
 		}
 	}
@@ -628,12 +505,7 @@ func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	raw, hash := GenerateRefreshToken()
-	if q != nil {
-		_ = q.CreateEmailVerificationToken(r.Context(), db.CreateEmailVerificationTokenParams{UserID: uid, TokenHash: hash})
-	} else {
-		_, _ = h.Svc.Pool.Exec(r.Context(),
-			`INSERT INTO email_verification_tokens (user_id, token_hash, expires_at) VALUES ($1,$2, now() + interval '24 hours')`, uid, hash)
-	}
+	_ = q.CreateEmailVerificationToken(r.Context(), db.CreateEmailVerificationTokenParams{UserID: uid, TokenHash: hash})
 	if h.Mailer != nil {
 		subject, html := h.Mailer.VerifyEmailEmail(email, raw)
 		h.Mailer.SendAsync(email, subject, html)
@@ -652,48 +524,25 @@ func (h *Handler) ListSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := h.ensureQueries()
-	if q != nil {
-		rows, err := q.ListSessionsByUser(r.Context(), uid)
-		if err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
-		out := make([]map[string]any, 0, len(rows))
-		for _, s := range rows {
-			var ua, ip any
-			if s.UserAgent.Valid {
-				ua = s.UserAgent.String
-			}
-			if s.Ip.Valid {
-				ip = s.Ip.String
-			}
-			var revokedAt any
-			if s.RevokedAt.Valid {
-				revokedAt = s.RevokedAt.Time
-			}
-			out = append(out, map[string]any{"id": s.ID, "user_agent": ua, "ip": ip, "created_at": s.CreatedAt.Time, "last_used_at": s.LastUsedAt.Time, "expires_at": s.ExpiresAt.Time, "revoked_at": revokedAt})
-		}
-		if out == nil {
-			out = []map[string]any{}
-		}
-		httpx.WriteJSON(w, 200, map[string]any{"data": out})
-		return
-	}
-	rows, err := h.Svc.Pool.Query(r.Context(),
-		`SELECT id, user_agent, ip, created_at, last_used_at, expires_at, revoked_at FROM sessions WHERE user_id=$1 ORDER BY created_at DESC`, uid)
+	rows, err := q.ListSessionsByUser(r.Context(), uid)
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	defer rows.Close()
-	var out []map[string]any
-	for rows.Next() {
-		var id uuid.UUID
-		var ua, ip *string
-		var createdAt, lastUsedAt, expiresAt any
-		var revokedAt *string
-		_ = rows.Scan(&id, &ua, &ip, &createdAt, &lastUsedAt, &expiresAt, &revokedAt)
-		out = append(out, map[string]any{"id": id, "user_agent": ua, "ip": ip, "created_at": createdAt, "last_used_at": lastUsedAt, "expires_at": expiresAt, "revoked_at": revokedAt})
+	out := make([]map[string]any, 0, len(rows))
+	for _, s := range rows {
+		var ua, ip any
+		if s.UserAgent.Valid {
+			ua = s.UserAgent.String
+		}
+		if s.Ip.Valid {
+			ip = s.Ip.String
+		}
+		var revokedAt any
+		if s.RevokedAt.Valid {
+			revokedAt = s.RevokedAt.Time
+		}
+		out = append(out, map[string]any{"id": s.ID, "user_agent": ua, "ip": ip, "created_at": s.CreatedAt.Time, "last_used_at": s.LastUsedAt.Time, "expires_at": s.ExpiresAt.Time, "revoked_at": revokedAt})
 	}
 	if out == nil {
 		out = []map[string]any{}
@@ -713,22 +562,14 @@ func (h *Handler) RevokeSessionByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := h.ensureQueries()
-	if q != nil {
-		_, err = q.RevokeSessionByIDReturning(r.Context(), db.RevokeSessionByIDReturningParams{ID: sid, UserID: uid})
-		if err == pgx.ErrNoRows {
-			httpx.WriteError(w, r, httpx.ErrNotFound)
-			return
-		}
-		if err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
-	} else {
-		res, _ := h.Svc.Pool.Exec(r.Context(), `UPDATE sessions SET revoked_at=now() WHERE id=$1 AND user_id=$2 AND revoked_at IS NULL`, sid, uid)
-		if res.RowsAffected() == 0 {
-			httpx.WriteError(w, r, httpx.ErrNotFound)
-			return
-		}
+	_, err = q.RevokeSessionByIDReturning(r.Context(), db.RevokeSessionByIDReturningParams{ID: sid, UserID: uid})
+	if err == pgx.ErrNoRows {
+		httpx.WriteError(w, r, httpx.ErrNotFound)
+		return
+	}
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
 	}
 	httpx.WriteJSON(w, 200, map[string]any{"message": "session revoked"})
 }

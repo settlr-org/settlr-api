@@ -1,18 +1,29 @@
 package activity
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	db "github.com/settlr-org/settlr-api/internal/db"
 	"github.com/settlr-org/settlr-api/internal/httpx"
 )
 
 type Handler struct {
-	Pool *pgxpool.Pool
+	Pool    *pgxpool.Pool
+	Queries *db.Queries
+}
+
+func (h *Handler) ensureQueries() *db.Queries {
+	if h.Queries != nil {
+		return h.Queries
+	}
+	if h.Pool != nil {
+		return db.New(h.Pool)
+	}
+	return nil
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
@@ -22,44 +33,55 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) h
 func (h *Handler) Global(w http.ResponseWriter, r *http.Request) {
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
-	q := r.URL.Query()
+	query := r.URL.Query()
 	limit := 30
-	if v, err := strconv.Atoi(q.Get("limit")); err == nil && v > 0 && v <= 100 {
+	if v, err := strconv.Atoi(query.Get("limit")); err == nil && v > 0 && v <= 100 {
 		limit = v
 	}
-	cursor := q.Get("cursor")
-	// Only activity for groups user is member of
-	where := `a.group_id IN (SELECT group_id FROM group_members WHERE user_id=$1)`
-	args := []any{userID}
-	idx := 2
+	cursor := query.Get("cursor")
+	qry := h.ensureQueries()
+	var out []map[string]any
+	var lastID *uuid.UUID
+	var err error
 	if cursor != "" {
-		if cid, err := uuid.Parse(cursor); err == nil {
-			where += ` AND (a.created_at, a.id) < (SELECT created_at, id FROM activity_events WHERE id=$` + strconv.Itoa(idx) + `)`
-			args = append(args, cid)
-			idx++
+		if cid, cerr := uuid.Parse(cursor); cerr == nil {
+			rows, qerr := qry.ListGlobalActivityWithCursor(r.Context(), db.ListGlobalActivityWithCursorParams{
+				UserID: userID, ID: cid, Limit: int32(limit + 1),
+			})
+			err = qerr
+			if err == nil {
+				for _, row := range rows {
+					out = append(out, map[string]any{"id": row.ID, "group_id": row.GroupID, "actor_id": row.ActorID, "type": row.Type, "entity_type": row.EntityType, "entity_id": row.EntityID, "payload": row.Payload, "created_at": row.CreatedAt.Time})
+					tmp := row.ID
+					lastID = &tmp
+				}
+			}
+		} else {
+			// invalid cursor -> treat as no cursor
+			rows, qerr := qry.ListGlobalActivity(r.Context(), db.ListGlobalActivityParams{UserID: userID, Limit: int32(limit + 1)})
+			err = qerr
+			if err == nil {
+				for _, row := range rows {
+					out = append(out, map[string]any{"id": row.ID, "group_id": row.GroupID, "actor_id": row.ActorID, "type": row.Type, "entity_type": row.EntityType, "entity_id": row.EntityID, "payload": row.Payload, "created_at": row.CreatedAt.Time})
+					tmp := row.ID
+					lastID = &tmp
+				}
+			}
+		}
+	} else {
+		rows, qerr := qry.ListGlobalActivity(r.Context(), db.ListGlobalActivityParams{UserID: userID, Limit: int32(limit + 1)})
+		err = qerr
+		if err == nil {
+			for _, row := range rows {
+				out = append(out, map[string]any{"id": row.ID, "group_id": row.GroupID, "actor_id": row.ActorID, "type": row.Type, "entity_type": row.EntityType, "entity_id": row.EntityID, "payload": row.Payload, "created_at": row.CreatedAt.Time})
+				tmp := row.ID
+				lastID = &tmp
+			}
 		}
 	}
-	query := `SELECT a.id, a.group_id, a.actor_id, a.type, a.entity_type, a.entity_id, a.payload, a.created_at
-			  FROM activity_events a WHERE ` + where + ` ORDER BY a.created_at DESC, a.id DESC LIMIT $` + strconv.Itoa(idx)
-	args = append(args, limit+1)
-	rows, err := h.Pool.Query(r.Context(), query, args...)
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
-	}
-	defer rows.Close()
-	var out []map[string]any
-	var lastID *uuid.UUID
-	for rows.Next() {
-		var id, groupID, entityID *uuid.UUID
-		var actorID *uuid.UUID
-		var typ, entityType string
-		var payload json.RawMessage
-		var createdAt any
-		_ = rows.Scan(&id, &groupID, &actorID, &typ, &entityType, &entityID, &payload, &createdAt)
-		out = append(out, map[string]any{"id": id, "group_id": groupID, "actor_id": actorID, "type": typ, "entity_type": entityType, "entity_id": entityID, "payload": payload, "created_at": createdAt})
-		tmp := *id
-		lastID = &tmp
 	}
 	if out == nil {
 		out = []map[string]any{}

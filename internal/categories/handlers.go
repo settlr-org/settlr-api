@@ -5,13 +5,26 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	db "github.com/settlr-org/settlr-api/internal/db"
 	"github.com/settlr-org/settlr-api/internal/httpx"
 )
 
 type Handler struct {
-	Pool *pgxpool.Pool
+	Pool    *pgxpool.Pool
+	Queries *db.Queries
+}
+
+func (h *Handler) ensureQueries() *db.Queries {
+	if h.Queries != nil {
+		return h.Queries
+	}
+	if h.Pool != nil {
+		return db.New(h.Pool)
+	}
+	return nil
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
@@ -22,20 +35,15 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) h
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
-	rows, err := h.Pool.Query(r.Context(),
-		`SELECT id, name, icon, color, is_system, coalesce(grouping,'Uncategorized') as grouping FROM categories WHERE is_system=true OR owner_id=$1 ORDER BY grouping, is_system DESC, name`, userID)
+	q := h.ensureQueries()
+	rows, err := q.ListCategories(r.Context(), userID)
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	defer rows.Close()
 	var out []map[string]any
-	for rows.Next() {
-		var id uuid.UUID
-		var name, icon, color, grouping string
-		var isSystem bool
-		_ = rows.Scan(&id, &name, &icon, &color, &isSystem, &grouping)
-		out = append(out, map[string]any{"id": id, "name": name, "icon": icon, "color": color, "is_system": isSystem, "grouping": grouping})
+	for _, row := range rows {
+		out = append(out, map[string]any{"id": row.ID, "name": row.Name, "icon": row.Icon, "color": row.Color, "is_system": row.IsSystem, "grouping": row.Grouping})
 	}
 	if out == nil {
 		out = []map[string]any{}
@@ -74,9 +82,15 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		grouping = *req.Grouping
 	}
 	id := uuid.New()
-	_, err := h.Pool.Exec(r.Context(),
-		`INSERT INTO categories (id, name, icon, color, grouping, is_system, owner_id) VALUES ($1,$2,$3,$4,$5,false,$6)`,
-		id, req.Name, icon, color, grouping, userID)
+	q := h.ensureQueries()
+	err := q.CreateCategory(r.Context(), db.CreateCategoryParams{
+		ID:       id,
+		Name:     req.Name,
+		Icon:     icon,
+		Color:    color,
+		Grouping: pgtype.Text{String: grouping, Valid: true},
+		OwnerID:  userID,
+	})
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return

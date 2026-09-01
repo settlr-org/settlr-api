@@ -109,21 +109,21 @@ func main() {
 	// Simpler: we keep auth routes as registered but add a global rate limiter that only applies to /auth
 	// For now global limiter checks path prefix in middleware below.
 
-	usersHandler := &users.Handler{Pool: pool, AuthSvc: authSvc}
+	usersHandler := &users.Handler{Pool: pool, Queries: queries, AuthSvc: authSvc}
 	groupsHandler := &groups.Handler{Pool: pool, Queries: queries, Mailer: mailSender}
 	expensesHandler := &expenses.Handler{Pool: pool, Queries: queries}
-	balancesHandler := &balances.Handler{Pool: pool}
+	balancesHandler := &balances.Handler{Pool: pool, Queries: queries}
 	settlementsHandler := &settlements.Handler{Pool: pool, Queries: queries}
 	friendsHandler := &friends.Handler{Pool: pool, Queries: queries, Mailer: mailSender}
-	notificationsHandler := &notifications.Handler{Pool: pool}
-	categoriesHandler := &categories.Handler{Pool: pool}
-	statsHandler := &stats.Handler{Pool: pool}
-	commentsHandler := &comments.Handler{Pool: pool}
-	attachmentsHandler := &attachments.Handler{Pool: pool}
-	activityHandler := &activity.Handler{Pool: pool}
-	searchHandler := &search.Handler{Pool: pool}
-	recurringHandler := &recurring.Handler{Pool: pool}
-	exportHandler := &export.Handler{Pool: pool}
+	notificationsHandler := &notifications.Handler{Pool: pool, Queries: queries}
+	categoriesHandler := &categories.Handler{Pool: pool, Queries: queries}
+	statsHandler := &stats.Handler{Pool: pool, Queries: queries}
+	commentsHandler := &comments.Handler{Pool: pool, Queries: queries}
+	attachmentsHandler := &attachments.Handler{Pool: pool, Queries: queries}
+	activityHandler := &activity.Handler{Pool: pool, Queries: queries}
+	searchHandler := &search.Handler{Pool: pool, Queries: queries}
+	recurringHandler := &recurring.Handler{Pool: pool, Queries: queries}
+	exportHandler := &export.Handler{Pool: pool, Queries: queries}
 	personalHandler := &personal.Handler{Pool: pool, Queries: queries}
 	ratesHandler := &rates.Handler{}
 

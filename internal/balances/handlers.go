@@ -6,12 +6,24 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	db "github.com/settlr-org/settlr-api/internal/db"
 	"github.com/settlr-org/settlr-api/internal/debts"
 	"github.com/settlr-org/settlr-api/internal/httpx"
 )
 
 type Handler struct {
-	Pool *pgxpool.Pool
+	Pool    *pgxpool.Pool
+	Queries *db.Queries
+}
+
+func (h *Handler) ensureQueries() *db.Queries {
+	if h.Queries != nil {
+		return h.Queries
+	}
+	if h.Pool != nil {
+		return db.New(h.Pool)
+	}
+	return nil
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
@@ -20,12 +32,14 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) h
 	mux.Handle("GET /api/v1/me/balances", authMw(http.HandlerFunc(h.GetMyBalances)))
 }
 
-func mustBeMember(pool *pgxpool.Pool, r *http.Request, groupID uuid.UUID) bool {
+func (h *Handler) isMember(r *http.Request, groupID uuid.UUID) bool {
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
-	var ok bool
-	_ = pool.QueryRow(r.Context(), `SELECT true FROM group_members WHERE group_id=$1 AND user_id=$2`, groupID, userID).Scan(&ok)
-	return ok
+	q := h.ensureQueries()
+	if role, err := q.IsMember(r.Context(), db.IsMemberParams{GroupID: groupID, UserID: userID}); err == nil && role != "" {
+		return true
+	}
+	return false
 }
 
 // GetBalances computes per-member net balances for a group.
@@ -36,7 +50,7 @@ func (h *Handler) GetBalances(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid group id"}})
 		return
 	}
-	if !mustBeMember(h.Pool, r, groupID) {
+	if !h.isMember(r, groupID) {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
@@ -46,7 +60,10 @@ func (h *Handler) GetBalances(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	currency := "NPR"
-	_ = h.Pool.QueryRow(r.Context(), `SELECT currency FROM groups WHERE id=$1`, groupID).Scan(&currency)
+	q := h.ensureQueries()
+	if c, err := q.GetGroupCurrency(r.Context(), groupID); err == nil {
+		currency = c
+	}
 	var out []map[string]any
 	for uid, amt := range balMap {
 		out = append(out, map[string]any{"user_id": uid, "amount": amt})
@@ -63,7 +80,7 @@ func (h *Handler) GetDebts(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid group id"}})
 		return
 	}
-	if !mustBeMember(h.Pool, r, groupID) {
+	if !h.isMember(r, groupID) {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
@@ -78,56 +95,38 @@ func (h *Handler) GetDebts(w http.ResponseWriter, r *http.Request) {
 	}
 	simplified := debts.Simplify(bals)
 	currency := "NPR"
-	_ = h.Pool.QueryRow(r.Context(), `SELECT currency FROM groups WHERE id=$1`, groupID).Scan(&currency)
+	q := h.ensureQueries()
+	if c, err := q.GetGroupCurrency(r.Context(), groupID); err == nil {
+		currency = c
+	}
 	httpx.WriteJSON(w, 200, map[string]any{"data": simplified, "currency": currency})
 }
 
 func (h *Handler) GetMyBalances(w http.ResponseWriter, r *http.Request) {
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
+	q := h.ensureQueries()
 	var userCurrency string
-	_ = h.Pool.QueryRow(r.Context(), `SELECT default_currency FROM users WHERE id=$1`, userID).Scan(&userCurrency)
+	if c, err := q.GetUserDefaultCurrency(r.Context(), userID); err == nil && c != "" {
+		userCurrency = c
+	}
 	if userCurrency == "" {
 		userCurrency = "NPR"
 	}
-	// Aggregate across all groups the user is in
-	rows, err := h.Pool.Query(r.Context(), `
-		SELECT g.id, g.name, g.currency,
-		       COALESCE(paid.total,0) - COALESCE(owed.total,0) + COALESCE(recv.total,0) - COALESCE(sent.total,0) AS balance
-		FROM groups g
-		JOIN group_members gm ON gm.group_id=g.id AND gm.user_id=$1
-		LEFT JOIN (
-			SELECT group_id, paid_by, SUM(ROUND(amount * COALESCE(exchange_rate, 1))::bigint) AS total FROM expenses WHERE deleted_at IS NULL GROUP BY group_id, paid_by
-		) paid ON paid.group_id=g.id AND paid.paid_by=$1
-		LEFT JOIN (
-			SELECT e.group_id, s.user_id, SUM(ROUND(s.amount * COALESCE(e.exchange_rate, 1))::bigint) AS total
-			FROM expense_splits s JOIN expenses e ON e.id=s.expense_id
-			WHERE e.deleted_at IS NULL GROUP BY e.group_id, s.user_id
-		) owed ON owed.group_id=g.id AND owed.user_id=$1
-		LEFT JOIN (
-			SELECT group_id, from_user AS user_id, SUM(amount) AS total FROM settlements WHERE deleted_at IS NULL GROUP BY group_id, from_user
-		) recv ON recv.group_id=g.id AND recv.user_id=$1
-		LEFT JOIN (
-			SELECT group_id, to_user AS user_id, SUM(amount) AS total FROM settlements WHERE deleted_at IS NULL GROUP BY group_id, to_user
-		) sent ON sent.group_id=g.id AND sent.user_id=$1
-		WHERE g.archived_at IS NULL
-	`, userID)
+	rows, err := q.GetMyGroupBalances(r.Context(), userID)
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	defer rows.Close()
 	var totalOwed, totalOwing int64
 	var data []map[string]any
-	for rows.Next() {
-		var gid uuid.UUID
-		var name, currency string
-		var bal int64
-		_ = rows.Scan(&gid, &name, &currency, &bal)
+	for _, row := range rows {
+		currency := row.Currency
 		if currency == "" {
 			currency = "NPR"
 		}
-		data = append(data, map[string]any{"group_id": gid, "group_name": name, "currency": currency, "balance": bal})
+		bal := int64(row.Balance)
+		data = append(data, map[string]any{"group_id": row.ID, "group_name": row.Name, "currency": currency, "balance": bal})
 		if bal > 0 {
 			totalOwed += bal
 		} else {
@@ -150,57 +149,27 @@ func (h *Handler) GetMyBalances(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) computeBalances(r *http.Request, groupID uuid.UUID) (map[uuid.UUID]int64, error) {
-	// Fetch group members to include zero-balance members
-	rows, err := h.Pool.Query(r.Context(), `SELECT user_id FROM group_members WHERE group_id=$1`, groupID)
+	q := h.ensureQueries()
+	m := map[uuid.UUID]int64{}
+	memberIDs, err := q.ListGroupMemberIDs(r.Context(), groupID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	m := map[uuid.UUID]int64{}
-	for rows.Next() {
-		var uid uuid.UUID
-		_ = rows.Scan(&uid)
+	for _, uid := range memberIDs {
 		m[uid] = 0
 	}
-	// Aggregate expenses: paid and splits
-	// Paid
-	paidRows, _ := h.Pool.Query(r.Context(),
-		`SELECT paid_by, SUM(ROUND(amount * COALESCE(exchange_rate, 1))::bigint) FROM expenses WHERE group_id=$1 AND deleted_at IS NULL GROUP BY paid_by`, groupID)
-	if paidRows != nil {
-		defer paidRows.Close()
-		for paidRows.Next() {
-			var uid uuid.UUID
-			var s int64
-			_ = paidRows.Scan(&uid, &s)
-			m[uid] += s
-		}
+	paidRows, _ := q.SumPaidByGroup(r.Context(), groupID)
+	for _, row := range paidRows {
+		m[row.UserID] += row.Total
 	}
-	// Owed (splits)
-	owedRows, _ := h.Pool.Query(r.Context(),
-		`SELECT s.user_id, SUM(ROUND(s.amount * COALESCE(e.exchange_rate, 1))::bigint) FROM expense_splits s
-		 JOIN expenses e ON e.id=s.expense_id
-		 WHERE e.group_id=$1 AND e.deleted_at IS NULL GROUP BY s.user_id`, groupID)
-	if owedRows != nil {
-		defer owedRows.Close()
-		for owedRows.Next() {
-			var uid uuid.UUID
-			var s int64
-			_ = owedRows.Scan(&uid, &s)
-			m[uid] -= s
-		}
+	owedRows, _ := q.SumOwedByGroup(r.Context(), groupID)
+	for _, row := range owedRows {
+		m[row.UserID] -= row.Total
 	}
-	// Settlements: from gets +amount (they paid), to gets -amount
-	settleRows, _ := h.Pool.Query(r.Context(),
-		`SELECT from_user, to_user, amount FROM settlements WHERE group_id=$1 AND deleted_at IS NULL`, groupID)
-	if settleRows != nil {
-		defer settleRows.Close()
-		for settleRows.Next() {
-			var from, to uuid.UUID
-			var amt int64
-			_ = settleRows.Scan(&from, &to, &amt)
-			m[from] += amt
-			m[to] -= amt
-		}
+	settleRows, _ := q.ListSettlementsByGroup(r.Context(), groupID)
+	for _, row := range settleRows {
+		m[row.FromUser] += row.Amount
+		m[row.ToUser] -= row.Amount
 	}
 	return m, nil
 }

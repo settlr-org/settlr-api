@@ -146,61 +146,48 @@ func (s *Service) GetUserIDFromToken(ctx context.Context, authHeader string) (uu
 func (s *Service) CreateSession(ctx context.Context, userID uuid.UUID, rawToken, userAgent, ip string) error {
 	hash := HashToken(rawToken)
 	expiresAt := time.Now().Add(time.Duration(s.Cfg.RefreshExpiryDays) * 24 * time.Hour)
-	if q := s.ensureQueries(); q != nil {
-		return q.CreateSession(ctx, db.CreateSessionParams{
-			UserID:           userID,
-			RefreshTokenHash: hash,
-			UserAgent:        pgtype.Text{String: userAgent, Valid: userAgent != ""},
-			Ip:               pgtype.Text{String: ip, Valid: ip != ""},
-			ExpiresAt:        pgtype.Timestamptz{Time: expiresAt, Valid: true},
-		})
+	q := s.ensureQueries()
+	if q == nil {
+		return fmt.Errorf("no db queries available")
 	}
-	_, err := s.Pool.Exec(ctx,
-		`INSERT INTO sessions (user_id, refresh_token_hash, user_agent, ip, expires_at) VALUES ($1,$2,$3,$4,$5)`,
-		userID, hash, userAgent, ip, expiresAt)
-	return err
+	return q.CreateSession(ctx, db.CreateSessionParams{
+		UserID:           userID,
+		RefreshTokenHash: hash,
+		UserAgent:        pgtype.Text{String: userAgent, Valid: userAgent != ""},
+		Ip:               pgtype.Text{String: ip, Valid: ip != ""},
+		ExpiresAt:        pgtype.Timestamptz{Time: expiresAt, Valid: true},
+	})
 }
 
 func (s *Service) RotateSession(ctx context.Context, oldRaw, newRaw string) (uuid.UUID, error) {
 	oldHash := HashToken(oldRaw)
 	newHash := HashToken(newRaw)
-	if q := s.ensureQueries(); q != nil {
-		id, err := q.RotateSession(ctx, db.RotateSessionParams{
-			RefreshTokenHash:   oldHash,
-			RefreshTokenHash_2: newHash,
-		})
-		if err == pgx.ErrNoRows {
-			return uuid.Nil, httpx.ErrUnauthorized
-		}
-		return id, err
+	q := s.ensureQueries()
+	if q == nil {
+		return uuid.Nil, fmt.Errorf("no db queries available")
 	}
-	var newSessionID uuid.UUID
-	err := s.Pool.QueryRow(ctx, `
-		WITH old AS (
-			UPDATE sessions SET revoked_at=now() WHERE refresh_token_hash=$1 AND revoked_at IS NULL RETURNING user_id, id
-		)
-		INSERT INTO sessions (user_id, refresh_token_hash, expires_at, rotated_from)
-		SELECT user_id, $2, now() + interval '30 days', id FROM old
-		RETURNING id
-	`, oldHash, newHash).Scan(&newSessionID)
+	id, err := q.RotateSession(ctx, db.RotateSessionParams{
+		RefreshTokenHash:   oldHash,
+		RefreshTokenHash_2: newHash,
+	})
 	if err == pgx.ErrNoRows {
 		return uuid.Nil, httpx.ErrUnauthorized
 	}
-	return newSessionID, err
+	return id, err
 }
 
 func (s *Service) RevokeSession(ctx context.Context, rawToken string) error {
-	if q := s.ensureQueries(); q != nil {
-		return q.RevokeSessionByHash(ctx, HashToken(rawToken))
+	q := s.ensureQueries()
+	if q == nil {
+		return fmt.Errorf("no db queries available")
 	}
-	_, err := s.Pool.Exec(ctx, `UPDATE sessions SET revoked_at=now() WHERE refresh_token_hash=$1`, HashToken(rawToken))
-	return err
+	return q.RevokeSessionByHash(ctx, HashToken(rawToken))
 }
 
 func (s *Service) RevokeAllSessions(ctx context.Context, userID uuid.UUID) error {
-	if q := s.ensureQueries(); q != nil {
-		return q.RevokeAllUserSessions(ctx, userID)
+	q := s.ensureQueries()
+	if q == nil {
+		return fmt.Errorf("no db queries available")
 	}
-	_, err := s.Pool.Exec(ctx, `UPDATE sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL`, userID)
-	return err
+	return q.RevokeAllUserSessions(ctx, userID)
 }

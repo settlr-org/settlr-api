@@ -1,6 +1,7 @@
 package attachments
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,11 +13,34 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	db "github.com/settlr-org/settlr-api/internal/db"
 	"github.com/settlr-org/settlr-api/internal/httpx"
 )
 
 type Handler struct {
-	Pool *pgxpool.Pool
+	Pool    *pgxpool.Pool
+	Queries *db.Queries
+}
+
+func (h *Handler) ensureQueries() *db.Queries {
+	if h.Queries != nil {
+		return h.Queries
+	}
+	if h.Pool != nil {
+		return db.New(h.Pool)
+	}
+	return nil
+}
+
+func (h *Handler) isMember(ctx context.Context, groupID, userID uuid.UUID) bool {
+	q := h.ensureQueries()
+	if ok, err := q.IsMember(ctx, db.IsMemberParams{GroupID: groupID, UserID: userID}); err == nil && ok != "" {
+		return true
+	}
+	if ok, err := q.CheckAttachmentGroupMember(ctx, db.CheckAttachmentGroupMemberParams{GroupID: groupID, UserID: userID}); err == nil {
+		return ok
+	}
+	return false
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
@@ -32,8 +56,8 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid expense id"}})
 		return
 	}
-	var groupID uuid.UUID
-	err = h.Pool.QueryRow(r.Context(), `SELECT group_id FROM expenses WHERE id=$1 AND deleted_at IS NULL`, expenseID).Scan(&groupID)
+	q := h.ensureQueries()
+	groupID, err := q.GetExpenseGroupIDForAttachments(r.Context(), expenseID)
 	if err == pgx.ErrNoRows {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
@@ -44,26 +68,18 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
-	var ok bool
-	_ = h.Pool.QueryRow(r.Context(), `SELECT true FROM group_members WHERE group_id=$1 AND user_id=$2`, groupID, userID).Scan(&ok)
-	if !ok {
+	if !h.isMember(r.Context(), groupID, userID) {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
-	rows, err := h.Pool.Query(r.Context(), `SELECT id, user_id, file_url, file_name, mime_type, size_bytes, created_at FROM expense_attachments WHERE expense_id=$1 ORDER BY created_at DESC`, expenseID)
-	if err != nil {
-		httpx.WriteError(w, r, err)
+	rows, qerr := q.ListAttachments(r.Context(), expenseID)
+	if qerr != nil {
+		httpx.WriteError(w, r, qerr)
 		return
 	}
-	defer rows.Close()
 	var out []map[string]any
-	for rows.Next() {
-		var id, uid2 uuid.UUID
-		var url, name, mime string
-		var size int
-		var createdAt any
-		_ = rows.Scan(&id, &uid2, &url, &name, &mime, &size, &createdAt)
-		out = append(out, map[string]any{"id": id, "user_id": uid2, "file_url": url, "file_name": name, "mime_type": mime, "size_bytes": size, "created_at": createdAt})
+	for _, row := range rows {
+		out = append(out, map[string]any{"id": row.ID, "user_id": row.UserID, "file_url": row.FileUrl, "file_name": row.FileName, "mime_type": row.MimeType, "size_bytes": row.SizeBytes, "created_at": row.CreatedAt.Time})
 	}
 	if out == nil {
 		out = []map[string]any{}
@@ -77,8 +93,8 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid expense id"}})
 		return
 	}
-	var groupID uuid.UUID
-	err = h.Pool.QueryRow(r.Context(), `SELECT group_id FROM expenses WHERE id=$1 AND deleted_at IS NULL`, expenseID).Scan(&groupID)
+	q := h.ensureQueries()
+	groupID, err := q.GetExpenseGroupIDForAttachments(r.Context(), expenseID)
 	if err == pgx.ErrNoRows {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
@@ -89,9 +105,7 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
-	var ok bool
-	_ = h.Pool.QueryRow(r.Context(), `SELECT true FROM group_members WHERE group_id=$1 AND user_id=$2`, groupID, userID).Scan(&ok)
-	if !ok {
+	if !h.isMember(r.Context(), groupID, userID) {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
@@ -144,8 +158,9 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	if mime == "" {
 		mime = "application/octet-stream"
 	}
-	_, err = h.Pool.Exec(r.Context(), `INSERT INTO expense_attachments (id, expense_id, user_id, file_url, file_name, mime_type, size_bytes) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-		id, expenseID, userID, url, header.Filename, mime, int(size))
+	err = q.CreateAttachment(r.Context(), db.CreateAttachmentParams{
+		ID: id, ExpenseID: expenseID, UserID: userID, FileUrl: url, FileName: header.Filename, MimeType: mime, SizeBytes: int32(size),
+	})
 	if err != nil {
 		_ = os.Remove(fpath)
 		httpx.WriteError(w, r, err)
@@ -162,9 +177,8 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
-	var owner uuid.UUID
-	var url string
-	err = h.Pool.QueryRow(r.Context(), `SELECT user_id, file_url FROM expense_attachments WHERE id=$1`, id).Scan(&owner, &url)
+	q := h.ensureQueries()
+	row, err := q.GetAttachmentOwner(r.Context(), id)
 	if err == pgx.ErrNoRows {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
@@ -173,11 +187,13 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
+	owner := row.UserID
+	url := row.FileUrl
 	if owner != userID {
 		httpx.WriteError(w, r, httpx.ErrForbidden)
 		return
 	}
-	_, _ = h.Pool.Exec(r.Context(), `DELETE FROM expense_attachments WHERE id=$1`, id)
+	_ = q.DeleteAttachment(r.Context(), id)
 	// remove file
 	if strings.HasPrefix(url, "/uploads/") {
 		_ = os.Remove(filepath.Join("./uploads", strings.TrimPrefix(url, "/uploads/")))
@@ -192,12 +208,8 @@ func (h *Handler) Serve(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
-	var groupID uuid.UUID
-	var fileURL, mime string
-	err = h.Pool.QueryRow(r.Context(), `
-		SELECT e.group_id, a.file_url, a.mime_type
-		FROM expense_attachments a JOIN expenses e ON e.id=a.expense_id
-		WHERE a.id=$1 AND e.deleted_at IS NULL`, attachmentID).Scan(&groupID, &fileURL, &mime)
+	q := h.ensureQueries()
+	row, err := q.GetAttachmentForServe(r.Context(), attachmentID)
 	if err == pgx.ErrNoRows {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
@@ -206,17 +218,16 @@ func (h *Handler) Serve(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
+	groupID := row.GroupID
+	fileURL := row.FileUrl
+	mime := row.MimeType
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, err := uuid.Parse(uid)
 	if err != nil {
 		httpx.WriteError(w, r, httpx.ErrUnauthorized)
 		return
 	}
-	var member bool
-	if err := h.Pool.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM group_members WHERE group_id=$1 AND user_id=$2)`, groupID, userID).Scan(&member); err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
+	member, _ := q.CheckAttachmentGroupMember(r.Context(), db.CheckAttachmentGroupMemberParams{GroupID: groupID, UserID: userID})
 	if !member || fileURL != "/uploads/"+name {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
