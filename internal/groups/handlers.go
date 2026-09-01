@@ -286,7 +286,20 @@ func (h *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, httpx.ErrForbidden)
 		return
 	}
-	res, err := h.Pool.Exec(r.Context(), `DELETE FROM groups WHERE id=$1`, groupID)
+	tx, err := h.Pool.Begin(r.Context())
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	defer tx.Rollback(r.Context())
+	// Clean up children that lack ON DELETE CASCADE (expenses, settlements).
+	// group_members, group_invites, activity_events, recurring etc. cascade.
+	_, _ = tx.Exec(r.Context(), `DELETE FROM settlements WHERE group_id=$1`, groupID)
+	_, _ = tx.Exec(r.Context(), `DELETE FROM expense_attachments WHERE expense_id IN (SELECT id FROM expenses WHERE group_id=$1)`, groupID)
+	_, _ = tx.Exec(r.Context(), `DELETE FROM expense_splits WHERE expense_id IN (SELECT id FROM expenses WHERE group_id=$1)`, groupID)
+	_, _ = tx.Exec(r.Context(), `DELETE FROM expenses WHERE group_id=$1`, groupID)
+	_, _ = tx.Exec(r.Context(), `DELETE FROM recurring_expenses WHERE group_id=$1`, groupID)
+	res, err := tx.Exec(r.Context(), `DELETE FROM groups WHERE id=$1`, groupID)
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
@@ -295,6 +308,7 @@ func (h *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
+	_ = tx.Commit(r.Context())
 	httpx.WriteJSON(w, 200, map[string]any{"message": "group deleted"})
 }
 
