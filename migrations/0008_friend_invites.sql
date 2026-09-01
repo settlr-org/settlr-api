@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE friend_invites (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email TEXT NOT NULL,
@@ -8,3 +9,6 @@ CREATE TABLE friend_invites (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX idx_friend_invites_email_sender ON friend_invites(lower(email), invited_by) WHERE status='PENDING';
+
+-- +goose Down
+DROP TABLE IF EXISTS friend_invites;

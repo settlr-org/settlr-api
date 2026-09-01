@@ -3,18 +3,15 @@ package main
 import (
 	"context"
 	"embed"
-	"fmt"
-	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/settlr-org/settlr-api/internal/database"
+	db "github.com/settlr-org/settlr-api/internal/db"
 
 	"github.com/settlr-org/settlr-api/internal/activity"
 	"github.com/settlr-org/settlr-api/internal/attachments"
@@ -108,8 +105,12 @@ func main() {
 	// Simpler: we keep auth routes as registered but add a global rate limiter that only applies to /auth
 	// For now global limiter checks path prefix in middleware below.
 
+	// sqlc Queries wraps the pool for type-safe queries (see internal/db/queries/groups.sql).
+	// Handlers that have been migrated to sqlc use Queries; legacy Pool usage remains for unmigrated handlers.
+	queries := db.New(pool)
+
 	usersHandler := &users.Handler{Pool: pool, AuthSvc: authSvc}
-	groupsHandler := &groups.Handler{Pool: pool, Mailer: mailSender}
+	groupsHandler := &groups.Handler{Pool: pool, Queries: queries, Mailer: mailSender}
 	expensesHandler := &expenses.Handler{Pool: pool}
 	balancesHandler := &balances.Handler{Pool: pool}
 	settlementsHandler := &settlements.Handler{Pool: pool}
@@ -212,103 +213,7 @@ func main() {
 }
 
 func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
-	dirs := []string{"migrations", "backend/migrations", "/app/migrations"}
-	var migFS fs.FS
-	var migDir string
-	for _, d := range dirs {
-		info, err := os.Stat(d)
-		if err != nil || !info.IsDir() {
-			continue
-		}
-		entries, err := os.ReadDir(d)
-		if err != nil {
-			return fmt.Errorf("read migrations directory %s: %w", d, err)
-		}
-		for _, entry := range entries {
-			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".up.sql") {
-				migFS = os.DirFS(d)
-				migDir = d
-				break
-			}
-		}
-		if migFS != nil {
-			break
-		}
-	}
-	if migFS == nil {
-		cwd, _ := os.Getwd()
-		slog.Info("migrations directory not found", "cwd", cwd)
-		return fmt.Errorf("migrations directory not found")
-	}
-	if _, err := pool.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`); err != nil {
-		return fmt.Errorf("create schema_migrations: %w", err)
-	}
-	entries, err := fs.ReadDir(migFS, ".")
-	if err != nil {
-		return err
-	}
-	// Older deployments may have the schema but not migration bookkeeping.
-	// Reconstruct the records from durable objects before applying new files.
-	legacyMarkers := []struct {
-		version string
-		object  string
-	}{
-		{"0001_init_schema", "users"},
-		{"0002_add_missing", "expense_attachments"},
-		{"0003_direct_recurring", "recurring_expenses"},
-		{"0004_personal_expenses", "personal_expenses"},
-		{"0006_prototype_parity", "personal_budgets"},
-	}
-	for _, marker := range legacyMarkers {
-		var exists bool
-		if err := pool.QueryRow(ctx, `SELECT to_regclass('public.' || $1) IS NOT NULL`, marker.object).Scan(&exists); err != nil {
-			return fmt.Errorf("check legacy migration %s: %w", marker.version, err)
-		}
-		if exists {
-			if _, err := pool.Exec(ctx, `INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT DO NOTHING`, marker.version); err != nil {
-				return fmt.Errorf("record legacy migration %s: %w", marker.version, err)
-			}
-		}
-	}
-	var ups []string
-	for _, e := range entries {
-		if strings.HasSuffix(e.Name(), ".up.sql") {
-			ups = append(ups, e.Name())
-		}
-	}
-	sort.Strings(ups)
-	for _, name := range ups {
-		version := strings.TrimSuffix(name, ".up.sql")
-		var exists bool
-		if err := pool.QueryRow(ctx, `SELECT true FROM schema_migrations WHERE version=$1`, version).Scan(&exists); err != nil && err != pgx.ErrNoRows {
-			return fmt.Errorf("check migration %s: %w", version, err)
-		}
-		if exists {
-			continue
-		}
-		data, err := fs.ReadFile(migFS, name)
-		if err != nil {
-			return err
-		}
-		slog.Info("applying migration", "version", version, "dir", migDir)
-		tx, err := pool.Begin(ctx)
-		if err != nil {
-			return fmt.Errorf("begin migration %s: %w", version, err)
-		}
-		_, err = tx.Exec(ctx, string(data))
-		if err != nil {
-			_ = tx.Rollback(ctx)
-			return fmt.Errorf("migration %s failed: %w", version, err)
-		}
-		if _, err = tx.Exec(ctx, `INSERT INTO schema_migrations (version) VALUES ($1)`, version); err != nil {
-			_ = tx.Rollback(ctx)
-			return fmt.Errorf("record migration %s: %w", version, err)
-		}
-		if err = tx.Commit(ctx); err != nil {
-			return fmt.Errorf("commit migration %s: %w", version, err)
-		}
-	}
-	return nil
+	return database.Migrate(ctx, pool)
 }
 
 func seedSystemCategories(ctx context.Context, pool *pgxpool.Pool) error {

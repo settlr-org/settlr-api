@@ -1,3 +1,4 @@
+-- +goose Up
 -- Personal expense tracker + NPR defaults
 ALTER TABLE users ALTER COLUMN default_currency SET DEFAULT 'NPR';
 ALTER TABLE groups ALTER COLUMN currency SET DEFAULT 'NPR';
@@ -26,3 +27,8 @@ CREATE TABLE personal_expenses (
 CREATE INDEX idx_personal_expenses_user_date ON personal_expenses (user_id, expense_date DESC);
 CREATE INDEX idx_personal_expenses_category ON personal_expenses (category_id);
 CREATE INDEX idx_personal_expenses_user_currency ON personal_expenses (user_id, currency);
+
+-- +goose Down
+DROP TABLE IF EXISTS personal_expenses;
+ALTER TABLE users ALTER COLUMN default_currency SET DEFAULT 'USD';
+ALTER TABLE groups ALTER COLUMN currency SET DEFAULT 'USD';

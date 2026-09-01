@@ -1,3 +1,4 @@
+-- +goose Up
 -- Settlr initial schema.
 -- All monetary amounts are BIGINT in the smallest currency unit (e.g. cents).
 
@@ -189,3 +190,18 @@ CREATE TABLE activity_events (
 );
 
 CREATE INDEX idx_activity_events_group_created ON activity_events (group_id, created_at DESC);
+
+-- +goose Down
+DROP TABLE IF EXISTS activity_events;
+DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS settlements;
+DROP TABLE IF EXISTS expense_splits;
+DROP TABLE IF EXISTS expenses;
+DROP TABLE IF EXISTS categories;
+DROP TABLE IF EXISTS friendships;
+DROP TABLE IF EXISTS group_members;
+DROP TABLE IF EXISTS groups;
+DROP TABLE IF EXISTS email_verification_tokens;
+DROP TABLE IF EXISTS password_reset_tokens;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS users;

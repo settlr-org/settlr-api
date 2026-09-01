@@ -1,3 +1,4 @@
+-- +goose Up
 -- Standard categories are shared defaults, available to every user.  Keep IDs
 -- stable so existing expenses and exports can safely reference them.
 INSERT INTO categories (id, name, icon, color, grouping, is_system) VALUES
@@ -14,3 +15,20 @@ INSERT INTO categories (id, name, icon, color, grouping, is_system) VALUES
   ('10000000-0000-0000-0000-000000000011', 'Subscriptions', 'credit-card', '#4F46E5', 'Life', true),
   ('10000000-0000-0000-0000-000000000012', 'Other', 'tag', '#6B7280', 'Uncategorized', true)
 ON CONFLICT DO NOTHING;
+
+-- +goose Down
+DELETE FROM categories
+WHERE id IN (
+  '10000000-0000-0000-0000-000000000001',
+  '10000000-0000-0000-0000-000000000002',
+  '10000000-0000-0000-0000-000000000003',
+  '10000000-0000-0000-0000-000000000004',
+  '10000000-0000-0000-0000-000000000005',
+  '10000000-0000-0000-0000-000000000006',
+  '10000000-0000-0000-0000-000000000007',
+  '10000000-0000-0000-0000-000000000008',
+  '10000000-0000-0000-0000-000000000009',
+  '10000000-0000-0000-0000-000000000010',
+  '10000000-0000-0000-0000-000000000011',
+  '10000000-0000-0000-0000-000000000012'
+);

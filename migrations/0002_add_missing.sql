@@ -1,3 +1,4 @@
+-- +goose Up
 -- Phase 2 schema expansion: group invites, comments, attachments, per-group simplify, currency conversion
 
 -- Groups: add simplify toggle, type, invite token
@@ -63,3 +64,15 @@ CREATE TABLE notification_preferences (
     settlement_enabled BOOLEAN NOT NULL DEFAULT true,
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- +goose Down
+DROP TABLE IF EXISTS expense_attachments;
+DROP TABLE IF EXISTS expense_comments;
+DROP TABLE IF EXISTS group_invites;
+DROP TABLE IF EXISTS notification_preferences;
+ALTER TABLE expenses DROP COLUMN IF EXISTS exchange_rate;
+ALTER TABLE expenses DROP COLUMN IF EXISTS base_currency;
+ALTER TABLE expenses DROP COLUMN IF EXISTS base_amount;
+ALTER TABLE groups DROP COLUMN IF EXISTS simplify_debts;
+ALTER TABLE groups DROP COLUMN IF EXISTS group_type;
+ALTER TABLE groups DROP COLUMN IF EXISTS invite_token;

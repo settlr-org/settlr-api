@@ -1,3 +1,4 @@
+-- +goose Up
 -- Spliit parity: group information, category grouping, pg_trgm, activity index
 -- P1 C
 
@@ -48,3 +49,14 @@ ALTER TABLE expenses ADD COLUMN IF NOT EXISTS original_currency CHAR(3);
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS conversion_rate NUMERIC(12,6);
 -- Backfill from existing exchange_rate/base_amount where applicable
 UPDATE expenses SET original_amount = amount, original_currency = currency, conversion_rate = exchange_rate WHERE original_amount IS NULL AND exchange_rate IS NOT NULL;
+
+-- +goose Down
+DROP INDEX IF EXISTS idx_expenses_description_trgm;
+DROP INDEX IF EXISTS idx_expenses_notes_trgm;
+DROP INDEX IF EXISTS idx_activity_group_created;
+ALTER TABLE expenses DROP COLUMN IF EXISTS original_amount;
+ALTER TABLE expenses DROP COLUMN IF EXISTS original_currency;
+ALTER TABLE expenses DROP COLUMN IF EXISTS conversion_rate;
+ALTER TABLE categories DROP COLUMN IF EXISTS grouping;
+ALTER TABLE groups DROP COLUMN IF EXISTS information;
+-- pg_trgm extension kept (shared)

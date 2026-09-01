@@ -1,3 +1,4 @@
+-- +goose Up
 -- Phase 3: 1:1 friend ledgers (DIRECT groups) + recurring expenses
 
 -- Allow DIRECT group type (1:1 ledger between two friends)
@@ -28,3 +29,10 @@ CREATE TABLE recurring_expenses (
 );
 CREATE INDEX idx_recurring_next_run ON recurring_expenses(active, next_run_at);
 CREATE INDEX idx_recurring_group ON recurring_expenses(group_id);
+
+-- +goose Down
+-- Revert Phase 3: recurring expenses + DIRECT groups
+DROP TABLE IF EXISTS recurring_expenses;
+ALTER TABLE groups DROP COLUMN IF EXISTS direct_key;
+ALTER TABLE groups DROP CONSTRAINT groups_group_type_check;
+ALTER TABLE groups ADD CONSTRAINT groups_group_type_check CHECK (group_type IN ('HOME','TRIP','COUPLE','OTHER'));
