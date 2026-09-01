@@ -87,6 +87,27 @@ func (q *Queries) CheckFriendship(ctx context.Context, arg CheckFriendshipParams
 	return is_friend, err
 }
 
+const checkGroupMemberEmail = `-- name: CheckGroupMemberEmail :one
+SELECT EXISTS(
+    SELECT 1
+    FROM users u
+    JOIN group_members gm ON gm.user_id = u.id
+    WHERE gm.group_id = $1 AND lower(u.email) = lower($2)
+) AS already_member
+`
+
+type CheckGroupMemberEmailParams struct {
+	GroupID uuid.UUID `json:"group_id"`
+	Lower   string    `json:"lower"`
+}
+
+func (q *Queries) CheckGroupMemberEmail(ctx context.Context, arg CheckGroupMemberEmailParams) (bool, error) {
+	row := q.db.QueryRow(ctx, checkGroupMemberEmail, arg.GroupID, arg.Lower)
+	var already_member bool
+	err := row.Scan(&already_member)
+	return already_member, err
+}
+
 const createGroup = `-- name: CreateGroup :exec
 INSERT INTO groups (id, name, description, avatar_url, currency, created_by, information)
 VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, $7)
@@ -137,6 +158,28 @@ func (q *Queries) CreateGroupInvite(ctx context.Context, arg CreateGroupInvitePa
 		arg.Email,
 		arg.TokenHash,
 		arg.InvitedBy,
+	)
+	return err
+}
+
+const createGroupInviteNotification = `-- name: CreateGroupInviteNotification :exec
+INSERT INTO notifications (user_id, type, title, body, data)
+VALUES ($1, 'GROUP_INVITATION', $2, $3, $4)
+`
+
+type CreateGroupInviteNotificationParams struct {
+	UserID uuid.UUID `json:"user_id"`
+	Title  string    `json:"title"`
+	Body   string    `json:"body"`
+	Data   []byte    `json:"data"`
+}
+
+func (q *Queries) CreateGroupInviteNotification(ctx context.Context, arg CreateGroupInviteNotificationParams) error {
+	_, err := q.db.Exec(ctx, createGroupInviteNotification,
+		arg.UserID,
+		arg.Title,
+		arg.Body,
+		arg.Data,
 	)
 	return err
 }
@@ -278,6 +321,53 @@ func (q *Queries) GetGroup(ctx context.Context, id uuid.UUID) (GetGroupRow, erro
 	return i, err
 }
 
+const getGroupInviteeIDByEmail = `-- name: GetGroupInviteeIDByEmail :one
+SELECT id FROM users WHERE lower(email) = lower($1)
+`
+
+func (q *Queries) GetGroupInviteeIDByEmail(ctx context.Context, lower string) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, getGroupInviteeIDByEmail, lower)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getGroupMember = `-- name: GetGroupMember :one
+SELECT u.name, coalesce(u.avatar_url, '') AS avatar_url, gm.joined_at
+FROM group_members gm
+JOIN users u ON u.id = gm.user_id
+WHERE gm.group_id = $1 AND gm.user_id = $2
+`
+
+type GetGroupMemberParams struct {
+	GroupID uuid.UUID `json:"group_id"`
+	UserID  uuid.UUID `json:"user_id"`
+}
+
+type GetGroupMemberRow struct {
+	Name      string             `json:"name"`
+	AvatarUrl string             `json:"avatar_url"`
+	JoinedAt  pgtype.Timestamptz `json:"joined_at"`
+}
+
+func (q *Queries) GetGroupMember(ctx context.Context, arg GetGroupMemberParams) (GetGroupMemberRow, error) {
+	row := q.db.QueryRow(ctx, getGroupMember, arg.GroupID, arg.UserID)
+	var i GetGroupMemberRow
+	err := row.Scan(&i.Name, &i.AvatarUrl, &i.JoinedAt)
+	return i, err
+}
+
+const getGroupName = `-- name: GetGroupName :one
+SELECT name FROM groups WHERE id = $1
+`
+
+func (q *Queries) GetGroupName(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, getGroupName, id)
+	var name string
+	err := row.Scan(&name)
+	return name, err
+}
+
 const getInviteByHash = `-- name: GetInviteByHash :one
 SELECT id, group_id, email, invited_by, status FROM group_invites WHERE token_hash = $1
 `
@@ -293,6 +383,34 @@ type GetInviteByHashRow struct {
 func (q *Queries) GetInviteByHash(ctx context.Context, tokenHash string) (GetInviteByHashRow, error) {
 	row := q.db.QueryRow(ctx, getInviteByHash, tokenHash)
 	var i GetInviteByHashRow
+	err := row.Scan(
+		&i.ID,
+		&i.GroupID,
+		&i.Email,
+		&i.InvitedBy,
+		&i.Status,
+	)
+	return i, err
+}
+
+const getInviteByHashForUpdate = `-- name: GetInviteByHashForUpdate :one
+SELECT id, group_id, email, invited_by, status
+FROM group_invites
+WHERE token_hash = $1
+FOR UPDATE
+`
+
+type GetInviteByHashForUpdateRow struct {
+	ID        uuid.UUID `json:"id"`
+	GroupID   uuid.UUID `json:"group_id"`
+	Email     string    `json:"email"`
+	InvitedBy uuid.UUID `json:"invited_by"`
+	Status    string    `json:"status"`
+}
+
+func (q *Queries) GetInviteByHashForUpdate(ctx context.Context, tokenHash string) (GetInviteByHashForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, getInviteByHashForUpdate, tokenHash)
+	var i GetInviteByHashForUpdateRow
 	err := row.Scan(
 		&i.ID,
 		&i.GroupID,
@@ -367,6 +485,17 @@ func (q *Queries) InsertActivityEvent(ctx context.Context, arg InsertActivityEve
 	return err
 }
 
+const isGroupInviteCurrent = `-- name: IsGroupInviteCurrent :one
+SELECT expires_at > now() FROM group_invites WHERE id = $1
+`
+
+func (q *Queries) IsGroupInviteCurrent(ctx context.Context, id uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, isGroupInviteCurrent, id)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const isMember = `-- name: IsMember :one
 
 SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2
@@ -400,6 +529,110 @@ type LeaveGroupParams struct {
 func (q *Queries) LeaveGroup(ctx context.Context, arg LeaveGroupParams) error {
 	_, err := q.db.Exec(ctx, leaveGroup, arg.GroupID, arg.UserID)
 	return err
+}
+
+const listGroupActivity = `-- name: ListGroupActivity :many
+SELECT id, actor_id, type, entity_type, entity_id, payload, created_at
+FROM activity_events ae
+WHERE ae.group_id = $1
+ORDER BY created_at DESC, id DESC
+LIMIT $2
+`
+
+type ListGroupActivityParams struct {
+	GroupID uuid.UUID `json:"group_id"`
+	Limit   int32     `json:"limit"`
+}
+
+type ListGroupActivityRow struct {
+	ID         uuid.UUID          `json:"id"`
+	ActorID    uuid.UUID          `json:"actor_id"`
+	Type       string             `json:"type"`
+	EntityType string             `json:"entity_type"`
+	EntityID   uuid.UUID          `json:"entity_id"`
+	Payload    []byte             `json:"payload"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) ListGroupActivity(ctx context.Context, arg ListGroupActivityParams) ([]ListGroupActivityRow, error) {
+	rows, err := q.db.Query(ctx, listGroupActivity, arg.GroupID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListGroupActivityRow
+	for rows.Next() {
+		var i ListGroupActivityRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ActorID,
+			&i.Type,
+			&i.EntityType,
+			&i.EntityID,
+			&i.Payload,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listGroupActivityBefore = `-- name: ListGroupActivityBefore :many
+SELECT id, actor_id, type, entity_type, entity_id, payload, created_at
+FROM activity_events ae
+WHERE ae.group_id = $1
+  AND (ae.created_at, ae.id) < (SELECT cursor.created_at, cursor.id FROM activity_events cursor WHERE cursor.id = $2)
+ORDER BY created_at DESC, id DESC
+LIMIT $3
+`
+
+type ListGroupActivityBeforeParams struct {
+	GroupID uuid.UUID `json:"group_id"`
+	ID      uuid.UUID `json:"id"`
+	Limit   int32     `json:"limit"`
+}
+
+type ListGroupActivityBeforeRow struct {
+	ID         uuid.UUID          `json:"id"`
+	ActorID    uuid.UUID          `json:"actor_id"`
+	Type       string             `json:"type"`
+	EntityType string             `json:"entity_type"`
+	EntityID   uuid.UUID          `json:"entity_id"`
+	Payload    []byte             `json:"payload"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) ListGroupActivityBefore(ctx context.Context, arg ListGroupActivityBeforeParams) ([]ListGroupActivityBeforeRow, error) {
+	rows, err := q.db.Query(ctx, listGroupActivityBefore, arg.GroupID, arg.ID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListGroupActivityBeforeRow
+	for rows.Next() {
+		var i ListGroupActivityBeforeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ActorID,
+			&i.Type,
+			&i.EntityType,
+			&i.EntityID,
+			&i.Payload,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listGroupInvites = `-- name: ListGroupInvites :many

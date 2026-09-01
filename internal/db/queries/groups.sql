@@ -129,6 +129,12 @@ DELETE FROM group_members WHERE group_id = $1 AND user_id = $2;
 -- name: UpdateMemberRole :exec
 UPDATE group_members SET role = $3 WHERE group_id = $1 AND user_id = $2;
 
+-- name: GetGroupMember :one
+SELECT u.name, coalesce(u.avatar_url, '') AS avatar_url, gm.joined_at
+FROM group_members gm
+JOIN users u ON u.id = gm.user_id
+WHERE gm.group_id = $1 AND gm.user_id = $2;
+
 -- name: GetInviteToken :one
 SELECT invite_token FROM groups WHERE id = $1;
 
@@ -171,6 +177,39 @@ ORDER BY created_at DESC;
 -- name: GetUserEmail :one
 SELECT lower(email) FROM users WHERE id = $1;
 
+-- name: GetGroupInviteeIDByEmail :one
+SELECT id FROM users WHERE lower(email) = lower($1);
+
+-- name: CheckGroupMemberEmail :one
+SELECT EXISTS(
+    SELECT 1
+    FROM users u
+    JOIN group_members gm ON gm.user_id = u.id
+    WHERE gm.group_id = $1 AND lower(u.email) = lower($2)
+) AS already_member;
+
+-- name: CreateGroupInviteNotification :exec
+INSERT INTO notifications (user_id, type, title, body, data)
+VALUES ($1, 'GROUP_INVITATION', $2, $3, $4);
+
+-- name: GetGroupName :one
+SELECT name FROM groups WHERE id = $1;
+
+-- name: ListGroupActivity :many
+SELECT id, actor_id, type, entity_type, entity_id, payload, created_at
+FROM activity_events ae
+WHERE ae.group_id = $1
+ORDER BY created_at DESC, id DESC
+LIMIT $2;
+
+-- name: ListGroupActivityBefore :many
+SELECT id, actor_id, type, entity_type, entity_id, payload, created_at
+FROM activity_events ae
+WHERE ae.group_id = $1
+  AND (ae.created_at, ae.id) < (SELECT cursor.created_at, cursor.id FROM activity_events cursor WHERE cursor.id = $2)
+ORDER BY created_at DESC, id DESC
+LIMIT $3;
+
 -- name: ListMyInvites :many
 SELECT gi.id, gi.group_id, g.name AS group_name, gi.email, gi.created_at
 FROM group_invites gi
@@ -179,6 +218,15 @@ WHERE lower(gi.email) = lower($1) AND gi.status = 'PENDING' AND gi.expires_at > 
 
 -- name: GetInviteByHash :one
 SELECT id, group_id, email, invited_by, status FROM group_invites WHERE token_hash = $1;
+
+-- name: GetInviteByHashForUpdate :one
+SELECT id, group_id, email, invited_by, status
+FROM group_invites
+WHERE token_hash = $1
+FOR UPDATE;
+
+-- name: IsGroupInviteCurrent :one
+SELECT expires_at > now() FROM group_invites WHERE id = $1;
 
 -- name: AcceptGroupInviteMember :exec
 INSERT INTO group_members (group_id, user_id, role) VALUES ($1, $2, 'MEMBER');

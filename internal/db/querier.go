@@ -21,6 +21,7 @@ type Querier interface {
 	BlockUser(ctx context.Context, arg BlockUserParams) error
 	CheckAlreadyMember(ctx context.Context, arg CheckAlreadyMemberParams) (bool, error)
 	CheckFriendship(ctx context.Context, arg CheckFriendshipParams) (bool, error)
+	CheckGroupMemberEmail(ctx context.Context, arg CheckGroupMemberEmailParams) (bool, error)
 	CheckIsGroupMember(ctx context.Context, arg CheckIsGroupMemberParams) (bool, error)
 	CheckPersonalExpenseExists(ctx context.Context, arg CheckPersonalExpenseExistsParams) (bool, error)
 	// Settlements domain queries for sqlc with pgx/v5.
@@ -37,6 +38,7 @@ type Querier interface {
 	CreateFriendRequestNotification(ctx context.Context, arg CreateFriendRequestNotificationParams) error
 	CreateGroup(ctx context.Context, arg CreateGroupParams) error
 	CreateGroupInvite(ctx context.Context, arg CreateGroupInviteParams) error
+	CreateGroupInviteNotification(ctx context.Context, arg CreateGroupInviteNotificationParams) error
 	CreateGroupMember(ctx context.Context, arg CreateGroupMemberParams) error
 	CreateNotificationExpenseAdded(ctx context.Context, arg CreateNotificationExpenseAddedParams) error
 	CreateOAuthIdentity(ctx context.Context, arg CreateOAuthIdentityParams) error
@@ -82,7 +84,11 @@ type Querier interface {
 	// These replace manual Pool.Query/Exec calls in internal/expenses/handlers.go
 	// Handler usage: Handler{Pool *pgxpool.Pool, Queries *db.Queries} where Queries wraps the pool.
 	GetGroupCurrency(ctx context.Context, id uuid.UUID) (string, error)
+	GetGroupInviteeIDByEmail(ctx context.Context, lower string) (uuid.UUID, error)
+	GetGroupMember(ctx context.Context, arg GetGroupMemberParams) (GetGroupMemberRow, error)
+	GetGroupName(ctx context.Context, id uuid.UUID) (string, error)
 	GetInviteByHash(ctx context.Context, tokenHash string) (GetInviteByHashRow, error)
+	GetInviteByHashForUpdate(ctx context.Context, tokenHash string) (GetInviteByHashForUpdateRow, error)
 	GetInviteToken(ctx context.Context, id uuid.UUID) (pgtype.Text, error)
 	GetMemberRole(ctx context.Context, arg GetMemberRoleParams) (string, error)
 	GetOAuthIdentityForUpdate(ctx context.Context, subject string) (GetOAuthIdentityForUpdateRow, error)
@@ -118,6 +124,7 @@ type Querier interface {
 	InsertExpenseActivityUpdated(ctx context.Context, arg InsertExpenseActivityUpdatedParams) error
 	InsertExpenseSplit(ctx context.Context, arg InsertExpenseSplitParams) error
 	IsExpenseMember(ctx context.Context, arg IsExpenseMemberParams) (bool, error)
+	IsGroupInviteCurrent(ctx context.Context, id uuid.UUID) (bool, error)
 	// Groups domain queries for sqlc with pgx/v5.
 	// These replace manual Pool.Query/Exec calls in internal/groups/handlers.go
 	// Handler usage: Handler{Pool *pgxpool.Pool, Queries *db.Queries} where Queries wraps the pool.
@@ -131,6 +138,8 @@ type Querier interface {
 	ListExpensesWithCursor(ctx context.Context, arg ListExpensesWithCursorParams) ([]ListExpensesWithCursorRow, error)
 	ListFriendRequests(ctx context.Context, userID uuid.UUID) ([]ListFriendRequestsRow, error)
 	ListFriends(ctx context.Context, userID uuid.UUID) ([]ListFriendsRow, error)
+	ListGroupActivity(ctx context.Context, arg ListGroupActivityParams) ([]ListGroupActivityRow, error)
+	ListGroupActivityBefore(ctx context.Context, arg ListGroupActivityBeforeParams) ([]ListGroupActivityBeforeRow, error)
 	ListGroupInvites(ctx context.Context, groupID uuid.UUID) ([]ListGroupInvitesRow, error)
 	ListGroupMembers(ctx context.Context, groupID uuid.UUID) ([]ListGroupMembersRow, error)
 	ListGroups(ctx context.Context, userID uuid.UUID) ([]ListGroupsRow, error)
