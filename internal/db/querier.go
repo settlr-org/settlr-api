@@ -17,9 +17,14 @@ type Querier interface {
 	ArchiveGroup(ctx context.Context, id uuid.UUID) error
 	CheckAlreadyMember(ctx context.Context, arg CheckAlreadyMemberParams) (bool, error)
 	CheckFriendship(ctx context.Context, arg CheckFriendshipParams) (bool, error)
+	CheckIsGroupMember(ctx context.Context, arg CheckIsGroupMemberParams) (bool, error)
+	CountExpensesByGroup(ctx context.Context, groupID uuid.UUID) (int64, error)
+	CreateExpense(ctx context.Context, arg CreateExpenseParams) error
 	CreateGroup(ctx context.Context, arg CreateGroupParams) error
 	CreateGroupInvite(ctx context.Context, arg CreateGroupInviteParams) error
 	CreateGroupMember(ctx context.Context, arg CreateGroupMemberParams) error
+	CreateNotificationExpenseAdded(ctx context.Context, arg CreateNotificationExpenseAddedParams) error
+	DeleteExpenseSplits(ctx context.Context, expenseID uuid.UUID) error
 	DeleteGroup(ctx context.Context, id uuid.UUID) error
 	DeleteGroupExpenseAttachments(ctx context.Context, groupID uuid.UUID) error
 	DeleteGroupExpenseSplits(ctx context.Context, groupID uuid.UUID) error
@@ -27,26 +32,48 @@ type Querier interface {
 	DeleteGroupRecurring(ctx context.Context, groupID uuid.UUID) error
 	DeleteGroupSettlements(ctx context.Context, groupID uuid.UUID) error
 	EnsureFriendship(ctx context.Context, arg EnsureFriendshipParams) error
+	GetExpense(ctx context.Context, id uuid.UUID) (GetExpenseRow, error)
+	GetExpenseDetails(ctx context.Context, id uuid.UUID) (GetExpenseDetailsRow, error)
+	GetExpenseForDelete(ctx context.Context, id uuid.UUID) (GetExpenseForDeleteRow, error)
+	GetExpenseForUpdate(ctx context.Context, id uuid.UUID) (GetExpenseForUpdateRow, error)
+	GetExpenseMemberRole(ctx context.Context, arg GetExpenseMemberRoleParams) (string, error)
 	GetGroup(ctx context.Context, id uuid.UUID) (GetGroupRow, error)
+	// Expenses domain queries for sqlc with pgx/v5.
+	// These replace manual Pool.Query/Exec calls in internal/expenses/handlers.go
+	// Handler usage: Handler{Pool *pgxpool.Pool, Queries *db.Queries} where Queries wraps the pool.
+	GetGroupCurrency(ctx context.Context, id uuid.UUID) (string, error)
 	GetInviteByHash(ctx context.Context, tokenHash string) (GetInviteByHashRow, error)
 	GetInviteToken(ctx context.Context, id uuid.UUID) (pgtype.Text, error)
 	GetMemberRole(ctx context.Context, arg GetMemberRoleParams) (string, error)
 	GetUserEmail(ctx context.Context, id uuid.UUID) (string, error)
 	InsertActivityEvent(ctx context.Context, arg InsertActivityEventParams) error
+	InsertExpenseActivityAdded(ctx context.Context, arg InsertExpenseActivityAddedParams) error
+	InsertExpenseActivityDeleted(ctx context.Context, arg InsertExpenseActivityDeletedParams) error
+	InsertExpenseActivityUpdated(ctx context.Context, arg InsertExpenseActivityUpdatedParams) error
+	InsertExpenseSplit(ctx context.Context, arg InsertExpenseSplitParams) error
+	IsExpenseMember(ctx context.Context, arg IsExpenseMemberParams) (bool, error)
 	// Groups domain queries for sqlc with pgx/v5.
 	// These replace manual Pool.Query/Exec calls in internal/groups/handlers.go
 	// Handler usage: Handler{Pool *pgxpool.Pool, Queries *db.Queries} where Queries wraps the pool.
 	// Checks membership and returns role if present. Used ~30+ times across handlers.
 	IsMember(ctx context.Context, arg IsMemberParams) (string, error)
 	LeaveGroup(ctx context.Context, arg LeaveGroupParams) error
+	ListExpenseSplits(ctx context.Context, expenseID uuid.UUID) ([]ListExpenseSplitsRow, error)
+	ListExpenseSplitsByExpenseIDs(ctx context.Context, dollar_1 []pgtype.UUID) ([]ListExpenseSplitsByExpenseIDsRow, error)
+	ListExpenses(ctx context.Context, groupID uuid.UUID) ([]ListExpensesRow, error)
+	ListExpensesByGroup(ctx context.Context, arg ListExpensesByGroupParams) ([]ListExpensesByGroupRow, error)
+	ListExpensesWithCursor(ctx context.Context, arg ListExpensesWithCursorParams) ([]ListExpensesWithCursorRow, error)
 	ListGroupInvites(ctx context.Context, groupID uuid.UUID) ([]ListGroupInvitesRow, error)
 	ListGroupMembers(ctx context.Context, groupID uuid.UUID) ([]ListGroupMembersRow, error)
 	ListGroups(ctx context.Context, userID uuid.UUID) ([]ListGroupsRow, error)
 	ListGroupsFiltered(ctx context.Context, arg ListGroupsFilteredParams) ([]ListGroupsFilteredRow, error)
 	ListMyInvites(ctx context.Context, lower string) ([]ListMyInvitesRow, error)
+	ListOtherGroupMembers(ctx context.Context, arg ListOtherGroupMembersParams) ([]uuid.UUID, error)
 	MarkInviteAccepted(ctx context.Context, id uuid.UUID) error
 	RemoveGroupMember(ctx context.Context, arg RemoveGroupMemberParams) error
 	SetInviteToken(ctx context.Context, arg SetInviteTokenParams) error
+	SoftDeleteExpense(ctx context.Context, id uuid.UUID) error
+	UpdateExpense(ctx context.Context, arg UpdateExpenseParams) error
 	UpdateGroupAvatar(ctx context.Context, arg UpdateGroupAvatarParams) error
 	UpdateGroupCurrency(ctx context.Context, arg UpdateGroupCurrencyParams) error
 	UpdateGroupDescription(ctx context.Context, arg UpdateGroupDescriptionParams) error
