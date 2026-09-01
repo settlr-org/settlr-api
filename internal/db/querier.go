@@ -12,15 +12,23 @@ import (
 )
 
 type Querier interface {
+	AcceptFriendRequest(ctx context.Context, arg AcceptFriendRequestParams) (int64, error)
+	AcceptFriendRequestReturning(ctx context.Context, arg AcceptFriendRequestReturningParams) (uuid.UUID, error)
 	AcceptGroupInviteMember(ctx context.Context, arg AcceptGroupInviteMemberParams) error
+	AddDirectGroupMember(ctx context.Context, arg AddDirectGroupMemberParams) error
 	AddGroupMember(ctx context.Context, arg AddGroupMemberParams) error
 	ArchiveGroup(ctx context.Context, id uuid.UUID) error
+	BlockUser(ctx context.Context, arg BlockUserParams) error
 	CheckAlreadyMember(ctx context.Context, arg CheckAlreadyMemberParams) (bool, error)
 	CheckFriendship(ctx context.Context, arg CheckFriendshipParams) (bool, error)
 	CheckIsGroupMember(ctx context.Context, arg CheckIsGroupMemberParams) (bool, error)
+	CheckUserExistsNotAnonymous(ctx context.Context, id uuid.UUID) (bool, error)
 	CountExpensesByGroup(ctx context.Context, groupID uuid.UUID) (int64, error)
+	CreateDirectGroup(ctx context.Context, arg CreateDirectGroupParams) error
 	CreateEmailVerificationToken(ctx context.Context, arg CreateEmailVerificationTokenParams) error
 	CreateExpense(ctx context.Context, arg CreateExpenseParams) error
+	CreateFriendInvite(ctx context.Context, arg CreateFriendInviteParams) error
+	CreateFriendRequestNotification(ctx context.Context, arg CreateFriendRequestNotificationParams) error
 	CreateGroup(ctx context.Context, arg CreateGroupParams) error
 	CreateGroupInvite(ctx context.Context, arg CreateGroupInviteParams) error
 	CreateGroupMember(ctx context.Context, arg CreateGroupMemberParams) error
@@ -31,6 +39,7 @@ type Querier interface {
 	CreateSession(ctx context.Context, arg CreateSessionParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) error
 	DeleteExpenseSplits(ctx context.Context, expenseID uuid.UUID) error
+	DeleteFriendship(ctx context.Context, arg DeleteFriendshipParams) (int64, error)
 	DeleteGroup(ctx context.Context, id uuid.UUID) error
 	DeleteGroupExpenseAttachments(ctx context.Context, groupID uuid.UUID) error
 	DeleteGroupExpenseSplits(ctx context.Context, groupID uuid.UUID) error
@@ -38,12 +47,26 @@ type Querier interface {
 	DeleteGroupRecurring(ctx context.Context, groupID uuid.UUID) error
 	DeleteGroupSettlements(ctx context.Context, groupID uuid.UUID) error
 	EnsureFriendship(ctx context.Context, arg EnsureFriendshipParams) error
+	GetDirectBalance(ctx context.Context, arg GetDirectBalanceParams) (GetDirectBalanceRow, error)
+	GetDirectGroupByKey(ctx context.Context, directKey pgtype.Text) (uuid.UUID, error)
 	GetEmailVerificationTokenUser(ctx context.Context, tokenHash string) (uuid.UUID, error)
 	GetExpense(ctx context.Context, id uuid.UUID) (GetExpenseRow, error)
 	GetExpenseDetails(ctx context.Context, id uuid.UUID) (GetExpenseDetailsRow, error)
 	GetExpenseForDelete(ctx context.Context, id uuid.UUID) (GetExpenseForDeleteRow, error)
 	GetExpenseForUpdate(ctx context.Context, id uuid.UUID) (GetExpenseForUpdateRow, error)
 	GetExpenseMemberRole(ctx context.Context, arg GetExpenseMemberRoleParams) (string, error)
+	GetFriendDirectLedgerBalance(ctx context.Context, arg GetFriendDirectLedgerBalanceParams) (GetFriendDirectLedgerBalanceRow, error)
+	GetFriendInviteByToken(ctx context.Context, tokenHash string) (GetFriendInviteByTokenRow, error)
+	GetFriendInviteByTokenForUpdate(ctx context.Context, tokenHash string) (GetFriendInviteByTokenForUpdateRow, error)
+	GetFriendUserByEmail(ctx context.Context, lower string) (uuid.UUID, error)
+	GetFriendUserIDByEmail(ctx context.Context, lower string) (uuid.UUID, error)
+	GetFriendship(ctx context.Context, arg GetFriendshipParams) (Friendship, error)
+	GetFriendshipByUsers(ctx context.Context, arg GetFriendshipByUsersParams) (string, error)
+	// Friends domain queries for sqlc with pgx/v5.
+	// These replace manual Pool.Query/Exec calls in internal/friends/handlers.go and internal/friends/direct.go
+	// Handler usage: Handler{Pool *pgxpool.Pool, Queries *db.Queries, Mailer *mailer.Mailer} where Queries wraps the pool.
+	// Transaction usage: qtx := h.Queries.WithTx(tx)
+	GetFriendshipStatus(ctx context.Context, arg GetFriendshipStatusParams) (string, error)
 	GetGroup(ctx context.Context, id uuid.UUID) (GetGroupRow, error)
 	// Expenses domain queries for sqlc with pgx/v5.
 	// These replace manual Pool.Query/Exec calls in internal/expenses/handlers.go
@@ -55,6 +78,7 @@ type Querier interface {
 	GetOAuthIdentityForUpdate(ctx context.Context, subject string) (GetOAuthIdentityForUpdateRow, error)
 	GetPasswordResetTokenUser(ctx context.Context, tokenHash string) (uuid.UUID, error)
 	GetSessionUserByHash(ctx context.Context, refreshTokenHash string) (uuid.UUID, error)
+	GetUserAvatarByID(ctx context.Context, id uuid.UUID) (string, error)
 	// Auth domain queries for sqlc with pgx/v5.
 	// These replace manual Pool.Query/Exec calls in internal/auth/handlers.go and internal/auth/auth.go
 	// Handler usage: Handler{Svc *auth.Service, Queries *db.Queries} or Service{Pool *pgxpool.Pool, Queries *db.Queries}
@@ -64,6 +88,8 @@ type Querier interface {
 	GetUserByID(ctx context.Context, id uuid.UUID) (GetUserByIDRow, error)
 	GetUserEmail(ctx context.Context, id uuid.UUID) (string, error)
 	GetUserIDByEmail(ctx context.Context, lower string) (uuid.UUID, error)
+	GetUserLowerEmailByID(ctx context.Context, id uuid.UUID) (string, error)
+	GetUserNameByID(ctx context.Context, id uuid.UUID) (string, error)
 	GetUserVerificationByEmail(ctx context.Context, lower string) (GetUserVerificationByEmailRow, error)
 	GetUserVerificationByID(ctx context.Context, id uuid.UUID) (GetUserVerificationByIDRow, error)
 	InsertActivityEvent(ctx context.Context, arg InsertActivityEventParams) error
@@ -83,6 +109,8 @@ type Querier interface {
 	ListExpenses(ctx context.Context, groupID uuid.UUID) ([]ListExpensesRow, error)
 	ListExpensesByGroup(ctx context.Context, arg ListExpensesByGroupParams) ([]ListExpensesByGroupRow, error)
 	ListExpensesWithCursor(ctx context.Context, arg ListExpensesWithCursorParams) ([]ListExpensesWithCursorRow, error)
+	ListFriendRequests(ctx context.Context, userID uuid.UUID) ([]ListFriendRequestsRow, error)
+	ListFriends(ctx context.Context, userID uuid.UUID) ([]ListFriendsRow, error)
 	ListGroupInvites(ctx context.Context, groupID uuid.UUID) ([]ListGroupInvitesRow, error)
 	ListGroupMembers(ctx context.Context, groupID uuid.UUID) ([]ListGroupMembersRow, error)
 	ListGroups(ctx context.Context, userID uuid.UUID) ([]ListGroupsRow, error)
@@ -93,17 +121,20 @@ type Querier interface {
 	MarkEmailVerificationVerified(ctx context.Context, tokenHash string) error
 	MarkInviteAccepted(ctx context.Context, id uuid.UUID) error
 	MarkPasswordResetUsed(ctx context.Context, tokenHash string) error
+	RejectFriendRequest(ctx context.Context, arg RejectFriendRequestParams) (int64, error)
 	RemoveGroupMember(ctx context.Context, arg RemoveGroupMemberParams) error
 	RevokeAllUserSessions(ctx context.Context, userID uuid.UUID) error
 	RevokeSessionByHash(ctx context.Context, refreshTokenHash string) error
 	RevokeSessionByID(ctx context.Context, arg RevokeSessionByIDParams) error
 	RevokeSessionByIDReturning(ctx context.Context, arg RevokeSessionByIDReturningParams) (uuid.UUID, error)
 	RotateSession(ctx context.Context, arg RotateSessionParams) (uuid.UUID, error)
+	SendFriendRequest(ctx context.Context, arg SendFriendRequestParams) error
 	SetEmailVerified(ctx context.Context, id uuid.UUID) error
 	SetInviteToken(ctx context.Context, arg SetInviteTokenParams) error
 	SetUserEmailVerifiedIfNull(ctx context.Context, id uuid.UUID) error
 	SoftDeleteExpense(ctx context.Context, id uuid.UUID) error
 	UpdateExpense(ctx context.Context, arg UpdateExpenseParams) error
+	UpdateFriendInviteAccepted(ctx context.Context, id uuid.UUID) error
 	UpdateGroupAvatar(ctx context.Context, arg UpdateGroupAvatarParams) error
 	UpdateGroupCurrency(ctx context.Context, arg UpdateGroupCurrencyParams) error
 	UpdateGroupDescription(ctx context.Context, arg UpdateGroupDescriptionParams) error
@@ -113,6 +144,8 @@ type Querier interface {
 	UpdateGroupType(ctx context.Context, arg UpdateGroupTypeParams) error
 	UpdateMemberRole(ctx context.Context, arg UpdateMemberRoleParams) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
+	UpsertFriendshipAccepted(ctx context.Context, arg UpsertFriendshipAcceptedParams) error
+	UpsertFriendshipAcceptedNoAction(ctx context.Context, arg UpsertFriendshipAcceptedNoActionParams) error
 }
 
 var _ Querier = (*Queries)(nil)
