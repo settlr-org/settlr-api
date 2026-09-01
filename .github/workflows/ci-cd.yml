@@ -85,45 +85,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-  deploy-staging:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
-    needs: publish-container
-    runs-on: ubuntu-latest
-    concurrency:
-      group: settlr-staging-deploy
-      cancel-in-progress: false
-    steps:
-      - name: Check deploy secrets
-        id: check
-        run: |
-          if [ -z "${{ secrets.HETZNER_HOST }}" ] || [ -z "${{ secrets.HETZNER_SSH_KEY }}" ] || [ -z "${{ secrets.HETZNER_USER }}" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "HETZNER_HOST/HETZNER_SSH_KEY/HETZNER_USER not set — skipping staging deploy"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Configure dedicated deployment key
-        if: steps.check.outputs.skip == 'false'
-        env:
-          SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
-        run: |
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-      - name: Deploy the staging image
-        if: steps.check.outputs.skip == 'false'
-        env:
-          HOST: ${{ secrets.HETZNER_HOST }}
-          USER: ${{ secrets.HETZNER_USER }}
-          IMAGE: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/settlr-api@${{ needs.publish-container.outputs.image_digest }}
-        run: |
-          ssh -4 -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new \
-            "$USER@$HOST" "sudo -n /usr/local/sbin/settlr-deploy-image '$IMAGE'"
-      - name: Verify staging readiness
-        if: steps.check.outputs.skip == 'false'
-        run: |
-          curl --fail --retry 10 --retry-delay 3 --silent --show-error \
-            https://settlrstagingapi.theswissknife.com/health
   deploy-production:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: publish-container
