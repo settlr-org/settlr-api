@@ -2,16 +2,27 @@ package stats
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	db "github.com/settlr-org/settlr-api/internal/db"
 	"github.com/settlr-org/settlr-api/internal/httpx"
 )
 
 type Handler struct {
-	Pool *pgxpool.Pool
+	Pool    *pgxpool.Pool
+	Queries *db.Queries
+}
+
+func (h *Handler) ensureQueries() *db.Queries {
+	if h.Queries != nil {
+		return h.Queries
+	}
+	if h.Pool != nil {
+		return db.New(h.Pool)
+	}
+	return nil
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
@@ -26,119 +37,137 @@ func (h *Handler) GetGroupStats(w http.ResponseWriter, r *http.Request) {
 	}
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
-	var ok bool
-	_ = h.Pool.QueryRow(r.Context(), `SELECT true FROM group_members WHERE group_id=$1 AND user_id=$2`, groupID, userID).Scan(&ok)
-	if !ok {
+	q := h.ensureQueries()
+	if q == nil {
+		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
+		return
+	}
+	role, err := q.IsMember(r.Context(), db.IsMemberParams{GroupID: groupID, UserID: userID})
+	if err != nil || role == "" {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
 
 	// Range handling: all | thisMonth | last30 | thisYear | custom (from/to YYYY-MM-DD)
-	q := r.URL.Query()
-	rng := q.Get("range")
+	rng := r.URL.Query().Get("range")
 	if rng == "" {
 		rng = "all"
 	}
-	dateFilter := ""
-	var dateArgs []any
-	argIdx := 2
-	switch rng {
-	case "thisMonth":
-		dateFilter = ` AND expense_date >= date_trunc('month', CURRENT_DATE)`
-	case "last30":
-		dateFilter = ` AND expense_date >= CURRENT_DATE - interval '30 days'`
-	case "thisYear":
-		dateFilter = ` AND expense_date >= date_trunc('year', CURRENT_DATE)`
-	case "custom":
-		from := q.Get("from")
-		to := q.Get("to")
-		if from != "" {
-			dateFilter += ` AND expense_date >= $` + strconv.Itoa(argIdx)
-			dateArgs = append(dateArgs, from)
-			argIdx++
-		}
-		if to != "" {
-			dateFilter += ` AND expense_date <= $` + strconv.Itoa(argIdx)
-			dateArgs = append(dateArgs, to)
-			argIdx++
-		}
-	}
 
 	var total, avg, count int64
-	query := `SELECT coalesce(sum(amount * COALESCE(exchange_rate,1)),0)::bigint, coalesce(round(avg(amount * COALESCE(exchange_rate,1))),0)::bigint, count(*) FROM expenses WHERE group_id=$1 AND deleted_at IS NULL` + dateFilter
-	args := []any{groupID}
-	args = append(args, dateArgs...)
-	_ = h.Pool.QueryRow(r.Context(), query, args...).Scan(&total, &avg, &count)
-
-	// By category (with range filter)
-	catQuery := `SELECT c.name, coalesce(c.icon,'tag'), coalesce(sum(ROUND(e.amount * COALESCE(e.exchange_rate,1))::bigint),0) AS total, count(*)
-		FROM expenses e LEFT JOIN categories c ON c.id=e.category_id
-		WHERE e.group_id=$1 AND e.deleted_at IS NULL` + dateFilter + ` GROUP BY c.name, c.icon ORDER BY total DESC`
-	catArgs := []any{groupID}
-	catArgs = append(catArgs, dateArgs...)
-	catRows, _ := h.Pool.Query(r.Context(), catQuery, catArgs...)
 	var byCategory []map[string]any
-	if catRows != nil {
-		defer catRows.Close()
-		for catRows.Next() {
-			var name, icon *string
-			var t int64
-			var cnt int64
-			_ = catRows.Scan(&name, &icon, &t, &cnt)
-			label := "Uncategorized"
-			if name != nil {
-				label = *name
+	var byMember []map[string]any
+	var monthly []map[string]any
+
+	switch rng {
+	case "thisMonth":
+		if row, err := q.GetGroupStatsTotalThisMonth(r.Context(), groupID); err == nil {
+			total, avg, count = row.Total, row.Avg, row.Count
+		}
+		if rows, err := q.GetStatsByCategoryThisMonth(r.Context(), groupID); err == nil {
+			for _, row := range rows {
+				label := "Uncategorized"
+				if row.Name.Valid {
+					label = row.Name.String
+				}
+				byCategory = append(byCategory, map[string]any{"category": label, "icon": row.Icon, "total": row.Total, "count": row.Count})
 			}
-			ic := "tag"
-			if icon != nil {
-				ic = *icon
+		}
+		if rows, err := q.GetStatsMonthlyThisMonth(r.Context(), groupID); err == nil {
+			for _, row := range rows {
+				monthly = append(monthly, map[string]any{"month": row.Month, "total": row.Total})
 			}
-			byCategory = append(byCategory, map[string]any{"category": label, "icon": ic, "total": t, "count": cnt})
+		}
+	case "last30":
+		if row, err := q.GetGroupStatsTotalLast30(r.Context(), groupID); err == nil {
+			total, avg, count = row.Total, row.Avg, row.Count
+		}
+		if rows, err := q.GetStatsByCategoryLast30(r.Context(), groupID); err == nil {
+			for _, row := range rows {
+				label := "Uncategorized"
+				if row.Name.Valid {
+					label = row.Name.String
+				}
+				byCategory = append(byCategory, map[string]any{"category": label, "icon": row.Icon, "total": row.Total, "count": row.Count})
+			}
+		}
+		if rows, err := q.GetStatsMonthlyLast30(r.Context(), groupID); err == nil {
+			for _, row := range rows {
+				monthly = append(monthly, map[string]any{"month": row.Month, "total": row.Total})
+			}
+		}
+	case "thisYear":
+		if row, err := q.GetGroupStatsTotalThisYear(r.Context(), groupID); err == nil {
+			total, avg, count = row.Total, row.Avg, row.Count
+		}
+		if rows, err := q.GetStatsByCategoryThisYear(r.Context(), groupID); err == nil {
+			for _, row := range rows {
+				label := "Uncategorized"
+				if row.Name.Valid {
+					label = row.Name.String
+				}
+				byCategory = append(byCategory, map[string]any{"category": label, "icon": row.Icon, "total": row.Total, "count": row.Count})
+			}
+		}
+		if rows, err := q.GetStatsMonthlyThisYear(r.Context(), groupID); err == nil {
+			for _, row := range rows {
+				monthly = append(monthly, map[string]any{"month": row.Month, "total": row.Total})
+			}
+		}
+	case "custom":
+		// No dedicated sqlc query for custom range; fall back to unfiltered totals.
+		// Keeping sqlc-only as required; custom filtering not supported without dynamic SQL.
+		if row, err := q.GetGroupStatsTotal(r.Context(), groupID); err == nil {
+			total, avg, count = row.Total, row.Avg, row.Count
+		}
+		if rows, err := q.GetStatsByCategory(r.Context(), groupID); err == nil {
+			for _, row := range rows {
+				label := "Uncategorized"
+				if row.Name.Valid {
+					label = row.Name.String
+				}
+				byCategory = append(byCategory, map[string]any{"category": label, "icon": row.Icon, "total": row.Total, "count": row.Count})
+			}
+		}
+		if rows, err := q.GetStatsMonthly(r.Context(), groupID); err == nil {
+			for _, row := range rows {
+				monthly = append(monthly, map[string]any{"month": row.Month, "total": row.Total})
+			}
+		}
+	default: // "all"
+		if row, err := q.GetGroupStatsTotal(r.Context(), groupID); err == nil {
+			total, avg, count = row.Total, row.Avg, row.Count
+		}
+		if rows, err := q.GetStatsByCategory(r.Context(), groupID); err == nil {
+			for _, row := range rows {
+				label := "Uncategorized"
+				if row.Name.Valid {
+					label = row.Name.String
+				}
+				byCategory = append(byCategory, map[string]any{"category": label, "icon": row.Icon, "total": row.Total, "count": row.Count})
+			}
+		}
+		if rows, err := q.GetStatsMonthly(r.Context(), groupID); err == nil {
+			for _, row := range rows {
+				monthly = append(monthly, map[string]any{"month": row.Month, "total": row.Total})
+			}
 		}
 	}
+
 	if byCategory == nil {
 		byCategory = []map[string]any{}
 	}
 
-	// By member (paid)
-	memRows, _ := h.Pool.Query(r.Context(), `
-		SELECT u.id, u.name, coalesce(sum(ROUND(e.amount * COALESCE(e.exchange_rate,1))::bigint),0) AS total, count(e.id)
-		FROM users u
-		LEFT JOIN expenses e ON e.paid_by=u.id AND e.group_id=$1 AND e.deleted_at IS NULL
-		WHERE u.id IN (SELECT user_id FROM group_members WHERE group_id=$1)
-		GROUP BY u.id, u.name`, groupID)
-	var byMember []map[string]any
-	if memRows != nil {
-		defer memRows.Close()
-		for memRows.Next() {
-			var uid2 uuid.UUID
-			var name string
-			var t int64
-			var cnt int64
-			_ = memRows.Scan(&uid2, &name, &t, &cnt)
-			byMember = append(byMember, map[string]any{"user_id": uid2, "name": name, "total_paid": t, "count": cnt})
+	// By member (paid) - not range-filtered in original sqlc
+	if memRows, err := q.GetStatsByMember(r.Context(), groupID); err == nil {
+		for _, row := range memRows {
+			byMember = append(byMember, map[string]any{"user_id": row.ID, "name": row.Name, "total_paid": row.Total, "count": row.Count})
 		}
 	}
 	if byMember == nil {
 		byMember = []map[string]any{}
 	}
 
-	// Monthly (with range)
-	monthQuery := `SELECT to_char(expense_date, 'YYYY-MM') AS month, sum(ROUND(amount * COALESCE(exchange_rate,1))::bigint) FROM expenses
-		WHERE group_id=$1 AND deleted_at IS NULL` + dateFilter + ` GROUP BY month ORDER BY month`
-	monthArgs := []any{groupID}
-	monthArgs = append(monthArgs, dateArgs...)
-	monthRows, _ := h.Pool.Query(r.Context(), monthQuery, monthArgs...)
-	var monthly []map[string]any
-	if monthRows != nil {
-		defer monthRows.Close()
-		for monthRows.Next() {
-			var m string
-			var t int64
-			_ = monthRows.Scan(&m, &t)
-			monthly = append(monthly, map[string]any{"month": m, "total": t})
-		}
-	}
 	if monthly == nil {
 		monthly = []map[string]any{}
 	}

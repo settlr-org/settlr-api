@@ -1,15 +1,18 @@
 package users
 
 import (
+	"context"
 	"net/http"
 	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/settlr-org/settlr-api/internal/auth"
+	db "github.com/settlr-org/settlr-api/internal/db"
 	"github.com/settlr-org/settlr-api/internal/httpx"
 )
 
@@ -17,7 +20,30 @@ var emailRe = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
 
 type Handler struct {
 	Pool    *pgxpool.Pool
+	Queries *db.Queries
 	AuthSvc *auth.Service
+}
+
+func (h *Handler) ensureQueries() *db.Queries {
+	if h.Queries != nil {
+		return h.Queries
+	}
+	if h.Pool != nil {
+		return db.New(h.Pool)
+	}
+	return nil
+}
+
+func (h *Handler) isMember(ctx context.Context, groupID, userID uuid.UUID) bool {
+	q := h.ensureQueries()
+	if q == nil {
+		return false
+	}
+	role, err := q.IsMember(ctx, db.IsMemberParams{GroupID: groupID, UserID: userID})
+	if err != nil {
+		return false
+	}
+	return role != ""
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
@@ -41,11 +67,17 @@ type paymentInfo struct {
 func (h *Handler) GetPaymentInfo(w http.ResponseWriter, r *http.Request) {
 	uid, _ := httpx.GetUserID(r.Context())
 	id, _ := uuid.Parse(uid)
-	var p paymentInfo
-	if err := h.Pool.QueryRow(r.Context(), `SELECT coalesce(bank_qr_url,''), coalesce(bank_name,''), coalesce(payment_handle,'') FROM users WHERE id=$1`, id).Scan(&p.BankQRURL, &p.BankName, &p.PaymentHandle); err != nil {
+	q := h.ensureQueries()
+	if q == nil {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
+	row, err := q.GetUserPaymentInfo(r.Context(), id)
+	if err != nil {
+		httpx.WriteError(w, r, httpx.ErrNotFound)
+		return
+	}
+	p := paymentInfo{BankQRURL: row.BankQrUrl, BankName: row.BankName, PaymentHandle: row.PaymentHandle}
 	httpx.WriteJSON(w, http.StatusOK, p)
 }
 
@@ -61,7 +93,20 @@ func (h *Handler) UpdatePaymentInfo(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "payment information is too long"}})
 		return
 	}
-	_, err := h.Pool.Exec(r.Context(), `UPDATE users SET bank_qr_url=$1, bank_name=$2, payment_handle=$3, updated_at=now() WHERE id=$4`, strings.TrimSpace(p.BankQRURL), strings.TrimSpace(p.BankName), strings.TrimSpace(p.PaymentHandle), id)
+	q := h.ensureQueries()
+	if q == nil {
+		httpx.WriteError(w, r, httpx.ErrNotFound)
+		return
+	}
+	p.BankQRURL = strings.TrimSpace(p.BankQRURL)
+	p.BankName = strings.TrimSpace(p.BankName)
+	p.PaymentHandle = strings.TrimSpace(p.PaymentHandle)
+	err := q.UpdateUserPaymentInfo(r.Context(), db.UpdateUserPaymentInfoParams{
+		BankQrUrl:     pgtype.Text{String: p.BankQRURL, Valid: true},
+		BankName:      pgtype.Text{String: p.BankName, Valid: true},
+		PaymentHandle: pgtype.Text{String: p.PaymentHandle, Valid: true},
+		ID:            id,
+	})
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
@@ -77,34 +122,46 @@ func (h *Handler) GetFriendPaymentInfo(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, &httpx.AppError{Code: "VALIDATION_ERROR", Message: "invalid user id", Status: 422})
 		return
 	}
-	var accepted bool
-	_ = h.Pool.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM friendships WHERE ((user_id=$1 AND friend_id=$2) OR (user_id=$2 AND friend_id=$1)) AND status='ACCEPTED')`, viewer, id).Scan(&accepted)
-	if !accepted {
+	q := h.ensureQueries()
+	if q == nil {
 		httpx.WriteError(w, r, httpx.ErrForbidden)
 		return
 	}
-	var p paymentInfo
-	if err := h.Pool.QueryRow(r.Context(), `SELECT coalesce(bank_qr_url,''), coalesce(bank_name,''), coalesce(payment_handle,'') FROM users WHERE id=$1 AND is_anonymous=false`, id).Scan(&p.BankQRURL, &p.BankName, &p.PaymentHandle); err != nil {
+	accepted, err := q.CheckFriendshipAccepted(r.Context(), db.CheckFriendshipAcceptedParams{UserID: viewer, FriendID: id})
+	if err != nil || !accepted {
+		httpx.WriteError(w, r, httpx.ErrForbidden)
+		return
+	}
+	row, err := q.GetUserPaymentInfoForFriend(r.Context(), id)
+	if err != nil {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
+	p := paymentInfo{BankQRURL: row.BankQrUrl, BankName: row.BankName, PaymentHandle: row.PaymentHandle}
 	httpx.WriteJSON(w, http.StatusOK, p)
 }
 
 func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 	uid, _ := httpx.GetUserID(r.Context())
 	id, _ := uuid.Parse(uid)
-	var name, email, avatar, currency, tz string
-	var verified *string
-	var hasPassword bool
-	err := h.Pool.QueryRow(r.Context(),
-		`SELECT name, email, coalesce(avatar_url,''), default_currency, timezone, email_verified_at::text, password_hash IS NOT NULL FROM users WHERE id=$1`, id).
-		Scan(&name, &email, &avatar, &currency, &tz, &verified, &hasPassword)
+	q := h.ensureQueries()
+	if q == nil {
+		httpx.WriteError(w, r, httpx.ErrNotFound)
+		return
+	}
+	row, err := q.GetMe(r.Context(), id)
 	if err != nil {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
-	httpx.WriteJSON(w, 200, map[string]any{"id": id, "name": name, "email": email, "avatar_url": avatar, "default_currency": currency, "timezone": tz, "email_verified": verified != nil, "has_password": hasPassword})
+	hasPassword := false
+	if b, ok := row.HasPassword.(bool); ok {
+		hasPassword = b
+	} else if s, ok := row.HasPassword.(string); ok {
+		hasPassword = s == "t" || s == "true"
+	}
+	emailVerified := row.EmailVerifiedAt.Valid
+	httpx.WriteJSON(w, 200, map[string]any{"id": id, "name": row.Name, "email": row.Email, "avatar_url": row.AvatarUrl, "default_currency": row.DefaultCurrency, "timezone": row.Timezone, "email_verified": emailVerified, "has_password": hasPassword})
 }
 
 type updateMeReq struct {
@@ -123,13 +180,18 @@ func (h *Handler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 400, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": err.Error()}})
 		return
 	}
+	q := h.ensureQueries()
+	if q == nil {
+		httpx.WriteError(w, r, httpx.ErrNotFound)
+		return
+	}
 	if req.Name != nil {
 		n := strings.TrimSpace(*req.Name)
 		if n == "" || len(n) > 100 {
 			httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid name"}})
 			return
 		}
-		_, _ = h.Pool.Exec(r.Context(), `UPDATE users SET name=$1, updated_at=now() WHERE id=$2`, n, id)
+		_ = q.UpdateUserName(r.Context(), db.UpdateUserNameParams{Name: n, ID: id})
 	}
 	if req.Email != nil {
 		e := strings.TrimSpace(strings.ToLower(*req.Email))
@@ -137,14 +199,17 @@ func (h *Handler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid email"}})
 			return
 		}
-		_, err := h.Pool.Exec(r.Context(), `UPDATE users SET email=$1, updated_at=now(), email_verified_at=NULL WHERE id=$2`, e, id)
+		err := q.UpdateUserEmail(r.Context(), db.UpdateUserEmailParams{Email: e, ID: id})
 		if err != nil && strings.Contains(err.Error(), "duplicate") {
 			httpx.WriteJSON(w, 409, map[string]any{"error": map[string]string{"code": "CONFLICT", "message": "email already in use"}})
 			return
 		}
+		if err != nil {
+			// handle other errors if needed
+		}
 	}
 	if req.AvatarURL != nil {
-		_, _ = h.Pool.Exec(r.Context(), `UPDATE users SET avatar_url=$1, updated_at=now() WHERE id=$2`, *req.AvatarURL, id)
+		_ = q.UpdateUserAvatar(r.Context(), db.UpdateUserAvatarParams{AvatarUrl: pgtype.Text{String: *req.AvatarURL, Valid: true}, ID: id})
 	}
 	if req.DefaultCurrency != nil {
 		c := strings.ToUpper(strings.TrimSpace(*req.DefaultCurrency))
@@ -152,10 +217,10 @@ func (h *Handler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "unsupported currency"}})
 			return
 		}
-		_, _ = h.Pool.Exec(r.Context(), `UPDATE users SET default_currency=$1, updated_at=now() WHERE id=$2`, c, id)
+		_ = q.UpdateUserDefaultCurrency(r.Context(), db.UpdateUserDefaultCurrencyParams{DefaultCurrency: c, ID: id})
 	}
 	if req.Timezone != nil {
-		_, _ = h.Pool.Exec(r.Context(), `UPDATE users SET timezone=$1, updated_at=now() WHERE id=$2`, *req.Timezone, id)
+		_ = q.UpdateUserTimezone(r.Context(), db.UpdateUserTimezoneParams{Timezone: *req.Timezone, ID: id})
 	}
 	h.GetMe(w, r)
 }
@@ -177,17 +242,22 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "new password must be >= 8 chars"}})
 		return
 	}
-	var hash *string
-	if err := h.Pool.QueryRow(r.Context(), `SELECT password_hash FROM users WHERE id=$1`, id).Scan(&hash); err != nil {
+	q := h.ensureQueries()
+	if q == nil {
+		httpx.WriteError(w, r, httpx.ErrNotFound)
+		return
+	}
+	hash, err := q.GetUserPasswordHash(r.Context(), id)
+	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	if hash != nil && !auth.VerifyPassword(*hash, req.CurrentPassword) {
+	if hash.Valid && !auth.VerifyPassword(hash.String, req.CurrentPassword) {
 		httpx.WriteJSON(w, 401, map[string]any{"error": map[string]string{"code": "UNAUTHORIZED", "message": "current password incorrect"}})
 		return
 	}
 	newHash, _ := auth.HashPassword(req.NewPassword)
-	_, _ = h.Pool.Exec(r.Context(), `UPDATE users SET password_hash=$1, updated_at=now() WHERE id=$2`, newHash, id)
+	_ = q.UpdateUserPasswordHash(r.Context(), db.UpdateUserPasswordHashParams{PasswordHash: pgtype.Text{String: newHash, Valid: true}, ID: id})
 	_ = h.AuthSvc.RevokeAllSessions(r.Context(), id)
 	httpx.WriteJSON(w, 200, map[string]any{"message": "password updated"})
 }
@@ -195,11 +265,13 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	uid, _ := httpx.GetUserID(r.Context())
 	id, _ := uuid.Parse(uid)
-	// Anonymize user instead of hard delete to preserve financial records
+	q := h.ensureQueries()
+	if q == nil {
+		httpx.WriteError(w, r, httpx.ErrNotFound)
+		return
+	}
 	anonEmail := "deleted_" + id.String() + "@deleted.local"
-	_, err := h.Pool.Exec(r.Context(),
-		`UPDATE users SET name='Deleted User', email=$1, password_hash='deleted', avatar_url=NULL, is_anonymous=true, updated_at=now() WHERE id=$2`,
-		anonEmail, id)
+	err := q.SoftDeleteUser(r.Context(), db.SoftDeleteUserParams{Email: anonEmail, ID: id})
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
@@ -215,25 +287,24 @@ func (h *Handler) SearchUsers(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, httpx.ErrUnauthorized)
 		return
 	}
-	q := strings.TrimSpace(r.URL.Query().Get("q"))
-	if len(q) < 1 {
+	qStr := strings.TrimSpace(r.URL.Query().Get("q"))
+	if len(qStr) < 1 {
 		httpx.WriteJSON(w, 200, map[string]any{"data": []any{}})
 		return
 	}
-	rows, err := h.Pool.Query(r.Context(),
-		`SELECT u.id, u.name, u.email, coalesce(u.avatar_url,''),
-			EXISTS (SELECT 1 FROM friendships f
-				WHERE f.user_id=LEAST($2::uuid, u.id) AND f.friend_id=GREATEST($2::uuid, u.id)
-				AND f.status='PENDING' AND f.action_by=$2)
-		 FROM users u
-		 WHERE u.id <> $2 AND u.is_anonymous=false
-		   AND (u.name ILIKE '%' || $1 || '%' OR u.email ILIKE '%' || $1 || '%')
-		 ORDER BY u.name LIMIT 20`, q, currentID)
+	q := h.ensureQueries()
+	if q == nil {
+		httpx.WriteError(w, r, httpx.ErrNotFound)
+		return
+	}
+	rows, err := q.SearchUsersByName(r.Context(), db.SearchUsersByNameParams{
+		Column1: pgtype.Text{String: qStr, Valid: true},
+		Column2: pgtype.UUID{Bytes: currentID, Valid: true},
+	})
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	defer rows.Close()
 	type u struct {
 		ID        uuid.UUID `json:"id"`
 		Name      string    `json:"name"`
@@ -242,20 +313,11 @@ func (h *Handler) SearchUsers(w http.ResponseWriter, r *http.Request) {
 		Requested bool      `json:"requested"`
 	}
 	var out []u
-	for rows.Next() {
-		var x u
-		if err := rows.Scan(&x.ID, &x.Name, &x.Email, &x.AvatarURL, &x.Requested); err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
-		out = append(out, x)
+	for _, row := range rows {
+		out = append(out, u{ID: row.ID, Name: row.Name, Email: row.Email, AvatarURL: row.AvatarUrl, Requested: row.Requested})
 	}
 	if out == nil {
 		out = []u{}
-	}
-	if err := rows.Err(); err != nil {
-		httpx.WriteError(w, r, err)
-		return
 	}
 	httpx.WriteJSON(w, 200, map[string]any{"data": out})
 }
@@ -267,8 +329,12 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, &httpx.AppError{Code: "VALIDATION_ERROR", Message: "invalid user id", Status: 422})
 		return
 	}
-	var name, avatar string
-	err = h.Pool.QueryRow(r.Context(), `SELECT name, coalesce(avatar_url,'') FROM users WHERE id=$1 AND is_anonymous=false`, id).Scan(&name, &avatar)
+	q := h.ensureQueries()
+	if q == nil {
+		httpx.WriteError(w, r, httpx.ErrNotFound)
+		return
+	}
+	row, err := q.GetUserPublic(r.Context(), id)
 	if err == pgx.ErrNoRows {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
@@ -277,5 +343,5 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	httpx.WriteJSON(w, 200, map[string]any{"id": id, "name": name, "avatar_url": avatar})
+	httpx.WriteJSON(w, 200, map[string]any{"id": id, "name": row.Name, "avatar_url": row.AvatarUrl})
 }

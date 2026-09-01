@@ -12,10 +12,12 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/argon2"
 
 	"github.com/settlr-org/settlr-api/internal/config"
+	db "github.com/settlr-org/settlr-api/internal/db"
 	"github.com/settlr-org/settlr-api/internal/httpx"
 )
 
@@ -105,9 +107,24 @@ func ParseAccessToken(cfg config.Config, tokenStr string) (uuid.UUID, error) {
 }
 
 // Service holds auth business logic.
+// Pool is the raw pgx pool for manual queries (legacy).
+// Queries is the sqlc-generated type-safe wrapper. New code should use Queries where possible;
+// see internal/db/queries/auth.sql for migrated queries (CreateSession, RotateSession, etc.).
+// Migration is incremental: methods use Queries when available, fallback to Pool when Queries == nil (tests without DB).
 type Service struct {
-	Pool *pgxpool.Pool
-	Cfg  config.Config
+	Pool    *pgxpool.Pool
+	Queries *db.Queries
+	Cfg     config.Config
+}
+
+func (s *Service) ensureQueries() *db.Queries {
+	if s.Queries != nil {
+		return s.Queries
+	}
+	if s.Pool != nil {
+		return db.New(s.Pool)
+	}
+	return nil
 }
 
 func (s *Service) GetUserIDFromToken(ctx context.Context, authHeader string) (uuid.UUID, error) {
@@ -129,36 +146,48 @@ func (s *Service) GetUserIDFromToken(ctx context.Context, authHeader string) (uu
 func (s *Service) CreateSession(ctx context.Context, userID uuid.UUID, rawToken, userAgent, ip string) error {
 	hash := HashToken(rawToken)
 	expiresAt := time.Now().Add(time.Duration(s.Cfg.RefreshExpiryDays) * 24 * time.Hour)
-	_, err := s.Pool.Exec(ctx,
-		`INSERT INTO sessions (user_id, refresh_token_hash, user_agent, ip, expires_at) VALUES ($1,$2,$3,$4,$5)`,
-		userID, hash, userAgent, ip, expiresAt)
-	return err
+	q := s.ensureQueries()
+	if q == nil {
+		return fmt.Errorf("no db queries available")
+	}
+	return q.CreateSession(ctx, db.CreateSessionParams{
+		UserID:           userID,
+		RefreshTokenHash: hash,
+		UserAgent:        pgtype.Text{String: userAgent, Valid: userAgent != ""},
+		Ip:               pgtype.Text{String: ip, Valid: ip != ""},
+		ExpiresAt:        pgtype.Timestamptz{Time: expiresAt, Valid: true},
+	})
 }
 
 func (s *Service) RotateSession(ctx context.Context, oldRaw, newRaw string) (uuid.UUID, error) {
 	oldHash := HashToken(oldRaw)
 	newHash := HashToken(newRaw)
-	var newSessionID uuid.UUID
-	err := s.Pool.QueryRow(ctx, `
-		WITH old AS (
-			UPDATE sessions SET revoked_at=now() WHERE refresh_token_hash=$1 AND revoked_at IS NULL RETURNING user_id, id
-		)
-		INSERT INTO sessions (user_id, refresh_token_hash, expires_at, rotated_from)
-		SELECT user_id, $2, now() + interval '30 days', id FROM old
-		RETURNING id
-	`, oldHash, newHash).Scan(&newSessionID)
+	q := s.ensureQueries()
+	if q == nil {
+		return uuid.Nil, fmt.Errorf("no db queries available")
+	}
+	id, err := q.RotateSession(ctx, db.RotateSessionParams{
+		RefreshTokenHash:   oldHash,
+		RefreshTokenHash_2: newHash,
+	})
 	if err == pgx.ErrNoRows {
 		return uuid.Nil, httpx.ErrUnauthorized
 	}
-	return newSessionID, err
+	return id, err
 }
 
 func (s *Service) RevokeSession(ctx context.Context, rawToken string) error {
-	_, err := s.Pool.Exec(ctx, `UPDATE sessions SET revoked_at=now() WHERE refresh_token_hash=$1`, HashToken(rawToken))
-	return err
+	q := s.ensureQueries()
+	if q == nil {
+		return fmt.Errorf("no db queries available")
+	}
+	return q.RevokeSessionByHash(ctx, HashToken(rawToken))
 }
 
 func (s *Service) RevokeAllSessions(ctx context.Context, userID uuid.UUID) error {
-	_, err := s.Pool.Exec(ctx, `UPDATE sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL`, userID)
-	return err
+	q := s.ensureQueries()
+	if q == nil {
+		return fmt.Errorf("no db queries available")
+	}
+	return q.RevokeAllUserSessions(ctx, userID)
 }

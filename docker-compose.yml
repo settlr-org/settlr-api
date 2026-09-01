@@ -26,6 +26,10 @@ services:
       APP_URL: ${APP_URL:-https://example.com}
       API_URL: ${API_URL:-https://api.example.com}
       CORS_ORIGINS: ${CORS_ORIGINS:-https://example.com,https://staging.example.net}
+      # Google ID tokens must be verified against the public client IDs used by
+      # the web and mobile applications. Leave this empty only when Google
+      # sign-in is intentionally disabled.
+      GOOGLE_OAUTH_CLIENT_IDS: ${GOOGLE_OAUTH_CLIENT_IDS:-}
       MAIL_PROVIDER: ${MAIL_PROVIDER:-}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
       SMTP_HOST: ${SMTP_HOST:-}

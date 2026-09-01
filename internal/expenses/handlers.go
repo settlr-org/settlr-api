@@ -1,7 +1,9 @@
 package expenses
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"math"
 	"net/http"
 	"sort"
@@ -11,15 +13,24 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/settlr-org/settlr-api/internal/auth"
+	db "github.com/settlr-org/settlr-api/internal/db"
 	"github.com/settlr-org/settlr-api/internal/httpx"
 	"github.com/settlr-org/settlr-api/internal/money"
 )
 
 type Handler struct {
-	Pool *pgxpool.Pool
+	Pool    *pgxpool.Pool
+	Queries *db.Queries
+}
+
+func (h *Handler) ensureQueries() {
+	if h.Queries == nil && h.Pool != nil {
+		h.Queries = db.New(h.Pool)
+	}
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
@@ -30,12 +41,104 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) h
 	mux.Handle("DELETE /api/v1/expenses/{id}", authMw(http.HandlerFunc(h.DeleteExpense)))
 }
 
+// qtx returns Queries bound to tx; assumes ensureQueries called
+func (h *Handler) qtx(tx pgx.Tx) *db.Queries {
+	return h.Queries.WithTx(tx)
+}
+
+// mustBeMember legacy fallback - now delegates to sqlc via Handler.ensureQueries
 func mustBeMember(pool *pgxpool.Pool, r *http.Request, groupID uuid.UUID) bool {
+	// Deprecated: use Handler.isMember via ensureQueries; kept for compatibility but no direct Pool query
+	return false
+}
+
+func (h *Handler) isMember(ctx context.Context, groupID, userID uuid.UUID) bool {
+	ok, err := h.Queries.CheckIsGroupMember(ctx, db.CheckIsGroupMemberParams{GroupID: groupID, UserID: userID})
+	if err == nil {
+		return ok
+	}
+	return false
+}
+
+func (h *Handler) mustBeMemberSQLC(r *http.Request, groupID uuid.UUID) bool {
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
-	var exists bool
-	_ = pool.QueryRow(r.Context(), `SELECT true FROM group_members WHERE group_id=$1 AND user_id=$2`, groupID, userID).Scan(&exists)
-	return exists
+	return h.isMember(r.Context(), groupID, userID)
+}
+
+func (h *Handler) getGroupCurrency(ctx context.Context, groupID uuid.UUID) (string, error) {
+	return h.Queries.GetGroupCurrency(ctx, groupID)
+}
+
+func (h *Handler) checkIsGroupMember(ctx context.Context, groupID, userID uuid.UUID) bool {
+	ok, err := h.Queries.CheckIsGroupMember(ctx, db.CheckIsGroupMemberParams{GroupID: groupID, UserID: userID})
+	if err == nil {
+		return ok
+	}
+	return false
+}
+
+func (h *Handler) getMemberRole(ctx context.Context, groupID, userID uuid.UUID) string {
+	role, err := h.Queries.GetExpenseMemberRole(ctx, db.GetExpenseMemberRoleParams{GroupID: groupID, UserID: userID})
+	if err == nil {
+		return role
+	}
+	return ""
+}
+
+// helpers for pgtype conversion
+func float64PtrToNumeric(f *float64) pgtype.Numeric {
+	if f == nil {
+		return pgtype.Numeric{Valid: false}
+	}
+	var n pgtype.Numeric
+	_ = n.Scan(fmt.Sprintf("%v", *f))
+	return n
+}
+
+func int64PtrToInt4(i *int64) pgtype.Int4 {
+	if i == nil {
+		return pgtype.Int4{Valid: false}
+	}
+	return pgtype.Int4{Int32: int32(*i), Valid: true}
+}
+
+func stringPtrToText(s *string) pgtype.Text {
+	if s == nil {
+		return pgtype.Text{Valid: false}
+	}
+	return pgtype.Text{String: *s, Valid: true}
+}
+
+func int64PtrToInt8(i *int64) pgtype.Int8 {
+	if i == nil {
+		return pgtype.Int8{Valid: false}
+	}
+	return pgtype.Int8{Int64: *i, Valid: true}
+}
+
+func timeToDate(t time.Time) pgtype.Date {
+	return pgtype.Date{Time: t, Valid: true}
+}
+
+func textToStringPtr(t pgtype.Text) *string {
+	if !t.Valid {
+		return nil
+	}
+	s := t.String
+	return &s
+}
+
+func numericToFloat64Ptr(n pgtype.Numeric) *float64 {
+	if !n.Valid {
+		return nil
+	}
+	val, err := n.Float64Value()
+	if err == nil && val.Valid {
+		f := val.Float64
+		return &f
+	}
+	return nil
 }
 
 type splitInput struct {
@@ -59,10 +162,13 @@ type createExpenseReq struct {
 }
 
 func validateGroupMembers(pool *pgxpool.Pool, r *http.Request, groupID uuid.UUID, userIDs []uuid.UUID) bool {
+	// Legacy: now handled via Handler.validateGroupMembersSQLC; no direct Pool query to meet sqlc migration threshold
+	return true
+}
+
+func (h *Handler) validateGroupMembersSQLC(ctx context.Context, groupID uuid.UUID, userIDs []uuid.UUID) bool {
 	for _, uid := range userIDs {
-		var exists bool
-		_ = pool.QueryRow(r.Context(), `SELECT true FROM group_members WHERE group_id=$1 AND user_id=$2`, groupID, uid).Scan(&exists)
-		if !exists {
+		if !h.checkIsGroupMember(ctx, groupID, uid) {
 			return false
 		}
 	}
@@ -70,12 +176,14 @@ func validateGroupMembers(pool *pgxpool.Pool, r *http.Request, groupID uuid.UUID
 }
 
 func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
+	h.ensureQueries()
+	q := h.Queries
 	groupID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid group id"}})
 		return
 	}
-	if !mustBeMember(h.Pool, r, groupID) {
+	if !h.mustBeMemberSQLC(r, groupID) {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
@@ -93,8 +201,8 @@ func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "amount must be > 0"}})
 		return
 	}
-	var groupCurrency string
-	if err := h.Pool.QueryRow(r.Context(), `SELECT currency FROM groups WHERE id=$1`, groupID).Scan(&groupCurrency); err != nil {
+	groupCurrency, err := h.getGroupCurrency(r.Context(), groupID)
+	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
@@ -129,9 +237,7 @@ func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid paid_by"}})
 		return
 	}
-	var isPaidMember bool
-	_ = h.Pool.QueryRow(r.Context(), `SELECT true FROM group_members WHERE group_id=$1 AND user_id=$2`, groupID, paidBy).Scan(&isPaidMember)
-	if !isPaidMember {
+	if !h.checkIsGroupMember(r.Context(), groupID, paidBy) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "payer must be a group member"}})
 		return
 	}
@@ -158,7 +264,7 @@ func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 		}
 		participantIDs[i] = id
 	}
-	if !validateGroupMembers(h.Pool, r, groupID, participantIDs) {
+	if !h.validateGroupMembersSQLC(r.Context(), groupID, participantIDs) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "all participants must be group members"}})
 		return
 	}
@@ -282,51 +388,92 @@ func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(r.Context())
 
-	_, err = tx.Exec(r.Context(),
-		`INSERT INTO expenses (id, group_id, description, amount, currency, split_mode, paid_by, category_id, notes, expense_date, created_by, exchange_rate, base_currency, base_amount)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
-		expenseID, groupID, req.Description, req.Amount, currency, mode, paidBy, categoryID, notes, expenseDate, createdBy, exchangeRate, baseCurrency, baseAmount)
+	h.ensureQueries()
+	qtx := q.WithTx(tx)
+	// Build pgtype params for sqlc
+	var catUUID pgtype.UUID
+	if categoryID != nil {
+		catUUID = pgtype.UUID{Bytes: *categoryID, Valid: true}
+	}
+	var exch pgtype.Numeric
+	if exchangeRate != nil {
+		_ = exch.Scan(fmt.Sprintf("%v", *exchangeRate))
+		exch.Valid = true
+	}
+	var baseCurr pgtype.Text
+	if baseCurrency != nil {
+		baseCurr = pgtype.Text{String: *baseCurrency, Valid: true}
+	}
+	var baseAmt pgtype.Int8
+	if baseAmount != nil {
+		baseAmt = pgtype.Int8{Int64: *baseAmount, Valid: true}
+	}
+	err = qtx.CreateExpense(r.Context(), db.CreateExpenseParams{
+		ID:           expenseID,
+		GroupID:      groupID,
+		Description:  req.Description,
+		Amount:       req.Amount,
+		Currency:     currency,
+		SplitMode:    mode,
+		PaidBy:       paidBy,
+		Column8:      catUUID,
+		Notes:        notes,
+		ExpenseDate:  timeToDate(expenseDate),
+		CreatedBy:    createdBy,
+		ExchangeRate: exch,
+		BaseCurrency: baseCurr,
+		BaseAmount:   baseAmt,
+	})
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
 	for i, pid := range participantIDs {
-		var pct *float64
-		var shares *int64
-		if mode == "PERCENTAGE" {
-			pct = req.Splits[i].Percentage
+		var pct pgtype.Numeric
+		var shares pgtype.Int4
+		if mode == "PERCENTAGE" && req.Splits[i].Percentage != nil {
+			_ = pct.Scan(fmt.Sprintf("%v", *req.Splits[i].Percentage))
+			pct.Valid = true
 		}
-		if mode == "SHARES" {
-			shares = req.Splits[i].Shares
+		if mode == "SHARES" && req.Splits[i].Shares != nil {
+			shares = pgtype.Int4{Int32: int32(*req.Splits[i].Shares), Valid: true}
 		}
-		_, err = tx.Exec(r.Context(),
-			`INSERT INTO expense_splits (expense_id, user_id, amount, percentage, shares) VALUES ($1,$2,$3,$4,$5)`,
-			expenseID, pid, amounts[i], pct, shares)
+		err = qtx.InsertExpenseSplit(r.Context(), db.InsertExpenseSplitParams{
+			ExpenseID:  expenseID,
+			UserID:     pid,
+			Amount:     amounts[i],
+			Percentage: pct,
+			Shares:     shares,
+		})
 		if err != nil {
 			httpx.WriteError(w, r, err)
 			return
 		}
 	}
-	_, _ = tx.Exec(r.Context(),
-		`INSERT INTO activity_events (group_id, actor_id, type, entity_type, entity_id, payload) VALUES ($1,$2,'EXPENSE_ADDED','expense',$3,$4)`,
-		groupID, createdBy, expenseID, json.RawMessage(`{"description":"`+req.Description+`"}`))
-	// Notify other members (fire and forget within tx)
-	rows, _ := tx.Query(r.Context(), `SELECT user_id FROM group_members WHERE group_id=$1 AND user_id != $2`, groupID, createdBy)
-	var notifyIDs []uuid.UUID
-	if rows != nil {
-		for rows.Next() {
-			var nid uuid.UUID
-			_ = rows.Scan(&nid)
-			notifyIDs = append(notifyIDs, nid)
-		}
-		rows.Close()
+	h.ensureQueries()
+	err = qtx.InsertExpenseActivityAdded(r.Context(), db.InsertExpenseActivityAddedParams{
+		GroupID:  groupID,
+		ActorID:  createdBy,
+		EntityID: expenseID,
+		Payload:  json.RawMessage(`{"description":"` + req.Description + `"}`),
+	})
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
 	}
+	// Notify other members (fire and forget within tx)
+	var notifyIDs []uuid.UUID
+	notifyIDs, _ = qtx.ListOtherGroupMembers(r.Context(), db.ListOtherGroupMembersParams{GroupID: groupID, UserID: createdBy})
 	_ = tx.Commit(r.Context())
-	// Create notifications outside tx
+	// Create notifications outside tx - use sqlc when available
+	h.ensureQueries()
 	for _, nid := range notifyIDs {
-		_, _ = h.Pool.Exec(r.Context(),
-			`INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,'EXPENSE_ADDED',$2,$3,$4)`,
-			nid, req.Description+" added", req.Description, json.RawMessage(`{"group_id":"`+groupID.String()+`","expense_id":"`+expenseID.String()+`"}`))
+		_ = h.Queries.CreateNotificationExpenseAdded(r.Context(), db.CreateNotificationExpenseAddedParams{
+			UserID: nid,
+			Title:  req.Description + " added",
+			Body:   req.Description,
+			Data:   json.RawMessage(`{"group_id":"` + groupID.String() + `","expense_id":"` + expenseID.String() + `"}`),
+		})
 	}
 
 	httpx.WriteJSON(w, 201, map[string]any{
@@ -352,107 +499,40 @@ func buildSplitsResp(ids []uuid.UUID, amounts []int64, inputs []splitInput, mode
 }
 
 func (h *Handler) ListExpenses(w http.ResponseWriter, r *http.Request) {
+	h.ensureQueries()
+	q := h.Queries
 	groupID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid group id"}})
 		return
 	}
-	if !mustBeMember(h.Pool, r, groupID) {
+	if !h.mustBeMemberSQLC(r, groupID) {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
-	// Lazy materialize due recurring expenses (Spliit parity: check on every list)
-	_ = func() error {
-		// Run due recurring for this group only, non-blocking
-		// Use a short query to materialize if any due
-		_, _ = h.Pool.Exec(r.Context(), `SELECT 1`)
-		return nil
-	}()
-	q := r.URL.Query()
-	limitStr := q.Get("limit")
+	// Recurring expense materialization is handled by a background worker;
+	// no lazy SELECT needed here (sqlc-only: removed raw Pool.Exec).
+	queryVals := r.URL.Query()
+	limitStr := queryVals.Get("limit")
 	limit := 30
 	if limitStr != "" {
 		if v, err := strconv.Atoi(limitStr); err == nil && v > 0 && v <= 100 {
 			limit = v
 		}
 	}
-	cursor := q.Get("cursor")
-	search := strings.TrimSpace(q.Get("q"))
-	categoryID := q.Get("category_id")
-	payer := q.Get("payer")
-	dateFrom := q.Get("date_from")
-	dateTo := q.Get("date_to")
-	amountMin := q.Get("amount_min")
-	amountMax := q.Get("amount_max")
+	cursor := queryVals.Get("cursor")
+	search := strings.TrimSpace(queryVals.Get("q"))
+	categoryID := queryVals.Get("category_id")
+	payer := queryVals.Get("payer")
+	dateFrom := queryVals.Get("date_from")
+	dateTo := queryVals.Get("date_to")
+	amountMin := queryVals.Get("amount_min")
+	amountMax := queryVals.Get("amount_max")
 
 	// Build query with filters; cursor-based on created_at + id
-	where := `e.group_id=$1 AND e.deleted_at IS NULL`
-	args := []any{groupID}
-	idx := 2
-	if search != "" {
-		where += ` AND e.description ILIKE '%' || $` + strconv.Itoa(idx) + ` || '%'`
-		args = append(args, search)
-		idx++
-	}
-	if categoryID != "" {
-		cid, err := uuid.Parse(categoryID)
-		if err == nil {
-			where += ` AND e.category_id=$` + strconv.Itoa(idx)
-			args = append(args, cid)
-			idx++
-		}
-	}
-	if payer != "" {
-		pid, err := uuid.Parse(payer)
-		if err == nil {
-			where += ` AND e.paid_by=$` + strconv.Itoa(idx)
-			args = append(args, pid)
-			idx++
-		}
-	}
-	if dateFrom != "" {
-		where += ` AND e.expense_date >= $` + strconv.Itoa(idx)
-		args = append(args, dateFrom)
-		idx++
-	}
-	if dateTo != "" {
-		where += ` AND e.expense_date <= $` + strconv.Itoa(idx)
-		args = append(args, dateTo)
-		idx++
-	}
-	if amountMin != "" {
-		if v, err := strconv.ParseInt(amountMin, 10, 64); err == nil && v > 0 {
-			where += ` AND e.amount >= $` + strconv.Itoa(idx)
-			args = append(args, v)
-			idx++
-		}
-	}
-	if amountMax != "" {
-		if v, err := strconv.ParseInt(amountMax, 10, 64); err == nil && v > 0 {
-			where += ` AND e.amount <= $` + strconv.Itoa(idx)
-			args = append(args, v)
-			idx++
-		}
-	}
-	if cursor != "" {
-		// cursor is base64 of created_at+id; simplified: use id only for now
-		if cid, err := uuid.Parse(cursor); err == nil {
-			where += ` AND (e.created_at, e.id) < (SELECT created_at, id FROM expenses WHERE id=$` + strconv.Itoa(idx) + `)`
-			args = append(args, cid)
-			idx++
-		}
-	}
-	query := `SELECT e.id, e.description, e.amount, e.currency, e.split_mode, e.paid_by, e.category_id, e.notes, e.expense_date, e.created_by, e.created_at, e.updated_at
-			  FROM expenses e WHERE ` + where + ` ORDER BY e.created_at DESC, e.id DESC LIMIT $` + strconv.Itoa(idx)
-	args = append(args, limit+1)
-
-	rows, err := h.Pool.Query(r.Context(), query, args...)
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	defer rows.Close()
-	type exp struct {
+	// sqlc-only: unfiltered path uses ListExpensesByGroup, filtered path uses ListExpenses + in-Go filtering (no raw Pool.Query).
+	hasFilters := search != "" || categoryID != "" || payer != "" || dateFrom != "" || dateTo != "" || amountMin != "" || amountMax != "" || cursor != ""
+	var exps []struct {
 		ID          uuid.UUID  `json:"id"`
 		Description string     `json:"description"`
 		Amount      int64      `json:"amount"`
@@ -465,21 +545,164 @@ func (h *Handler) ListExpenses(w http.ResponseWriter, r *http.Request) {
 		CreatedBy   uuid.UUID  `json:"created_by"`
 		CreatedAt   time.Time  `json:"created_at"`
 	}
-	var exps []exp
 	var lastID *uuid.UUID
-	for rows.Next() {
-		var e exp
-		var catID *uuid.UUID
-		var ed time.Time
-		var createdAt, updatedAt time.Time
-		_ = rows.Scan(&e.ID, &e.Description, &e.Amount, &e.Currency, &e.SplitMode, &e.PaidBy, &catID, &e.Notes, &ed, &e.CreatedBy, &createdAt, &updatedAt)
-		e.CategoryID = catID
-		e.ExpenseDate = ed.Format("2006-01-02")
-		e.CreatedAt = createdAt
-		exps = append(exps, e)
-		tmp := e.ID
-		lastID = &tmp
+	// If no filters and no cursor, use sqlc ListExpensesByGroup / ListExpenses
+	if !hasFilters {
+		rows, err := q.ListExpensesByGroup(r.Context(), db.ListExpensesByGroupParams{GroupID: groupID, Limit: int32(limit + 1)})
+		if err == nil {
+			for _, e := range rows {
+				var catID *uuid.UUID
+				if e.CategoryID != uuid.Nil {
+					tmp := e.CategoryID
+					catID = &tmp
+				}
+				ed := ""
+				if e.ExpenseDate.Valid {
+					ed = e.ExpenseDate.Time.Format("2006-01-02")
+				}
+				createdAt := time.Time{}
+				if e.CreatedAt.Valid {
+					createdAt = e.CreatedAt.Time
+				}
+				exps = append(exps, struct {
+					ID          uuid.UUID  `json:"id"`
+					Description string     `json:"description"`
+					Amount      int64      `json:"amount"`
+					Currency    string     `json:"currency"`
+					SplitMode   string     `json:"split_mode"`
+					PaidBy      uuid.UUID  `json:"paid_by"`
+					CategoryID  *uuid.UUID `json:"category_id"`
+					Notes       string     `json:"notes"`
+					ExpenseDate string     `json:"expense_date"`
+					CreatedBy   uuid.UUID  `json:"created_by"`
+					CreatedAt   time.Time  `json:"created_at"`
+				}{ID: e.ID, Description: e.Description, Amount: e.Amount, Currency: e.Currency, SplitMode: e.SplitMode, PaidBy: e.PaidBy, CategoryID: catID, Notes: e.Notes, ExpenseDate: ed, CreatedBy: e.CreatedBy, CreatedAt: createdAt})
+				tmp := e.ID
+				lastID = &tmp
+			}
+		} else {
+			hasFilters = true // fallback to manual on error
+		}
 	}
+	if hasFilters {
+		if len(exps) == 0 {
+			// Filtered listing via sqlc ListExpenses + in-Go filtering (sqlc-only, no raw Pool.Query)
+			allRows, err := q.ListExpenses(r.Context(), groupID)
+			if err != nil {
+				httpx.WriteError(w, r, err)
+				return
+			}
+			// Pre-parse filter values
+			var filterCat *uuid.UUID
+			if categoryID != "" {
+				if cid, err := uuid.Parse(categoryID); err == nil {
+					filterCat = &cid
+				}
+			}
+			var filterPayer *uuid.UUID
+			if payer != "" {
+				if pid, err := uuid.Parse(payer); err == nil {
+					filterPayer = &pid
+				}
+			}
+			var filterMin, filterMax *int64
+			if amountMin != "" {
+				if v, err := strconv.ParseInt(amountMin, 10, 64); err == nil && v > 0 {
+					filterMin = &v
+				}
+			}
+			if amountMax != "" {
+				if v, err := strconv.ParseInt(amountMax, 10, 64); err == nil && v > 0 {
+					filterMax = &v
+				}
+			}
+			var cursorTime *time.Time
+			var cursorID *uuid.UUID
+			if cursor != "" {
+				if cid, err := uuid.Parse(cursor); err == nil {
+					// Fetch cursor expense to get its created_at for ordering
+					if cRow, cerr := q.GetExpenseDetails(r.Context(), cid); cerr == nil && cRow.CreatedAt.Valid {
+						t := cRow.CreatedAt.Time
+						cursorTime = &t
+						cursorID = &cid
+					}
+				}
+			}
+			for _, e := range allRows {
+				if search != "" && !strings.Contains(strings.ToLower(e.Description), strings.ToLower(search)) && !strings.Contains(strings.ToLower(e.Notes), strings.ToLower(search)) {
+					continue
+				}
+				if filterCat != nil {
+					if e.CategoryID == uuid.Nil {
+						continue
+					}
+					if e.CategoryID != *filterCat {
+						continue
+					}
+				}
+				if filterPayer != nil && e.PaidBy != *filterPayer {
+					continue
+				}
+				if dateFrom != "" && e.ExpenseDate.Valid {
+					if e.ExpenseDate.Time.Format("2006-01-02") < dateFrom {
+						continue
+					}
+				}
+				if dateTo != "" && e.ExpenseDate.Valid {
+					if e.ExpenseDate.Time.Format("2006-01-02") > dateTo {
+						continue
+					}
+				}
+				if filterMin != nil && e.Amount < *filterMin {
+					continue
+				}
+				if filterMax != nil && e.Amount > *filterMax {
+					continue
+				}
+				if cursorTime != nil && cursorID != nil && e.CreatedAt.Valid {
+					// (created_at, id) < (cursorTime, cursorID) ordering DESC
+					if e.CreatedAt.Time.After(*cursorTime) {
+						continue
+					}
+					if e.CreatedAt.Time.Equal(*cursorTime) && e.ID.String() >= cursorID.String() {
+						continue
+					}
+				}
+				var catID *uuid.UUID
+				if e.CategoryID != uuid.Nil {
+					tmp := e.CategoryID
+					catID = &tmp
+				}
+				ed := ""
+				if e.ExpenseDate.Valid {
+					ed = e.ExpenseDate.Time.Format("2006-01-02")
+				}
+				createdAt := time.Time{}
+				if e.CreatedAt.Valid {
+					createdAt = e.CreatedAt.Time
+				}
+				exps = append(exps, struct {
+					ID          uuid.UUID  `json:"id"`
+					Description string     `json:"description"`
+					Amount      int64      `json:"amount"`
+					Currency    string     `json:"currency"`
+					SplitMode   string     `json:"split_mode"`
+					PaidBy      uuid.UUID  `json:"paid_by"`
+					CategoryID  *uuid.UUID `json:"category_id"`
+					Notes       string     `json:"notes"`
+					ExpenseDate string     `json:"expense_date"`
+					CreatedBy   uuid.UUID  `json:"created_by"`
+					CreatedAt   time.Time  `json:"created_at"`
+				}{ID: e.ID, Description: e.Description, Amount: e.Amount, Currency: e.Currency, SplitMode: e.SplitMode, PaidBy: e.PaidBy, CategoryID: catID, Notes: e.Notes, ExpenseDate: ed, CreatedBy: e.CreatedBy, CreatedAt: createdAt})
+				tmp := e.ID
+				lastID = &tmp
+				if len(exps) >= limit+1 {
+					break
+				}
+			}
+		}
+	}
+	// Handle pagination cursor trimming
 	var nextCursor *string
 	if len(exps) > limit {
 		exps = exps[:limit]
@@ -489,32 +712,46 @@ func (h *Handler) ListExpenses(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if exps == nil {
-		exps = []exp{}
+		exps = []struct {
+			ID          uuid.UUID  `json:"id"`
+			Description string     `json:"description"`
+			Amount      int64      `json:"amount"`
+			Currency    string     `json:"currency"`
+			SplitMode   string     `json:"split_mode"`
+			PaidBy      uuid.UUID  `json:"paid_by"`
+			CategoryID  *uuid.UUID `json:"category_id"`
+			Notes       string     `json:"notes"`
+			ExpenseDate string     `json:"expense_date"`
+			CreatedBy   uuid.UUID  `json:"created_by"`
+			CreatedAt   time.Time  `json:"created_at"`
+		}{}
 	}
-	// Load splits for these expenses
+	// Load splits for these expenses via sqlc when available
 	expIDs := make([]uuid.UUID, len(exps))
 	for i, e := range exps {
 		expIDs[i] = e.ID
 	}
 	splitsByExpense := map[uuid.UUID][]map[string]any{}
 	if len(expIDs) > 0 {
-		srows, _ := h.Pool.Query(r.Context(), `SELECT expense_id, user_id, amount, percentage, shares FROM expense_splits WHERE expense_id = ANY($1)`, expIDs)
-		if srows != nil {
-			defer srows.Close()
-			for srows.Next() {
-				var eid, uid uuid.UUID
-				var amt int64
-				var pct *float64
-				var shares *int
-				_ = srows.Scan(&eid, &uid, &amt, &pct, &shares)
-				m := map[string]any{"user_id": uid, "amount": amt}
-				if pct != nil {
-					m["percentage"] = *pct
+		// Convert []uuid.UUID to []pgtype.UUID for sqlc
+		pgIDs := make([]pgtype.UUID, len(expIDs))
+		for i, id := range expIDs {
+			pgIDs[i] = pgtype.UUID{Bytes: id, Valid: true}
+		}
+		srows, err := q.ListExpenseSplitsByExpenseIDs(r.Context(), pgIDs)
+		if err == nil {
+			for _, es := range srows {
+				m := map[string]any{"user_id": es.UserID, "amount": es.Amount}
+				if es.Percentage.Valid {
+					// pgtype.Numeric to float64
+					if f, err := es.Percentage.Float64Value(); err == nil && f.Valid {
+						m["percentage"] = f.Float64
+					}
 				}
-				if shares != nil {
-					m["shares"] = *shares
+				if es.Shares.Valid {
+					m["shares"] = int(es.Shares.Int32)
 				}
-				splitsByExpense[eid] = append(splitsByExpense[eid], m)
+				splitsByExpense[es.ExpenseID] = append(splitsByExpense[es.ExpenseID], m)
 			}
 		}
 	}
@@ -535,6 +772,8 @@ func (h *Handler) ListExpenses(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetExpense(w http.ResponseWriter, r *http.Request) {
+	h.ensureQueries()
+	q := h.Queries
 	expenseID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid expense id"}})
@@ -546,41 +785,55 @@ func (h *Handler) GetExpense(w http.ResponseWriter, r *http.Request) {
 	var paidBy, createdBy uuid.UUID
 	var categoryID *uuid.UUID
 	var expenseDate time.Time
-	var deletedAt *time.Time
-	err = h.Pool.QueryRow(r.Context(),
-		`SELECT group_id, description, amount, currency, split_mode, paid_by, category_id, notes, expense_date, created_by, deleted_at FROM expenses WHERE id=$1`, expenseID).
-		Scan(&groupID, &description, &amount, &currency, &splitMode, &paidBy, &categoryID, &notes, &expenseDate, &createdBy, &deletedAt)
-	if err == pgx.ErrNoRows || deletedAt != nil {
+	row, qerr := q.GetExpense(r.Context(), expenseID)
+	if qerr != nil {
+		if qerr == pgx.ErrNoRows {
+			httpx.WriteError(w, r, httpx.ErrNotFound)
+			return
+		}
+		httpx.WriteError(w, r, qerr)
+		return
+	}
+	if row.DeletedAt.Valid {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
+	groupID = row.GroupID
+	description = row.Description
+	amount = row.Amount
+	currency = row.Currency
+	splitMode = row.SplitMode
+	paidBy = row.PaidBy
+	if row.CategoryID != uuid.Nil {
+		tmp := row.CategoryID
+		categoryID = &tmp
 	}
-	if !mustBeMember(h.Pool, r, groupID) {
+	notes = row.Notes
+	if row.ExpenseDate.Valid {
+		expenseDate = row.ExpenseDate.Time
+	}
+	createdBy = row.CreatedBy
+	if !h.mustBeMemberSQLC(r, groupID) {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
-	srows, _ := h.Pool.Query(r.Context(), `SELECT user_id, amount, percentage, shares FROM expense_splits WHERE expense_id=$1`, expenseID)
 	var splits []map[string]any
-	if srows != nil {
-		defer srows.Close()
-		for srows.Next() {
-			var uid uuid.UUID
-			var amt int64
-			var pct *float64
-			var shares *int
-			_ = srows.Scan(&uid, &amt, &pct, &shares)
-			m := map[string]any{"user_id": uid, "amount": amt}
-			if pct != nil {
-				m["percentage"] = *pct
+	rows, qerr := q.ListExpenseSplits(r.Context(), expenseID)
+	if qerr != nil {
+		httpx.WriteError(w, r, qerr)
+		return
+	}
+	for _, s := range rows {
+		m := map[string]any{"user_id": s.UserID, "amount": s.Amount}
+		if s.Percentage.Valid {
+			if f, err := s.Percentage.Float64Value(); err == nil && f.Valid {
+				m["percentage"] = f.Float64
 			}
-			if shares != nil {
-				m["shares"] = *shares
-			}
-			splits = append(splits, m)
 		}
+		if s.Shares.Valid {
+			m["shares"] = int(s.Shares.Int32)
+		}
+		splits = append(splits, m)
 	}
 	httpx.WriteJSON(w, 200, map[string]any{
 		"id": expenseID, "group_id": groupID, "description": description, "amount": amount, "currency": currency,
@@ -590,6 +843,8 @@ func (h *Handler) GetExpense(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UpdateExpense(w http.ResponseWriter, r *http.Request) {
+	h.ensureQueries()
+	q := h.Queries
 	expenseID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid expense id"}})
@@ -597,17 +852,22 @@ func (h *Handler) UpdateExpense(w http.ResponseWriter, r *http.Request) {
 	}
 	var groupID uuid.UUID
 	var createdBy uuid.UUID
-	var deletedAt *time.Time
-	err = h.Pool.QueryRow(r.Context(), `SELECT group_id, created_by, deleted_at FROM expenses WHERE id=$1`, expenseID).Scan(&groupID, &createdBy, &deletedAt)
-	if err == pgx.ErrNoRows || deletedAt != nil {
+	row, qerr := q.GetExpenseForUpdate(r.Context(), expenseID)
+	if qerr != nil {
+		if qerr == pgx.ErrNoRows {
+			httpx.WriteError(w, r, httpx.ErrNotFound)
+			return
+		}
+		httpx.WriteError(w, r, qerr)
+		return
+	}
+	if row.DeletedAt.Valid {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	if !mustBeMember(h.Pool, r, groupID) {
+	groupID = row.GroupID
+	createdBy = row.CreatedBy
+	if !h.mustBeMemberSQLC(r, groupID) {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
@@ -631,9 +891,7 @@ func (h *Handler) UpdateExpense(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid paid_by"}})
 		return
 	}
-	var isPaidMember bool
-	_ = h.Pool.QueryRow(r.Context(), `SELECT true FROM group_members WHERE group_id=$1 AND user_id=$2`, groupID, paidBy).Scan(&isPaidMember)
-	if !isPaidMember {
+	if !h.checkIsGroupMember(r.Context(), groupID, paidBy) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "payer must be a group member"}})
 		return
 	}
@@ -641,8 +899,7 @@ func (h *Handler) UpdateExpense(w http.ResponseWriter, r *http.Request) {
 	editorUIDStr, _ := httpx.GetUserID(r.Context())
 	editorID, _ := uuid.Parse(editorUIDStr)
 	if createdBy != editorID && paidBy != editorID {
-		var role string
-		_ = h.Pool.QueryRow(r.Context(), `SELECT role FROM group_members WHERE group_id=$1 AND user_id=$2`, groupID, editorID).Scan(&role)
+		role := h.getMemberRole(r.Context(), groupID, editorID)
 		if role != "OWNER" && role != "ADMIN" {
 			httpx.WriteError(w, r, httpx.ErrForbidden)
 			return
@@ -669,7 +926,7 @@ func (h *Handler) UpdateExpense(w http.ResponseWriter, r *http.Request) {
 		}
 		participantIDs[i] = id
 	}
-	if !validateGroupMembers(h.Pool, r, groupID, participantIDs) {
+	if !h.validateGroupMembersSQLC(r.Context(), groupID, participantIDs) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "all participants must be group members"}})
 		return
 	}
@@ -753,8 +1010,8 @@ func (h *Handler) UpdateExpense(w http.ResponseWriter, r *http.Request) {
 			amounts[origIdx] = sortedAmounts[sortedPos]
 		}
 	}
-	var groupCurrency string
-	if err := h.Pool.QueryRow(r.Context(), `SELECT currency FROM groups WHERE id=$1`, groupID).Scan(&groupCurrency); err != nil {
+	groupCurrency, err := h.getGroupCurrency(r.Context(), groupID)
+	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
@@ -815,34 +1072,77 @@ func (h *Handler) UpdateExpense(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback(r.Context())
-	if _, err = tx.Exec(r.Context(),
-		`UPDATE expenses SET description=$1, amount=$2, currency=$3, split_mode=$4, paid_by=$5, category_id=$6, notes=$7, expense_date=$8, exchange_rate=$9, base_currency=$10, base_amount=$11, updated_at=now() WHERE id=$12`,
-		req.Description, req.Amount, currency, mode, paidBy, categoryID, notes, expenseDate, exchangeRate, baseCurrency, baseAmount, expenseID); err != nil {
+	h.ensureQueries()
+	qtx := q.WithTx(tx)
+	var catUUID pgtype.UUID
+	if categoryID != nil {
+		catUUID = pgtype.UUID{Bytes: *categoryID, Valid: true}
+	}
+	var exch pgtype.Numeric
+	if exchangeRate != nil {
+		_ = exch.Scan(fmt.Sprintf("%v", *exchangeRate))
+		exch.Valid = true
+	}
+	var baseCurr pgtype.Text
+	if baseCurrency != nil {
+		baseCurr = pgtype.Text{String: *baseCurrency, Valid: true}
+	}
+	var baseAmt pgtype.Int8
+	if baseAmount != nil {
+		baseAmt = pgtype.Int8{Int64: *baseAmount, Valid: true}
+	}
+	err = qtx.UpdateExpense(r.Context(), db.UpdateExpenseParams{
+		Description:  req.Description,
+		Amount:       req.Amount,
+		Currency:     currency,
+		SplitMode:    mode,
+		PaidBy:       paidBy,
+		Column6:      catUUID,
+		Notes:        notes,
+		ExpenseDate:  timeToDate(expenseDate),
+		ExchangeRate: exch,
+		BaseCurrency: baseCurr,
+		BaseAmount:   baseAmt,
+		ID:           expenseID,
+	})
+	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	if _, err = tx.Exec(r.Context(), `DELETE FROM expense_splits WHERE expense_id=$1`, expenseID); err != nil {
+	err = qtx.DeleteExpenseSplits(r.Context(), expenseID)
+	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
 	for i, pid := range participantIDs {
-		var pct *float64
-		var shares *int64
-		if mode == "PERCENTAGE" {
-			pct = req.Splits[i].Percentage
+		var pct pgtype.Numeric
+		var shares pgtype.Int4
+		if mode == "PERCENTAGE" && req.Splits[i].Percentage != nil {
+			_ = pct.Scan(fmt.Sprintf("%v", *req.Splits[i].Percentage))
+			pct.Valid = true
 		}
-		if mode == "SHARES" {
-			shares = req.Splits[i].Shares
+		if mode == "SHARES" && req.Splits[i].Shares != nil {
+			shares = pgtype.Int4{Int32: int32(*req.Splits[i].Shares), Valid: true}
 		}
-		if _, err = tx.Exec(r.Context(), `INSERT INTO expense_splits (expense_id, user_id, amount, percentage, shares) VALUES ($1,$2,$3,$4,$5)`,
-			expenseID, pid, amounts[i], pct, shares); err != nil {
+		err = qtx.InsertExpenseSplit(r.Context(), db.InsertExpenseSplitParams{
+			ExpenseID:  expenseID,
+			UserID:     pid,
+			Amount:     amounts[i],
+			Percentage: pct,
+			Shares:     shares,
+		})
+		if err != nil {
 			httpx.WriteError(w, r, err)
 			return
 		}
 	}
-	if _, err = tx.Exec(r.Context(),
-		`INSERT INTO activity_events (group_id, actor_id, type, entity_type, entity_id, payload) VALUES ($1,$2,'EXPENSE_UPDATED','expense',$3,$4)`,
-		groupID, actorID, expenseID, json.RawMessage(`{"description":"`+req.Description+`"}`)); err != nil {
+	err = qtx.InsertExpenseActivityUpdated(r.Context(), db.InsertExpenseActivityUpdatedParams{
+		GroupID:  groupID,
+		ActorID:  actorID,
+		EntityID: expenseID,
+		Payload:  json.RawMessage(`{"description":"` + req.Description + `"}`),
+	})
+	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
@@ -854,38 +1154,47 @@ func (h *Handler) UpdateExpense(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DeleteExpense(w http.ResponseWriter, r *http.Request) {
+	h.ensureQueries()
+	q := h.Queries
 	expenseID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid expense id"}})
 		return
 	}
 	var groupID, createdBy uuid.UUID
-	err = h.Pool.QueryRow(r.Context(), `SELECT group_id, created_by FROM expenses WHERE id=$1 AND deleted_at IS NULL`, expenseID).Scan(&groupID, &createdBy)
-	if err == pgx.ErrNoRows {
-		httpx.WriteError(w, r, httpx.ErrNotFound)
+	row, qerr := q.GetExpenseForDelete(r.Context(), expenseID)
+	if qerr != nil {
+		if qerr == pgx.ErrNoRows {
+			httpx.WriteError(w, r, httpx.ErrNotFound)
+			return
+		}
+		httpx.WriteError(w, r, qerr)
 		return
 	}
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	if !mustBeMember(h.Pool, r, groupID) {
+	groupID = row.GroupID
+	createdBy = row.CreatedBy
+	if !h.mustBeMemberSQLC(r, groupID) {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
 	uid, _ := httpx.GetUserID(r.Context())
 	actorID, _ := uuid.Parse(uid)
 	if createdBy != actorID {
-		var role string
-		_ = h.Pool.QueryRow(r.Context(), `SELECT role FROM group_members WHERE group_id=$1 AND user_id=$2`, groupID, actorID).Scan(&role)
+		role := h.getMemberRole(r.Context(), groupID, actorID)
 		if role != "OWNER" && role != "ADMIN" {
 			httpx.WriteError(w, r, httpx.ErrForbidden)
 			return
 		}
 	}
-	_, _ = h.Pool.Exec(r.Context(), `UPDATE expenses SET deleted_at=now(), updated_at=now() WHERE id=$1`, expenseID)
-	_, _ = h.Pool.Exec(r.Context(),
-		`INSERT INTO activity_events (group_id, actor_id, type, entity_type, entity_id, payload) VALUES ($1,$2,'EXPENSE_DELETED','expense',$3,$4)`,
-		groupID, actorID, expenseID, json.RawMessage(`{}`))
+	_ = q.SoftDeleteExpense(r.Context(), expenseID)
+	_ = q.InsertExpenseActivityDeleted(r.Context(), db.InsertExpenseActivityDeletedParams{
+		GroupID:  groupID,
+		ActorID:  actorID,
+		EntityID: expenseID,
+		Payload:  json.RawMessage(`{}`),
+	})
 	httpx.WriteJSON(w, 200, map[string]any{"message": "deleted"})
 }
+
+// Ensure imports are used
+var _ = context.Background

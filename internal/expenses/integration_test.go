@@ -15,6 +15,7 @@ import (
 	"github.com/settlr-org/settlr-api/internal/auth"
 	"github.com/settlr-org/settlr-api/internal/balances"
 	"github.com/settlr-org/settlr-api/internal/config"
+	db "github.com/settlr-org/settlr-api/internal/db"
 	"github.com/settlr-org/settlr-api/internal/groups"
 	"github.com/settlr-org/settlr-api/internal/settlements"
 	"github.com/settlr-org/settlr-api/internal/testutil"
@@ -41,8 +42,8 @@ func newTestServer(t *testing.T, pool *pgxpool.Pool) (*httptest.Server, func(uui
 	}
 	authSvc := &auth.Service{Pool: pool, Cfg: cfg}
 	authHandler := &auth.Handler{Svc: authSvc}
-	groupsHandler := &groups.Handler{Pool: pool}
-	expHandler := &Handler{Pool: pool}
+	groupsHandler := &groups.Handler{Pool: pool, Queries: db.New(pool)}
+	expHandler := &Handler{Pool: pool, Queries: db.New(pool)}
 	balHandler := &balances.Handler{Pool: pool}
 	settleHandler := &settlements.Handler{Pool: pool}
 

@@ -1,3 +1,0 @@
-DROP TABLE IF EXISTS personal_expenses;
-ALTER TABLE users ALTER COLUMN default_currency SET DEFAULT 'USD';
-ALTER TABLE groups ALTER COLUMN currency SET DEFAULT 'USD';

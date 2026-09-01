@@ -1,0 +1,71 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    schema: "migrations/*.sql"
+    queries: "internal/db/queries/*.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/db"
+        emit_json_tags: true
+        emit_prepared_queries: false
+        emit_interface: true
+        emit_exact_table_names: false
+        sql_package: "pgx/v5"
+        overrides:
+          - column: "*.id"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "*.user_id"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "*.group_id"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "*.created_by"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "*.paid_by"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "*.from_user"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "*.to_user"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "*.actor_id"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "*.entity_id"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "*.category_id"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "*.friend_id"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "*.expense_id"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "*.invited_by"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+          - column: "*.owner_id"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"

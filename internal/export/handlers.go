@@ -1,21 +1,44 @@
 package export
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	db "github.com/settlr-org/settlr-api/internal/db"
 	"github.com/settlr-org/settlr-api/internal/httpx"
 )
 
 type Handler struct {
-	Pool *pgxpool.Pool
+	Pool    *pgxpool.Pool
+	Queries *db.Queries
+}
+
+func (h *Handler) ensureQueries() *db.Queries {
+	if h.Queries != nil {
+		return h.Queries
+	}
+	if h.Pool != nil {
+		return db.New(h.Pool)
+	}
+	return nil
+}
+
+func (h *Handler) isMember(ctx context.Context, groupID, userID uuid.UUID) bool {
+	q := h.ensureQueries()
+	if q == nil {
+		return false
+	}
+	ok, err := q.CheckExportGroupMember(ctx, db.CheckExportGroupMemberParams{GroupID: groupID, UserID: userID})
+	if err != nil {
+		return false
+	}
+	return ok
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
@@ -35,39 +58,26 @@ func (h *Handler) MyCSV(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", "attachment; filename=\"settlr-all-data.csv\"")
 	w.Write([]byte("type,date,group,description,category,paid_by,amount,currency,split_user,split_amount,split_mode\n"))
 
-	rows, err := h.Pool.Query(r.Context(), `
-		SELECT e.expense_date, g.name, e.description, coalesce(c.name,''),
-		       pu.name, e.amount, e.currency, e.split_mode,
-		       su.name, coalesce(s.amount,0)
-		FROM expenses e
-		JOIN groups g ON g.id = e.group_id
-		JOIN group_members gm ON gm.group_id = e.group_id AND gm.user_id=$1
-		JOIN users pu ON pu.id = e.paid_by
-		LEFT JOIN categories c ON c.id = e.category_id
-		LEFT JOIN expense_splits s ON s.expense_id = e.id
-		LEFT JOIN users su ON su.id = s.user_id
-		WHERE e.deleted_at IS NULL
-		ORDER BY e.expense_date, e.created_at`, userID)
+	q := h.ensureQueries()
+	if q == nil {
+		return
+	}
+	rows, err := q.ExportMyCSV(r.Context(), userID)
 	if err != nil {
 		return
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var date time.Time
-		var groupName, description, category, paidBy, currency, splitMode string
-		var amount int64
-		var splitUser *string
-		var splitAmount int64
-		if err := rows.Scan(&date, &groupName, &description, &category, &paidBy, &amount, &currency, &splitMode, &splitUser, &splitAmount); err != nil {
-			return
+	for _, row := range rows {
+		dateStr := ""
+		if row.ExpenseDate.Valid {
+			dateStr = row.ExpenseDate.Time.Format("2006-01-02")
 		}
 		su := ""
-		if splitUser != nil {
-			su = *splitUser
+		if row.SplitUser.Valid {
+			su = row.SplitUser.String
 		}
 		fmt.Fprintf(w, "expense,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
-			csvField(date.Format("2006-01-02")), csvField(groupName), csvField(description), csvField(category), csvField(paidBy),
-			money(amount), csvField(currency), csvField(su), money(splitAmount), csvField(splitMode))
+			csvField(dateStr), csvField(row.GroupName), csvField(row.Description), csvField(row.Category), csvField(row.PaidBy),
+			money(row.Amount), csvField(row.Currency), csvField(su), money(row.SplitAmount), csvField(row.SplitMode))
 	}
 }
 
@@ -101,27 +111,27 @@ func (h *Handler) MyJSON(w http.ResponseWriter, r *http.Request) {
 	userID, _ := uuid.Parse(uid)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Disposition", "attachment; filename=\"settlr-all-data.json\"")
-	rows, err := h.Pool.Query(r.Context(), `
-		SELECT e.id, e.group_id, g.name, e.description, coalesce(c.name,''), pu.name, e.amount, e.currency, e.split_mode, e.expense_date, e.created_at
-		FROM expenses e
-		JOIN groups g ON g.id = e.group_id
-		JOIN group_members gm ON gm.group_id = e.group_id AND gm.user_id=$1
-		JOIN users pu ON pu.id = e.paid_by
-		LEFT JOIN categories c ON c.id = e.category_id
-		WHERE e.deleted_at IS NULL ORDER BY e.expense_date, e.created_at`, userID)
+	q := h.ensureQueries()
+	if q == nil {
+		httpx.WriteError(w, r, fmt.Errorf("no db queries available"))
+		return
+	}
+	rows, err := q.ExportMyJSON(r.Context(), userID)
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	defer rows.Close()
 	var out []map[string]any
-	for rows.Next() {
-		var id, gid uuid.UUID
-		var gname, desc, cat, paidBy, currency, splitMode string
-		var amount int64
-		var ed, ca time.Time
-		_ = rows.Scan(&id, &gid, &gname, &desc, &cat, &paidBy, &amount, &currency, &splitMode, &ed, &ca)
-		out = append(out, map[string]any{"id": id, "group_id": gid, "group_name": gname, "description": desc, "category": cat, "paid_by": paidBy, "amount": amount, "currency": currency, "split_mode": splitMode, "expense_date": ed.Format("2006-01-02"), "created_at": ca})
+	for _, row := range rows {
+		ed := ""
+		if row.ExpenseDate.Valid {
+			ed = row.ExpenseDate.Time.Format("2006-01-02")
+		}
+		var ca any
+		if row.CreatedAt.Valid {
+			ca = row.CreatedAt.Time
+		}
+		out = append(out, map[string]any{"id": row.ID, "group_id": row.GroupID, "group_name": row.GroupName, "description": row.Description, "category": row.Category, "paid_by": row.PaidBy, "amount": row.Amount, "currency": row.Currency, "split_mode": row.SplitMode, "expense_date": ed, "created_at": ca})
 	}
 	if out == nil {
 		out = []map[string]any{}
@@ -137,31 +147,33 @@ func (h *Handler) GroupJSON(w http.ResponseWriter, r *http.Request) {
 	}
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
-	var ok bool
-	_ = h.Pool.QueryRow(r.Context(), "SELECT true FROM group_members WHERE group_id=$1 AND user_id=$2", groupID, userID).Scan(&ok)
-	if !ok {
+	if !h.isMember(r.Context(), groupID, userID) {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Disposition", "attachment; filename=\"settlr-"+groupID.String()+".json\"")
-	rows, err := h.Pool.Query(r.Context(), `
-		SELECT e.id, e.description, coalesce(c.name,''), pu.name, e.amount, e.currency, e.split_mode, e.expense_date, e.created_at, e.notes
-		FROM expenses e JOIN users pu ON pu.id=e.paid_by LEFT JOIN categories c ON c.id=e.category_id
-		WHERE e.group_id=$1 AND e.deleted_at IS NULL ORDER BY e.expense_date, e.created_at`, groupID)
+	q := h.ensureQueries()
+	if q == nil {
+		httpx.WriteError(w, r, fmt.Errorf("no db queries available"))
+		return
+	}
+	rows, err := q.ExportGroupJSON(r.Context(), groupID)
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	defer rows.Close()
 	var out []map[string]any
-	for rows.Next() {
-		var id uuid.UUID
-		var desc, cat, paidBy, currency, splitMode, notes string
-		var amount int64
-		var ed, ca time.Time
-		_ = rows.Scan(&id, &desc, &cat, &paidBy, &amount, &currency, &splitMode, &ed, &ca, &notes)
-		out = append(out, map[string]any{"id": id, "description": desc, "category": cat, "paid_by": paidBy, "amount": amount, "currency": currency, "split_mode": splitMode, "expense_date": ed.Format("2006-01-02"), "created_at": ca, "notes": notes})
+	for _, row := range rows {
+		ed := ""
+		if row.ExpenseDate.Valid {
+			ed = row.ExpenseDate.Time.Format("2006-01-02")
+		}
+		var ca any
+		if row.CreatedAt.Valid {
+			ca = row.CreatedAt.Time
+		}
+		out = append(out, map[string]any{"id": row.ID, "description": row.Description, "category": row.Category, "paid_by": row.PaidBy, "amount": row.Amount, "currency": row.Currency, "split_mode": row.SplitMode, "expense_date": ed, "created_at": ca, "notes": row.Notes})
 	}
 	if out == nil {
 		out = []map[string]any{}
@@ -177,15 +189,20 @@ func (h *Handler) GroupCSV(w http.ResponseWriter, r *http.Request) {
 	}
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
-	var ok bool
-	_ = h.Pool.QueryRow(r.Context(), "SELECT true FROM group_members WHERE group_id=$1 AND user_id=$2", groupID, userID).Scan(&ok)
-	if !ok {
+	if !h.isMember(r.Context(), groupID, userID) {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
 
-	var groupName string
-	_ = h.Pool.QueryRow(r.Context(), "SELECT name FROM groups WHERE id=$1", groupID).Scan(&groupName)
+	q := h.ensureQueries()
+	if q == nil {
+		httpx.WriteError(w, r, fmt.Errorf("no db queries available"))
+		return
+	}
+	groupName := ""
+	if name, err := q.GetExportGroupName(r.Context(), groupID); err == nil {
+		groupName = name
+	}
 
 	filename := "settlr-" + strings.ReplaceAll(strings.ToLower(groupName), " ", "-") + ".csv"
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
@@ -193,60 +210,34 @@ func (h *Handler) GroupCSV(w http.ResponseWriter, r *http.Request) {
 
 	w.Write([]byte("type,date,description,category,paid_by,amount,currency,split_user,split_amount,split_mode\n"))
 
-	rows, err := h.Pool.Query(r.Context(), `
-		SELECT e.expense_date, e.description, coalesce(c.name,''),
-		       pu.name, e.amount, e.currency, e.split_mode,
-		       su.name, coalesce(s.amount,0)
-		FROM expenses e
-		JOIN users pu ON pu.id = e.paid_by
-		LEFT JOIN categories c ON c.id = e.category_id
-		LEFT JOIN expense_splits s ON s.expense_id = e.id
-		LEFT JOIN users su ON su.id = s.user_id
-		WHERE e.group_id=$1 AND e.deleted_at IS NULL
-		ORDER BY e.expense_date, e.created_at`, groupID)
+	csvRows, err := q.ExportGroupCSV(r.Context(), groupID)
 	if err != nil {
 		return
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var date time.Time
-		var description, category, paidBy, currency, splitMode string
-		var amount int64
-		var splitUser *string
-		var splitAmount int64
-		if err := rows.Scan(&date, &description, &category, &paidBy, &amount, &currency, &splitMode, &splitUser, &splitAmount); err != nil {
-			log.Printf("export: scan failed: %v", err)
-			return
+	for _, row := range csvRows {
+		dateStr := ""
+		if row.ExpenseDate.Valid {
+			dateStr = row.ExpenseDate.Time.Format("2006-01-02")
 		}
-		dateStr := date.Format("2006-01-02")
 		su := ""
-		if splitUser != nil {
-			su = *splitUser
+		if row.SplitUser.Valid {
+			su = row.SplitUser.String
 		}
 		fmt.Fprintf(w, "expense,%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
-			csvField(dateStr), csvField(description), csvField(category), csvField(paidBy),
-			money(amount), csvField(currency), csvField(su), money(splitAmount), csvField(splitMode))
+			csvField(dateStr), csvField(row.Description), csvField(row.Category), csvField(row.PaidBy),
+			money(row.Amount), csvField(row.Currency), csvField(su), money(row.SplitAmount), csvField(row.SplitMode))
 	}
 
-	settleRows, err := h.Pool.Query(r.Context(), `
-		SELECT st.settled_at, f.name, t.name, st.amount, st.currency, st.note
-		FROM settlements st
-		JOIN users f ON f.id = st.from_user
-		JOIN users t ON t.id = st.to_user
-		WHERE st.group_id=$1 AND st.deleted_at IS NULL
-		ORDER BY st.settled_at`, groupID)
+	settleRows, err := q.ExportGroupSettlements(r.Context(), groupID)
 	if err != nil {
 		return
 	}
-	defer settleRows.Close()
-	for settleRows.Next() {
-		var settledAt time.Time
-		var fromName, toName, currency, note string
-		var amount int64
-		if err := settleRows.Scan(&settledAt, &fromName, &toName, &amount, &currency, &note); err != nil {
-			return
+	for _, row := range settleRows {
+		settledAtStr := ""
+		if row.SettledAt.Valid {
+			settledAtStr = row.SettledAt.Time.Format("2006-01-02")
 		}
 		fmt.Fprintf(w, "settlement,%s,%s paid %s,,,,%s,%s,,%s\n",
-			csvField(settledAt.Format("2006-01-02")), csvField(fromName), csvField(toName), money(amount), csvField(currency), csvField(note))
+			csvField(settledAtStr), csvField(row.FromName), csvField(row.ToName), money(row.Amount), csvField(row.Currency), csvField(row.Note))
 	}
 }

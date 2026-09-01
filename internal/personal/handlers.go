@@ -2,19 +2,34 @@ package personal
 
 import (
 	"encoding/csv"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/settlr-org/settlr-api/internal/auth"
+	db "github.com/settlr-org/settlr-api/internal/db"
 	"github.com/settlr-org/settlr-api/internal/httpx"
 )
 
-type Handler struct{ Pool *pgxpool.Pool }
+// Handler handles personal expense and budget requests.
+// Pool is the raw pgx pool for legacy fallback; Queries is the sqlc-generated wrapper.
+// New code should use Queries where possible; see internal/db/queries/personal.sql
+type Handler struct {
+	Pool    *pgxpool.Pool
+	Queries *db.Queries
+}
+
+func (h *Handler) ensureQueries() {
+	if h.Queries == nil && h.Pool != nil {
+		h.Queries = db.New(h.Pool)
+	}
+}
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/v1/personal/expenses", authMw(http.HandlerFunc(h.List)))
@@ -41,7 +56,78 @@ func budgetMonth(r *http.Request) time.Time {
 	return t
 }
 
+func timeToDate(t time.Time) pgtype.Date {
+	return pgtype.Date{Time: t, Valid: true}
+}
+
+func stringPtrToText(s *string) pgtype.Text {
+	if s == nil {
+		return pgtype.Text{Valid: false}
+	}
+	return pgtype.Text{String: *s, Valid: true}
+}
+
+func int64PtrToInt8(i *int64) pgtype.Int8 {
+	if i == nil {
+		return pgtype.Int8{Valid: false}
+	}
+	return pgtype.Int8{Int64: *i, Valid: true}
+}
+
+func float64PtrToNumeric(f *float64) pgtype.Numeric {
+	if f == nil {
+		return pgtype.Numeric{Valid: false}
+	}
+	var n pgtype.Numeric
+	_ = n.Scan(fmt.Sprintf("%v", *f))
+	return n
+}
+
+func numericToFloat64Ptr(n pgtype.Numeric) *float64 {
+	if !n.Valid {
+		return nil
+	}
+	val, err := n.Float64Value()
+	if err == nil && val.Valid {
+		f := val.Float64
+		return &f
+	}
+	return nil
+}
+
+func textToStringPtr(t pgtype.Text) *string {
+	if !t.Valid {
+		return nil
+	}
+	s := t.String
+	return &s
+}
+
+func int8ToInt64Ptr(i pgtype.Int8) *int64 {
+	if !i.Valid {
+		return nil
+	}
+	v := i.Int64
+	return &v
+}
+
+func dateToString(d pgtype.Date) string {
+	if !d.Valid {
+		return ""
+	}
+	return d.Time.Format("2006-01-02")
+}
+
+func uuidToPtr(id uuid.UUID) *uuid.UUID {
+	if id == uuid.Nil {
+		return nil
+	}
+	tmp := id
+	return &tmp
+}
+
 func (h *Handler) GetBudget(w http.ResponseWriter, r *http.Request) {
+	h.ensureQueries()
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
 	month := budgetMonth(r)
@@ -49,17 +135,24 @@ func (h *Handler) GetBudget(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "month must be YYYY-MM"}})
 		return
 	}
+	row, err := h.Queries.GetPersonalBudget(r.Context(), db.GetPersonalBudgetParams{
+		UserID: userID,
+		Month:  timeToDate(month),
+	})
 	var amount int64
 	var currency string
-	err := h.Pool.QueryRow(r.Context(), `SELECT amount, currency FROM personal_budgets WHERE user_id=$1 AND month=$2`, userID, month).Scan(&amount, &currency)
 	if err != nil {
 		amount = 250000
 		currency = "NPR"
+	} else {
+		amount = row.Amount
+		currency = row.Currency
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"month": month.Format("2006-01"), "amount": amount, "currency": strings.TrimSpace(currency)})
 }
 
 func (h *Handler) PutBudget(w http.ResponseWriter, r *http.Request) {
+	h.ensureQueries()
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
 	month := budgetMonth(r)
@@ -83,7 +176,12 @@ func (h *Handler) PutBudget(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "unsupported currency"}})
 		return
 	}
-	_, err := h.Pool.Exec(r.Context(), `INSERT INTO personal_budgets(user_id,month,amount,currency) VALUES($1,$2,$3,$4) ON CONFLICT(user_id,month) DO UPDATE SET amount=EXCLUDED.amount,currency=EXCLUDED.currency,updated_at=now()`, userID, month, req.Amount, req.Currency)
+	err := h.Queries.UpsertPersonalBudget(r.Context(), db.UpsertPersonalBudgetParams{
+		UserID:   userID,
+		Month:    timeToDate(month),
+		Amount:   req.Amount,
+		Currency: req.Currency,
+	})
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
@@ -104,6 +202,7 @@ type createReq struct {
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+	h.ensureQueries()
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
@@ -112,28 +211,31 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	if v, err := strconv.Atoi(limitStr); err == nil && v > 0 && v <= 100 {
 		limit = v
 	}
-	rows, err := h.Pool.Query(r.Context(), `
-		SELECT id, description, amount, currency, category_id, notes, expense_date, base_currency, exchange_rate, base_amount, created_at
-		FROM personal_expenses WHERE user_id=$1 AND deleted_at IS NULL AND ($2='' OR description ILIKE '%' || $2 || '%' OR notes ILIKE '%' || $2 || '%')
-		ORDER BY expense_date DESC, created_at DESC LIMIT $3`, userID, q, limit)
+	rows, err := h.Queries.ListPersonalExpenses(r.Context(), db.ListPersonalExpensesParams{
+		UserID:  userID,
+		Column2: q,
+		Limit:   int32(limit),
+	})
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	defer rows.Close()
 	var out []map[string]any
-	for rows.Next() {
-		var id uuid.UUID
-		var desc, cur, notes string
-		var amt int64
-		var catID *uuid.UUID
-		var expDate time.Time
-		var baseCur *string
-		var rate *float64
-		var baseAmt *int64
-		var created time.Time
-		_ = rows.Scan(&id, &desc, &amt, &cur, &catID, &notes, &expDate, &baseCur, &rate, &baseAmt, &created)
-		out = append(out, map[string]any{"id": id, "description": desc, "amount": amt, "currency": cur, "category_id": catID, "notes": notes, "expense_date": expDate.Format("2006-01-02"), "base_currency": baseCur, "exchange_rate": rate, "base_amount": baseAmt, "created_at": created})
+	for _, row := range rows {
+		catID := uuidToPtr(row.CategoryID)
+		out = append(out, map[string]any{
+			"id":            row.ID,
+			"description":   row.Description,
+			"amount":        row.Amount,
+			"currency":      row.Currency,
+			"category_id":   catID,
+			"notes":         row.Notes,
+			"expense_date":  dateToString(row.ExpenseDate),
+			"base_currency": textToStringPtr(row.BaseCurrency),
+			"exchange_rate": numericToFloat64Ptr(row.ExchangeRate),
+			"base_amount":   int8ToInt64Ptr(row.BaseAmount),
+			"created_at":    row.CreatedAt.Time,
+		})
 	}
 	if out == nil {
 		out = []map[string]any{}
@@ -142,6 +244,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
+	h.ensureQueries()
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
 	var req createReq
@@ -183,8 +286,23 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		notes = *req.Notes
 	}
 	id := uuid.New()
-	_, err := h.Pool.Exec(r.Context(), `INSERT INTO personal_expenses (id, user_id, description, amount, currency, category_id, notes, expense_date, base_currency, exchange_rate, base_amount)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, id, userID, req.Description, req.Amount, cur, catID, notes, date, req.BaseCurrency, req.ExchangeRate, req.BaseAmount)
+	var catUUID pgtype.UUID
+	if catID != nil {
+		catUUID = pgtype.UUID{Bytes: *catID, Valid: true}
+	}
+	err := h.Queries.CreatePersonalExpense(r.Context(), db.CreatePersonalExpenseParams{
+		ID:           id,
+		UserID:       userID,
+		Description:  req.Description,
+		Amount:       req.Amount,
+		Currency:     cur,
+		Column6:      catUUID,
+		Notes:        notes,
+		ExpenseDate:  timeToDate(date),
+		BaseCurrency: stringPtrToText(req.BaseCurrency),
+		ExchangeRate: float64PtrToNumeric(req.ExchangeRate),
+		BaseAmount:   int64PtrToInt8(req.BaseAmount),
+	})
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
@@ -193,6 +311,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
+	h.ensureQueries()
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
 	id, err := uuid.Parse(r.PathValue("id"))
@@ -200,23 +319,31 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid id"}})
 		return
 	}
-	var desc, cur, notes string
-	var amt int64
-	var catID *uuid.UUID
-	var expDate time.Time
-	var created time.Time
-	var baseCur *string
-	var rate *float64
-	var baseAmt *int64
-	err = h.Pool.QueryRow(r.Context(), `SELECT description, amount, currency, category_id, notes, expense_date, created_at, base_currency, exchange_rate, base_amount FROM personal_expenses WHERE id=$1 AND user_id=$2 AND deleted_at IS NULL`, id, userID).Scan(&desc, &amt, &cur, &catID, &notes, &expDate, &created, &baseCur, &rate, &baseAmt)
+	row, err := h.Queries.GetPersonalExpense(r.Context(), db.GetPersonalExpenseParams{
+		ID:     id,
+		UserID: userID,
+	})
 	if err != nil {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
-	httpx.WriteJSON(w, 200, map[string]any{"id": id, "description": desc, "amount": amt, "currency": cur, "category_id": catID, "notes": notes, "expense_date": expDate.Format("2006-01-02"), "created_at": created, "base_currency": baseCur, "exchange_rate": rate, "base_amount": baseAmt})
+	httpx.WriteJSON(w, 200, map[string]any{
+		"id":            id,
+		"description":   row.Description,
+		"amount":        row.Amount,
+		"currency":      row.Currency,
+		"category_id":   uuidToPtr(row.CategoryID),
+		"notes":         row.Notes,
+		"expense_date":  dateToString(row.ExpenseDate),
+		"created_at":    row.CreatedAt.Time,
+		"base_currency": textToStringPtr(row.BaseCurrency),
+		"exchange_rate": numericToFloat64Ptr(row.ExchangeRate),
+		"base_amount":   int8ToInt64Ptr(row.BaseAmount),
+	})
 }
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+	h.ensureQueries()
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
 	id, err := uuid.Parse(r.PathValue("id"))
@@ -229,47 +356,67 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 400, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": err.Error()}})
 		return
 	}
-	// fetch existing
-	var exists bool
-	_ = h.Pool.QueryRow(r.Context(), `SELECT true FROM personal_expenses WHERE id=$1 AND user_id=$2 AND deleted_at IS NULL`, id, userID).Scan(&exists)
-	if !exists {
+	exists, err := h.Queries.CheckPersonalExpenseExists(r.Context(), db.CheckPersonalExpenseExistsParams{
+		ID:     id,
+		UserID: userID,
+	})
+	if err != nil || !exists {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
 	if req.Description != "" {
 		d := strings.TrimSpace(req.Description)
 		if d != "" {
-			_, _ = h.Pool.Exec(r.Context(), `UPDATE personal_expenses SET description=$1, updated_at=now() WHERE id=$2`, d, id)
+			_ = h.Queries.UpdatePersonalExpenseDescription(r.Context(), db.UpdatePersonalExpenseDescriptionParams{
+				Description: d,
+				ID:          id,
+			})
 		}
 	}
 	if req.Amount > 0 {
-		_, _ = h.Pool.Exec(r.Context(), `UPDATE personal_expenses SET amount=$1, updated_at=now() WHERE id=$2`, req.Amount, id)
+		_ = h.Queries.UpdatePersonalExpenseAmount(r.Context(), db.UpdatePersonalExpenseAmountParams{
+			Amount: req.Amount,
+			ID:     id,
+		})
 	}
 	if req.Currency != nil {
 		c := strings.ToUpper(strings.TrimSpace(*req.Currency))
 		if auth.SupportedCurrencies[c] {
-			_, _ = h.Pool.Exec(r.Context(), `UPDATE personal_expenses SET currency=$1, updated_at=now() WHERE id=$2`, c, id)
+			_ = h.Queries.UpdatePersonalExpenseCurrency(r.Context(), db.UpdatePersonalExpenseCurrencyParams{
+				Currency: c,
+				ID:       id,
+			})
 		}
 	}
 	if req.CategoryID != nil {
 		if *req.CategoryID == "" {
-			_, _ = h.Pool.Exec(r.Context(), `UPDATE personal_expenses SET category_id=NULL, updated_at=now() WHERE id=$2`, id)
+			_ = h.Queries.UpdatePersonalExpenseCategoryClear(r.Context(), id)
 		} else if cid, err := uuid.Parse(*req.CategoryID); err == nil {
-			_, _ = h.Pool.Exec(r.Context(), `UPDATE personal_expenses SET category_id=$1, updated_at=now() WHERE id=$2`, cid, id)
+			_ = h.Queries.UpdatePersonalExpenseCategory(r.Context(), db.UpdatePersonalExpenseCategoryParams{
+				CategoryID: cid,
+				ID:         id,
+			})
 		}
 	}
 	if req.Notes != nil {
-		_, _ = h.Pool.Exec(r.Context(), `UPDATE personal_expenses SET notes=$1, updated_at=now() WHERE id=$2`, *req.Notes, id)
+		_ = h.Queries.UpdatePersonalExpenseNotes(r.Context(), db.UpdatePersonalExpenseNotesParams{
+			Notes: *req.Notes,
+			ID:    id,
+		})
 	}
 	if req.ExpenseDate != nil && *req.ExpenseDate != "" {
 		if d, err := time.Parse("2006-01-02", *req.ExpenseDate); err == nil {
-			_, _ = h.Pool.Exec(r.Context(), `UPDATE personal_expenses SET expense_date=$1, updated_at=now() WHERE id=$2`, d, id)
+			_ = h.Queries.UpdatePersonalExpenseDate(r.Context(), db.UpdatePersonalExpenseDateParams{
+				ExpenseDate: timeToDate(d),
+				ID:          id,
+			})
 		}
 	}
 	h.Get(w, r)
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	h.ensureQueries()
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
 	id, err := uuid.Parse(r.PathValue("id"))
@@ -277,40 +424,30 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid id"}})
 		return
 	}
-	_, _ = h.Pool.Exec(r.Context(), `UPDATE personal_expenses SET deleted_at=now(), updated_at=now() WHERE id=$1 AND user_id=$2`, id, userID)
+	_ = h.Queries.SoftDeletePersonalExpense(r.Context(), db.SoftDeletePersonalExpenseParams{
+		ID:     id,
+		UserID: userID,
+	})
 	httpx.WriteJSON(w, 200, map[string]any{"message": "deleted"})
 }
 
 func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
+	h.ensureQueries()
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
-	// totals by month (last 6), by category, total
-	var total int64
-	_ = h.Pool.QueryRow(r.Context(), `SELECT COALESCE(SUM(amount),0) FROM personal_expenses WHERE user_id=$1 AND deleted_at IS NULL`, userID).Scan(&total)
-	rows, _ := h.Pool.Query(r.Context(), `SELECT COALESCE(c.name,'Uncategorized'), SUM(pe.amount) FROM personal_expenses pe LEFT JOIN categories c ON c.id=pe.category_id WHERE pe.user_id=$1 AND pe.deleted_at IS NULL GROUP BY c.name ORDER BY SUM(pe.amount) DESC`, userID)
+	total, _ := h.Queries.GetPersonalExpenseTotal(r.Context(), userID)
+	catRows, _ := h.Queries.ListPersonalExpenseByCategory(r.Context(), userID)
 	var byCat []map[string]any
-	if rows != nil {
-		defer rows.Close()
-		for rows.Next() {
-			var n string
-			var s int64
-			_ = rows.Scan(&n, &s)
-			byCat = append(byCat, map[string]any{"category": n, "total": s})
-		}
+	for _, row := range catRows {
+		byCat = append(byCat, map[string]any{"category": row.Category, "total": row.Total})
 	}
 	if byCat == nil {
 		byCat = []map[string]any{}
 	}
-	rows2, _ := h.Pool.Query(r.Context(), `SELECT to_char(expense_date,'YYYY-MM') as m, SUM(amount) FROM personal_expenses WHERE user_id=$1 AND deleted_at IS NULL AND expense_date >= CURRENT_DATE - INTERVAL '6 months' GROUP BY m ORDER BY m`, userID)
+	monthRows, _ := h.Queries.ListPersonalExpenseByMonth(r.Context(), userID)
 	var byMonth []map[string]any
-	if rows2 != nil {
-		defer rows2.Close()
-		for rows2.Next() {
-			var m string
-			var s int64
-			_ = rows2.Scan(&m, &s)
-			byMonth = append(byMonth, map[string]any{"month": m, "total": s})
-		}
+	for _, row := range monthRows {
+		byMonth = append(byMonth, map[string]any{"month": row.Month, "total": row.Total})
 	}
 	if byMonth == nil {
 		byMonth = []map[string]any{}
@@ -319,24 +456,20 @@ func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ExportCSV(w http.ResponseWriter, r *http.Request) {
+	h.ensureQueries()
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
-	rows, err := h.Pool.Query(r.Context(), `SELECT description, amount, currency, expense_date, notes FROM personal_expenses WHERE user_id=$1 AND deleted_at IS NULL ORDER BY expense_date DESC`, userID)
+	rows, err := h.Queries.ListPersonalExpensesExport(r.Context(), userID)
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	defer rows.Close()
 	w.Header().Set("Content-Type", "text/csv")
 	w.Header().Set("Content-Disposition", "attachment; filename=personal-expenses.csv")
 	cw := csv.NewWriter(w)
 	_ = cw.Write([]string{"description", "amount_cents", "currency", "date", "notes"})
-	for rows.Next() {
-		var d, cur, notes string
-		var amt int64
-		var dt time.Time
-		_ = rows.Scan(&d, &amt, &cur, &dt, &notes)
-		_ = cw.Write([]string{d, strconv.FormatInt(amt, 10), cur, dt.Format("2006-01-02"), notes})
+	for _, row := range rows {
+		_ = cw.Write([]string{row.Description, strconv.FormatInt(row.Amount, 10), row.Currency, dateToString(row.ExpenseDate), row.Notes})
 	}
 	cw.Flush()
 }

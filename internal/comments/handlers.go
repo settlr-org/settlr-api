@@ -1,6 +1,7 @@
 package comments
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -9,11 +10,32 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	db "github.com/settlr-org/settlr-api/internal/db"
 	"github.com/settlr-org/settlr-api/internal/httpx"
 )
 
 type Handler struct {
-	Pool *pgxpool.Pool
+	Pool    *pgxpool.Pool
+	Queries *db.Queries
+}
+
+func (h *Handler) ensureQueries() *db.Queries {
+	if h.Queries != nil {
+		return h.Queries
+	}
+	if h.Pool != nil {
+		return db.New(h.Pool)
+	}
+	return nil
+}
+
+func (h *Handler) isMember(ctx context.Context, groupID, userID uuid.UUID) bool {
+	q := h.ensureQueries()
+	ok, err := q.IsMember(ctx, db.IsMemberParams{GroupID: groupID, UserID: userID})
+	if err == nil && ok != "" {
+		return true
+	}
+	return false
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
@@ -28,9 +50,8 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid expense id"}})
 		return
 	}
-	// Verify membership via expense group
-	var groupID uuid.UUID
-	err = h.Pool.QueryRow(r.Context(), `SELECT group_id FROM expenses WHERE id=$1 AND deleted_at IS NULL`, expenseID).Scan(&groupID)
+	q := h.ensureQueries()
+	groupID, err := q.GetExpenseGroupIDForComments(r.Context(), expenseID)
 	if err == pgx.ErrNoRows {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
@@ -41,26 +62,18 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
-	var ok bool
-	_ = h.Pool.QueryRow(r.Context(), `SELECT true FROM group_members WHERE group_id=$1 AND user_id=$2`, groupID, userID).Scan(&ok)
-	if !ok {
+	if !h.isMember(r.Context(), groupID, userID) {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
-	rows, err := h.Pool.Query(r.Context(),
-		`SELECT c.id, c.user_id, u.name, coalesce(u.avatar_url,''), c.body, c.created_at FROM expense_comments c JOIN users u ON u.id=c.user_id WHERE c.expense_id=$1 AND c.deleted_at IS NULL ORDER BY c.created_at ASC`, expenseID)
-	if err != nil {
-		httpx.WriteError(w, r, err)
+	rows, qerr := q.ListComments(r.Context(), expenseID)
+	if qerr != nil {
+		httpx.WriteError(w, r, qerr)
 		return
 	}
-	defer rows.Close()
 	var out []map[string]any
-	for rows.Next() {
-		var id, uid2 uuid.UUID
-		var name, avatar, body string
-		var createdAt any
-		_ = rows.Scan(&id, &uid2, &name, &avatar, &body, &createdAt)
-		out = append(out, map[string]any{"id": id, "user_id": uid2, "name": name, "avatar_url": avatar, "body": body, "created_at": createdAt})
+	for _, row := range rows {
+		out = append(out, map[string]any{"id": row.ID, "user_id": row.UserID, "name": row.Name, "avatar_url": row.AvatarUrl, "body": row.Body, "created_at": row.CreatedAt.Time})
 	}
 	if out == nil {
 		out = []map[string]any{}
@@ -74,8 +87,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid expense id"}})
 		return
 	}
-	var groupID uuid.UUID
-	err = h.Pool.QueryRow(r.Context(), `SELECT group_id FROM expenses WHERE id=$1 AND deleted_at IS NULL`, expenseID).Scan(&groupID)
+	q := h.ensureQueries()
+	groupID, err := q.GetExpenseGroupIDForComments(r.Context(), expenseID)
 	if err == pgx.ErrNoRows {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
@@ -86,9 +99,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
-	var ok bool
-	_ = h.Pool.QueryRow(r.Context(), `SELECT true FROM group_members WHERE group_id=$1 AND user_id=$2`, groupID, userID).Scan(&ok)
-	if !ok {
+	if !h.isMember(r.Context(), groupID, userID) {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
@@ -105,23 +116,16 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := uuid.New()
-	_, err = h.Pool.Exec(r.Context(), `INSERT INTO expense_comments (id, expense_id, user_id, body) VALUES ($1,$2,$3,$4)`, id, expenseID, userID, req.Body)
+	err = q.CreateComment(r.Context(), db.CreateCommentParams{ID: id, ExpenseID: expenseID, UserID: userID, Body: req.Body})
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	_, _ = h.Pool.Exec(r.Context(), `INSERT INTO activity_events (group_id, actor_id, type, entity_type, entity_id, payload) VALUES ($1,$2,'COMMENT_ADDED','comment',$3,$4)`,
-		groupID, userID, id, json.RawMessage(`{"expense_id":"`+expenseID.String()+`"}`))
+	_ = q.CreateCommentActivity(r.Context(), db.CreateCommentActivityParams{GroupID: groupID, ActorID: userID, EntityID: id, Payload: json.RawMessage(`{"expense_id":"` + expenseID.String() + `"}`)})
 	// Notify other participants
-	rows, _ := h.Pool.Query(r.Context(), `SELECT DISTINCT s.user_id FROM expense_splits s WHERE s.expense_id=$1 AND s.user_id != $2`, expenseID, userID)
-	if rows != nil {
-		defer rows.Close()
-		for rows.Next() {
-			var nid uuid.UUID
-			_ = rows.Scan(&nid)
-			_, _ = h.Pool.Exec(r.Context(), `INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,'MENTION',$2,$3,$4)`,
-				nid, "New comment", req.Body, json.RawMessage(`{"expense_id":"`+expenseID.String()+`"}`))
-		}
+	nids, _ := q.ListCommentNotifyUsers(r.Context(), db.ListCommentNotifyUsersParams{ExpenseID: expenseID, UserID: userID})
+	for _, nid := range nids {
+		_ = q.CreateMentionNotification(r.Context(), db.CreateMentionNotificationParams{UserID: nid, Title: "New comment", Body: req.Body, Data: json.RawMessage(`{"expense_id":"` + expenseID.String() + `"}`)})
 	}
 	httpx.WriteJSON(w, 201, map[string]any{"id": id, "body": req.Body})
 }
@@ -134,8 +138,8 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
-	var owner uuid.UUID
-	err = h.Pool.QueryRow(r.Context(), `SELECT user_id FROM expense_comments WHERE id=$1 AND deleted_at IS NULL`, id).Scan(&owner)
+	q := h.ensureQueries()
+	owner, err := q.GetCommentOwner(r.Context(), id)
 	if err == pgx.ErrNoRows {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
@@ -148,6 +152,6 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, httpx.ErrForbidden)
 		return
 	}
-	_, _ = h.Pool.Exec(r.Context(), `UPDATE expense_comments SET deleted_at=now(), updated_at=now() WHERE id=$1`, id)
+	_ = q.SoftDeleteComment(r.Context(), id)
 	httpx.WriteJSON(w, 200, map[string]any{"message": "deleted"})
 }
