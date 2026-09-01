@@ -94,16 +94,16 @@ jobs:
       - name: Check deploy secrets
         id: check
         run: |
-          if [ -z "${{ secrets.HOST }}" ] || [ -z "${{ secrets.SSH_KEY }}" ]; then
+          if [ -z "${{ secrets.HETZNER_HOST }}" ] || [ -z "${{ secrets.HETZNER_SSH_KEY }}" ] || [ -z "${{ secrets.HETZNER_USER }}" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "HOST/SSH_KEY not set — skipping deploy (public fork safe)"
+            echo "HETZNER_HOST/HETZNER_SSH_KEY/HETZNER_USER not set — skipping deploy (public fork safe)"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Configure dedicated deployment key
         if: steps.check.outputs.skip == 'false'
         env:
-          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
         run: |
           install -d -m 700 ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
@@ -111,8 +111,8 @@ jobs:
       - name: Deploy the approved Docker Hub digest
         if: steps.check.outputs.skip == 'false'
         env:
-          HOST: ${{ secrets.HOST }}
-          USER: ${{ secrets.USER }}
+          HOST: ${{ secrets.HETZNER_HOST }}
+          USER: ${{ secrets.HETZNER_USER }}
           IMAGE: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/settlr-api@${{ needs.publish-container.outputs.image_digest }}
         run: |
           ssh -4 -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new \
