@@ -1,6 +1,7 @@
 package settlements
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -9,14 +10,26 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/settlr-org/settlr-api/internal/auth"
+	db "github.com/settlr-org/settlr-api/internal/db"
 	"github.com/settlr-org/settlr-api/internal/httpx"
 )
 
+// Handler handles settlement-related HTTP requests.
+// Pool is the raw pgx pool for transaction fallback; Queries is the sqlc-generated wrapper.
+// See internal/db/queries/settlements.sql for migrated queries.
 type Handler struct {
-	Pool *pgxpool.Pool
+	Pool    *pgxpool.Pool
+	Queries *db.Queries
+}
+
+func (h *Handler) ensureQueries() {
+	if h.Queries == nil && h.Pool != nil {
+		h.Queries = db.New(h.Pool)
+	}
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
@@ -26,11 +39,42 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) h
 	mux.Handle("DELETE /api/v1/settlements/{id}", authMw(http.HandlerFunc(h.DeleteSettlement)))
 }
 
-func mustBeMember(pool *pgxpool.Pool, r *http.Request, groupID uuid.UUID) bool {
+func (h *Handler) isMember(ctx context.Context, groupID, userID uuid.UUID) bool {
+	ok, err := h.Queries.CheckSettlementIsGroupMember(ctx, db.CheckSettlementIsGroupMemberParams{
+		GroupID: groupID,
+		UserID:  userID,
+	})
+	if err == nil {
+		return ok
+	}
+	return false
+}
+
+func (h *Handler) mustBeMember(r *http.Request, groupID uuid.UUID) bool {
+	h.ensureQueries()
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ := uuid.Parse(uid)
-	var ok bool
-	_ = pool.QueryRow(r.Context(), `SELECT true FROM group_members WHERE group_id=$1 AND user_id=$2`, groupID, userID).Scan(&ok)
+	if h.Queries != nil {
+		return h.isMember(r.Context(), groupID, userID)
+	}
+	// Fallback should not happen after sqlc migration; use sqlc via pool if needed.
+	if h.Pool != nil {
+		q := db.New(h.Pool)
+		ok, _ := q.CheckSettlementIsGroupMember(r.Context(), db.CheckSettlementIsGroupMemberParams{GroupID: groupID, UserID: userID})
+		return ok
+	}
+	return false
+}
+
+// mustBeMember legacy helper kept for compatibility; now uses sqlc instead of manual Pool query.
+func mustBeMember(pool *pgxpool.Pool, r *http.Request, groupID uuid.UUID) bool {
+	if pool == nil {
+		return false
+	}
+	q := db.New(pool)
+	uid, _ := httpx.GetUserID(r.Context())
+	userID, _ := uuid.Parse(uid)
+	ok, _ := q.CheckSettlementIsGroupMember(r.Context(), db.CheckSettlementIsGroupMemberParams{GroupID: groupID, UserID: userID})
 	return ok
 }
 
@@ -44,12 +88,13 @@ type createReq struct {
 }
 
 func (h *Handler) CreateSettlement(w http.ResponseWriter, r *http.Request) {
+	h.ensureQueries()
 	groupID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid group id"}})
 		return
 	}
-	if !mustBeMember(h.Pool, r, groupID) {
+	if !h.mustBeMember(r, groupID) {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
@@ -77,9 +122,8 @@ func (h *Handler) CreateSettlement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Both must be members
-	var fOk, tOk bool
-	_ = h.Pool.QueryRow(r.Context(), `SELECT true FROM group_members WHERE group_id=$1 AND user_id=$2`, groupID, from).Scan(&fOk)
-	_ = h.Pool.QueryRow(r.Context(), `SELECT true FROM group_members WHERE group_id=$1 AND user_id=$2`, groupID, to).Scan(&tOk)
+	fOk := h.isMember(r.Context(), groupID, from)
+	tOk := h.isMember(r.Context(), groupID, to)
 	if !fOk || !tOk {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "both users must be group members"}})
 		return
@@ -92,7 +136,9 @@ func (h *Handler) CreateSettlement(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		_ = h.Pool.QueryRow(r.Context(), `SELECT currency FROM groups WHERE id=$1`, groupID).Scan(&currency)
+		if cur, err := h.Queries.GetSettlementGroupCurrency(r.Context(), groupID); err == nil && cur != "" {
+			currency = cur
+		}
 	}
 	note := ""
 	if req.Note != nil {
@@ -109,36 +155,50 @@ func (h *Handler) CreateSettlement(w http.ResponseWriter, r *http.Request) {
 	uid, _ := httpx.GetUserID(r.Context())
 	createdBy, _ := uuid.Parse(uid)
 	id := uuid.New()
-	_, err = h.Pool.Exec(r.Context(),
-		`INSERT INTO settlements (id, group_id, from_user, to_user, amount, currency, note, settled_at, created_by)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-		id, groupID, from, to, req.Amount, currency, note, settledAt, createdBy)
+	err = h.Queries.CreateSettlement(r.Context(), db.CreateSettlementParams{
+		ID:        id,
+		GroupID:   groupID,
+		FromUser:  from,
+		ToUser:    to,
+		Amount:    req.Amount,
+		Currency:  currency,
+		Note:      note,
+		SettledAt: pgtype.Timestamptz{Time: settledAt, Valid: true},
+		CreatedBy: createdBy,
+	})
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	_, _ = h.Pool.Exec(r.Context(),
-		`INSERT INTO activity_events (group_id, actor_id, type, entity_type, entity_id, payload) VALUES ($1,$2,'SETTLEMENT_RECORDED','settlement',$3,$4)`,
-		groupID, createdBy, id, json.RawMessage(`{"amount":`+strconv.FormatInt(req.Amount, 10)+`}`))
+	_ = h.Queries.CreateSettlementActivity(r.Context(), db.CreateSettlementActivityParams{
+		GroupID:  groupID,
+		ActorID:  createdBy,
+		EntityID: id,
+		Payload:  json.RawMessage(`{"amount":` + strconv.FormatInt(req.Amount, 10) + `}`),
+	})
 	// Notify participants
 	for _, nid := range []uuid.UUID{from, to} {
 		if nid == createdBy {
 			continue
 		}
-		_, _ = h.Pool.Exec(r.Context(),
-			`INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1,'SETTLEMENT_RECORDED',$2,$3,$4)`,
-			nid, "Settlement recorded", note, json.RawMessage(`{"group_id":"`+groupID.String()+`"}`))
+		_ = h.Queries.CreateSettlementNotification(r.Context(), db.CreateSettlementNotificationParams{
+			UserID: nid,
+			Title:  "Settlement recorded",
+			Body:   note,
+			Data:   json.RawMessage(`{"group_id":"` + groupID.String() + `"}`),
+		})
 	}
 	httpx.WriteJSON(w, 201, map[string]any{"id": id, "group_id": groupID, "from_user": from, "to_user": to, "amount": req.Amount, "currency": currency})
 }
 
 func (h *Handler) ListSettlements(w http.ResponseWriter, r *http.Request) {
+	h.ensureQueries()
 	groupID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid group id"}})
 		return
 	}
-	if !mustBeMember(h.Pool, r, groupID) {
+	if !h.mustBeMember(r, groupID) {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
@@ -146,22 +206,17 @@ func (h *Handler) ListSettlements(w http.ResponseWriter, r *http.Request) {
 	if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 && v <= 100 {
 		limit = v
 	}
-	rows, err := h.Pool.Query(r.Context(),
-		`SELECT id, from_user, to_user, amount, currency, note, settled_at, created_by, created_at
-		 FROM settlements WHERE group_id=$1 AND deleted_at IS NULL ORDER BY settled_at DESC, created_at DESC LIMIT $2`, groupID, limit+1)
+	rows, err := h.Queries.ListSettlements(r.Context(), db.ListSettlementsParams{
+		GroupID: groupID,
+		Limit:   int32(limit + 1),
+	})
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	defer rows.Close()
 	var out []map[string]any
-	for rows.Next() {
-		var id, from, to, createdBy uuid.UUID
-		var amount int64
-		var currency, note string
-		var settledAt, createdAt time.Time
-		_ = rows.Scan(&id, &from, &to, &amount, &currency, &note, &settledAt, &createdBy, &createdAt)
-		out = append(out, map[string]any{"id": id, "group_id": groupID, "from_user": from, "to_user": to, "amount": amount, "currency": currency, "note": note, "settled_at": settledAt, "created_by": createdBy, "created_at": createdAt})
+	for _, row := range rows {
+		out = append(out, map[string]any{"id": row.ID, "group_id": groupID, "from_user": row.FromUser, "to_user": row.ToUser, "amount": row.Amount, "currency": row.Currency, "note": row.Note, "settled_at": row.SettledAt.Time, "created_by": row.CreatedBy, "created_at": row.CreatedAt.Time})
 	}
 	if len(out) > limit {
 		out = out[:limit]
@@ -175,15 +230,14 @@ func (h *Handler) ListSettlements(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UpdateSettlement(w http.ResponseWriter, r *http.Request) {
+	h.ensureQueries()
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid settlement id"}})
 		return
 	}
-	var groupID uuid.UUID
-	var deletedAt *time.Time
-	err = h.Pool.QueryRow(r.Context(), `SELECT group_id, deleted_at FROM settlements WHERE id=$1`, id).Scan(&groupID, &deletedAt)
-	if err == pgx.ErrNoRows || deletedAt != nil {
+	row, err := h.Queries.GetSettlementForUpdate(r.Context(), id)
+	if err == pgx.ErrNoRows || (err == nil && row.DeletedAt.Valid) {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
@@ -191,7 +245,8 @@ func (h *Handler) UpdateSettlement(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	if !mustBeMember(h.Pool, r, groupID) {
+	groupID := row.GroupID
+	if !h.mustBeMember(r, groupID) {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
@@ -208,22 +263,28 @@ func (h *Handler) UpdateSettlement(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "amount must be > 0"}})
 			return
 		}
-		_, _ = h.Pool.Exec(r.Context(), `UPDATE settlements SET amount=$1, updated_at=now() WHERE id=$2`, *req.Amount, id)
+		_ = h.Queries.UpdateSettlementAmount(r.Context(), db.UpdateSettlementAmountParams{
+			Amount: *req.Amount,
+			ID:     id,
+		})
 	}
 	if req.Note != nil {
-		_, _ = h.Pool.Exec(r.Context(), `UPDATE settlements SET note=$1, updated_at=now() WHERE id=$2`, *req.Note, id)
+		_ = h.Queries.UpdateSettlementNote(r.Context(), db.UpdateSettlementNoteParams{
+			Note: *req.Note,
+			ID:   id,
+		})
 	}
 	httpx.WriteJSON(w, 200, map[string]any{"message": "updated"})
 }
 
 func (h *Handler) DeleteSettlement(w http.ResponseWriter, r *http.Request) {
+	h.ensureQueries()
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid settlement id"}})
 		return
 	}
-	var groupID uuid.UUID
-	err = h.Pool.QueryRow(r.Context(), `SELECT group_id FROM settlements WHERE id=$1 AND deleted_at IS NULL`, id).Scan(&groupID)
+	groupID, err := h.Queries.GetSettlementForDelete(r.Context(), id)
 	if err == pgx.ErrNoRows {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
@@ -232,10 +293,13 @@ func (h *Handler) DeleteSettlement(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	if !mustBeMember(h.Pool, r, groupID) {
+	if !h.mustBeMember(r, groupID) {
 		httpx.WriteError(w, r, httpx.ErrGroupMemberRequired)
 		return
 	}
-	_, _ = h.Pool.Exec(r.Context(), `UPDATE settlements SET deleted_at=now(), updated_at=now() WHERE id=$1`, id)
+	_ = h.Queries.SoftDeleteSettlement(r.Context(), id)
 	httpx.WriteJSON(w, 200, map[string]any{"message": "deleted"})
 }
+
+// Ensure imports are used
+var _ = pgtype.Timestamptz{}

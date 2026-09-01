@@ -111,10 +111,10 @@ func main() {
 
 	usersHandler := &users.Handler{Pool: pool, AuthSvc: authSvc}
 	groupsHandler := &groups.Handler{Pool: pool, Queries: queries, Mailer: mailSender}
-	expensesHandler := &expenses.Handler{Pool: pool}
+	expensesHandler := &expenses.Handler{Pool: pool, Queries: queries}
 	balancesHandler := &balances.Handler{Pool: pool}
-	settlementsHandler := &settlements.Handler{Pool: pool}
-	friendsHandler := &friends.Handler{Pool: pool, Mailer: mailSender}
+	settlementsHandler := &settlements.Handler{Pool: pool, Queries: queries}
+	friendsHandler := &friends.Handler{Pool: pool, Queries: queries, Mailer: mailSender}
 	notificationsHandler := &notifications.Handler{Pool: pool}
 	categoriesHandler := &categories.Handler{Pool: pool}
 	statsHandler := &stats.Handler{Pool: pool}
@@ -124,7 +124,7 @@ func main() {
 	searchHandler := &search.Handler{Pool: pool}
 	recurringHandler := &recurring.Handler{Pool: pool}
 	exportHandler := &export.Handler{Pool: pool}
-	personalHandler := &personal.Handler{Pool: pool}
+	personalHandler := &personal.Handler{Pool: pool, Queries: queries}
 	ratesHandler := &rates.Handler{}
 
 	authMw := auth.Middleware(authSvc)
