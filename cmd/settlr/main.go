@@ -69,9 +69,13 @@ func main() {
 		return
 	}
 
-	authSvc := &auth.Service{Pool: pool, Cfg: cfg}
+	// sqlc Queries wraps the pool for type-safe queries (see internal/db/queries/groups.sql).
+	// Handlers that have been migrated to sqlc use Queries; legacy Pool usage remains for unmigrated handlers.
+	queries := db.New(pool)
+
+	authSvc := &auth.Service{Pool: pool, Queries: queries, Cfg: cfg}
 	mailSender := mailer.FromConfig(cfg.Mail)
-	authHandler := &auth.Handler{Svc: authSvc, Mailer: mailSender}
+	authHandler := &auth.Handler{Svc: authSvc, Mailer: mailSender, Queries: queries}
 	rateLimiter := httpx.NewRateLimiter(20, time.Minute)
 
 	mux := http.NewServeMux()
@@ -104,10 +108,6 @@ func main() {
 	// Instead we register a catch-all that rate-limits /api/v1/auth/*
 	// Simpler: we keep auth routes as registered but add a global rate limiter that only applies to /auth
 	// For now global limiter checks path prefix in middleware below.
-
-	// sqlc Queries wraps the pool for type-safe queries (see internal/db/queries/groups.sql).
-	// Handlers that have been migrated to sqlc use Queries; legacy Pool usage remains for unmigrated handlers.
-	queries := db.New(pool)
 
 	usersHandler := &users.Handler{Pool: pool, AuthSvc: authSvc}
 	groupsHandler := &groups.Handler{Pool: pool, Queries: queries, Mailer: mailSender}
