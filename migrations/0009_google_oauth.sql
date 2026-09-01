@@ -1,3 +1,4 @@
+-- +goose Up
 -- A password is optional for accounts created through a verified OAuth provider.
 ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
 
@@ -10,3 +11,8 @@ CREATE TABLE oauth_identities (
 );
 
 CREATE INDEX idx_oauth_identities_user_id ON oauth_identities (user_id);
+
+-- +goose Down
+DROP TABLE IF EXISTS oauth_identities;
+-- This migration cannot safely make password_hash required again while OAuth-only
+-- accounts exist, so it intentionally leaves the column nullable on rollback.

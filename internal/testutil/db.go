@@ -3,17 +3,14 @@ package testutil
 import (
 	"context"
 	"fmt"
-	"io/fs"
 	"os"
-	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 	"syscall"
 	"testing"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/settlr-org/settlr-api/internal/database"
 )
 
 var testPool *pgxpool.Pool
@@ -98,86 +95,9 @@ func ensureMigrated(t *testing.T, pool *pgxpool.Pool) {
 	fileLock(t)
 	defer fileUnlock(t)
 	ctx := context.Background()
-	// Find migrations directory
-	candidates := []string{"migrations", "../migrations", "../../migrations", "backend/migrations"}
-	// Also try relative to cwd
-	cwd, _ := os.Getwd()
-	candidates = append(candidates, filepath.Join(cwd, "migrations"), filepath.Join(cwd, "backend/migrations"))
-	var migDir string
-	for _, c := range candidates {
-		info, err := os.Stat(c)
-		if err == nil && info.IsDir() {
-			migDir = c
-			break
-		}
-	}
-	if migDir == "" {
-		t.Fatalf("migrations directory not found (cwd=%s)", cwd)
-	}
-	entries, err := os.ReadDir(migDir)
-	if err != nil {
-		t.Fatalf("read migrations: %v", err)
-	}
-	if _, err := pool.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`); err != nil {
-		t.Fatalf("create schema_migrations: %v", err)
-	}
-	legacyMarkers := []struct {
-		version string
-		object  string
-	}{
-		{"0001_init_schema", "users"},
-		{"0002_add_missing", "expense_attachments"},
-		{"0003_direct_recurring", "recurring_expenses"},
-		{"0004_personal_expenses", "personal_expenses"},
-		{"0006_prototype_parity", "personal_budgets"},
-	}
-	for _, marker := range legacyMarkers {
-		var exists bool
-		if err := pool.QueryRow(ctx, `SELECT to_regclass('public.' || $1) IS NOT NULL`, marker.object).Scan(&exists); err != nil {
-			t.Fatalf("check legacy migration %s: %v", marker.version, err)
-		}
-		if exists {
-			if _, err := pool.Exec(ctx, `INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT DO NOTHING`, marker.version); err != nil {
-				t.Fatalf("record legacy migration %s: %v", marker.version, err)
-			}
-		}
-	}
-	var ups []string
-	for _, e := range entries {
-		if strings.HasSuffix(e.Name(), ".up.sql") {
-			ups = append(ups, e.Name())
-		}
-	}
-	sort.Strings(ups)
-	for _, name := range ups {
-		version := strings.TrimSuffix(name, ".up.sql")
-		var applied bool
-		if err := pool.QueryRow(ctx, `SELECT true FROM schema_migrations WHERE version=$1`, version).Scan(&applied); err != nil && err != pgx.ErrNoRows {
-			t.Fatalf("check migration %s: %v", version, err)
-		}
-		if applied {
-			continue
-		}
-		data, err := fs.ReadFile(os.DirFS(migDir), name)
-		if err != nil {
-			t.Fatalf("read migration %s: %v", name, err)
-		}
-		tx, err := pool.Begin(ctx)
-		if err != nil {
-			t.Fatalf("begin migration %s: %v", version, err)
-		}
-		_, err = tx.Exec(ctx, string(data))
-		if err != nil {
-			_ = tx.Rollback(ctx)
-			t.Fatalf("migration %s failed: %v", name, err)
-		}
-		if _, err = tx.Exec(ctx, `INSERT INTO schema_migrations (version) VALUES ($1)`, version); err != nil {
-			_ = tx.Rollback(ctx)
-			t.Fatalf("record migration %s: %v", version, err)
-		}
-		if err = tx.Commit(ctx); err != nil {
-			t.Fatalf("commit migration %s: %v", version, err)
-		}
+	// Use the centralized goose-based migrator (handles legacy schema_migrations backfill).
+	if err := database.Migrate(ctx, pool); err != nil {
+		t.Fatalf("migrate: %v", err)
 	}
 	// Ensure pgcrypto extension (for gen_random_uuid) if not already via migration
 	_, _ = pool.Exec(ctx, `CREATE EXTENSION IF NOT EXISTS "pgcrypto"`)

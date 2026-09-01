@@ -1,6 +1,7 @@
 package groups
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -11,13 +12,21 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/settlr-org/settlr-api/internal/auth"
+	db "github.com/settlr-org/settlr-api/internal/db"
 	"github.com/settlr-org/settlr-api/internal/httpx"
 	"github.com/settlr-org/settlr-api/internal/mailer"
 )
 
+// Handler handles group-related HTTP requests.
+// Pool is the raw pgx pool for manual queries (legacy, 306 calls across codebase).
+// Queries is the sqlc-generated type-safe wrapper. New code should use Queries where possible;
+// see internal/db/queries/groups.sql for migrated queries (IsMember, ListGroups, GetGroup, etc.).
+// Migration is incremental: mustBeMember and a few List* methods already use Queries when available,
+// fallback to Pool when Queries == nil (tests without DB).
 type Handler struct {
-	Pool   *pgxpool.Pool
-	Mailer *mailer.Mailer
+	Pool    *pgxpool.Pool
+	Queries *db.Queries
+	Mailer  *mailer.Mailer
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
@@ -42,11 +51,35 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) h
 func (h *Handler) mustBeMember(r *http.Request, groupID uuid.UUID) (userID uuid.UUID, role string, ok bool) {
 	uid, _ := httpx.GetUserID(r.Context())
 	userID, _ = uuid.Parse(uid)
+	// Prefer sqlc-generated IsMember when Queries is wired (type-safe, tested via sqlc vet).
+	// This replaces the raw Pool.QueryRow call used in 30+ places across the codebase.
+	// See internal/db/queries/groups.sql: IsMember / GetMemberRole.
+	if h.Queries != nil {
+		var err error
+		role, err = h.Queries.IsMember(r.Context(), db.IsMemberParams{GroupID: groupID, UserID: userID})
+		if err != nil {
+			return uuid.Nil, "", false
+		}
+		return userID, role, true
+	}
 	err := h.Pool.QueryRow(r.Context(), `SELECT role FROM group_members WHERE group_id=$1 AND user_id=$2`, groupID, userID).Scan(&role)
 	if err != nil {
 		return uuid.Nil, "", false
 	}
 	return userID, role, true
+}
+
+// mustBeMemberSQLC is an alternative helper showing explicit sqlc usage for future migrations.
+// It can replace mustBeMember once all handlers are migrated to Queries.
+func (h *Handler) mustBeMemberSQLC(ctx context.Context, groupID, userID uuid.UUID) (string, bool) {
+	if h.Queries == nil {
+		return "", false
+	}
+	role, err := h.Queries.IsMember(ctx, db.IsMemberParams{GroupID: groupID, UserID: userID})
+	if err != nil {
+		return "", false
+	}
+	return role, true
 }
 
 func parseGroupID(r *http.Request) (uuid.UUID, bool) {

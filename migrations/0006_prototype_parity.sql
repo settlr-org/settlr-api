@@ -1,3 +1,4 @@
+-- +goose Up
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS bank_qr_url TEXT,
   ADD COLUMN IF NOT EXISTS bank_name TEXT,
@@ -15,3 +16,10 @@ CREATE TABLE IF NOT EXISTS personal_budgets (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, month)
 );
+
+-- +goose Down
+DROP TABLE IF EXISTS personal_budgets;
+ALTER TABLE users
+  DROP COLUMN IF EXISTS payment_handle,
+  DROP COLUMN IF EXISTS bank_name,
+  DROP COLUMN IF EXISTS bank_qr_url;
