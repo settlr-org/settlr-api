@@ -113,6 +113,7 @@ type createGroupReq struct {
 	Name        string  `json:"name"`
 	Description *string `json:"description"`
 	Currency    *string `json:"currency"`
+	GroupType   *string `json:"group_type"`
 	AvatarURL   *string `json:"avatar_url"`
 	Information *string `json:"information"`
 }
@@ -138,6 +139,14 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	groupType := "OTHER"
+	if req.GroupType != nil {
+		groupType = strings.ToUpper(strings.TrimSpace(*req.GroupType))
+		if groupType != "HOME" && groupType != "TRIP" && groupType != "COUPLE" && groupType != "EVENT" && groupType != "OTHER" {
+			httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "group_type must be HOME/TRIP/COUPLE/EVENT/OTHER"}})
+			return
+		}
+	}
 	desc := ""
 	if req.Description != nil {
 		desc = *req.Description
@@ -159,7 +168,7 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback(r.Context())
 	qtx := h.queries().WithTx(tx)
 	if err = qtx.CreateGroup(r.Context(), db.CreateGroupParams{
-		ID: groupID, Name: req.Name, Description: desc, Column4: avatar, Currency: currency,
+		ID: groupID, Name: req.Name, Description: desc, Column4: avatar, Currency: currency, GroupType: groupType,
 		CreatedBy: userID, Information: pgtype.Text{String: information, Valid: information != ""},
 	}); err != nil {
 		httpx.WriteError(w, r, err)
@@ -177,7 +186,7 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	httpx.WriteJSON(w, 201, map[string]any{"id": groupID, "name": req.Name, "description": desc, "currency": currency, "avatar_url": avatar, "information": information})
+	httpx.WriteJSON(w, 201, map[string]any{"id": groupID, "name": req.Name, "description": desc, "currency": currency, "group_type": groupType, "avatar_url": avatar, "information": information})
 }
 
 func (h *Handler) GetGroup(w http.ResponseWriter, r *http.Request) {
@@ -268,8 +277,8 @@ func (h *Handler) UpdateGroup(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.GroupType != nil {
 		gt := strings.ToUpper(strings.TrimSpace(*req.GroupType))
-		if gt != "HOME" && gt != "TRIP" && gt != "COUPLE" && gt != "OTHER" {
-			httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "group_type must be HOME/TRIP/COUPLE/OTHER"}})
+		if gt != "HOME" && gt != "TRIP" && gt != "COUPLE" && gt != "EVENT" && gt != "OTHER" {
+			httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "group_type must be HOME/TRIP/COUPLE/EVENT/OTHER"}})
 			return
 		}
 		if err := h.queries().UpdateGroupType(r.Context(), db.UpdateGroupTypeParams{ID: groupID, GroupType: gt}); err != nil {

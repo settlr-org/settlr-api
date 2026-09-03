@@ -69,8 +69,8 @@ FROM groups g
 WHERE g.id = $1;
 
 -- name: CreateGroup :exec
-INSERT INTO groups (id, name, description, avatar_url, currency, created_by, information)
-VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, $7);
+INSERT INTO groups (id, name, description, avatar_url, currency, group_type, created_by, information)
+VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, $7, $8);
 
 -- name: CreateGroupMember :exec
 INSERT INTO group_members (group_id, user_id, role) VALUES ($1, $2, $3);
