@@ -109,8 +109,8 @@ func (q *Queries) CheckGroupMemberEmail(ctx context.Context, arg CheckGroupMembe
 }
 
 const createGroup = `-- name: CreateGroup :exec
-INSERT INTO groups (id, name, description, avatar_url, currency, created_by, information)
-VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, $7)
+INSERT INTO groups (id, name, description, avatar_url, currency, group_type, created_by, information)
+VALUES ($1, $2, $3, NULLIF($4, ''), $5, $6, $7, $8)
 `
 
 type CreateGroupParams struct {
@@ -119,6 +119,7 @@ type CreateGroupParams struct {
 	Description string      `json:"description"`
 	Column4     interface{} `json:"column_4"`
 	Currency    string      `json:"currency"`
+	GroupType   string      `json:"group_type"`
 	CreatedBy   uuid.UUID   `json:"created_by"`
 	Information pgtype.Text `json:"information"`
 }
@@ -130,6 +131,7 @@ func (q *Queries) CreateGroup(ctx context.Context, arg CreateGroupParams) error 
 		arg.Description,
 		arg.Column4,
 		arg.Currency,
+		arg.GroupType,
 		arg.CreatedBy,
 		arg.Information,
 	)
