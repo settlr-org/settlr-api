@@ -73,7 +73,7 @@ func Recover(next http.Handler) http.Handler {
 	})
 }
 
-// CORS allows configured origins (permissive in dev).
+// CORS allows configured origins (permissive in dev). Also allows any vercel.app and theswissknife.com subdomains for preview deployments.
 func CORS(allowedOrigins string) func(http.Handler) http.Handler {
 	origins := make(map[string]struct{})
 	for _, value := range strings.Split(allowedOrigins, ",") {
@@ -85,9 +85,17 @@ func CORS(allowedOrigins string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := r.Header.Get("Origin")
+			allowed := allowAll
+			if !allowed {
+				if _, ok := origins[origin]; ok {
+					allowed = true
+				} else if strings.HasSuffix(origin, ".vercel.app") || strings.HasSuffix(origin, ".theswissknife.com") || strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:") || strings.HasPrefix(origin, "http://10.0.2.2:") {
+					allowed = true
+				}
+			}
 			if allowAll {
 				w.Header().Set("Access-Control-Allow-Origin", "*")
-			} else if _, ok := origins[origin]; ok {
+			} else if allowed && origin != "" {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
 				w.Header().Add("Vary", "Origin")
