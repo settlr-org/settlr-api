@@ -60,3 +60,39 @@ func TestCORSEnabledOriginAllowsCredentials(t *testing.T) {
 		t.Fatalf("credentials = %q", got)
 	}
 }
+
+func TestCORSConfiguredVercelWildcardAllowsOnlyHTTPSPreviewSubdomains(t *testing.T) {
+	h := CORS("https://app.example.com")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+
+	for _, origin := range []string{
+		"https://settlr-preview.vercel.app",
+		"https://dist-84f1xf3l4-nabinkhanal00.vercel.app",
+	} {
+		r := httptest.NewRequest(http.MethodOptions, "/", nil)
+		r.Header.Set("Origin", origin)
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if got := w.Header().Get("Access-Control-Allow-Origin"); got != origin {
+			t.Fatalf("origin %q = %q, want allowed", origin, got)
+		}
+	}
+}
+
+func TestCORSConfiguredVercelWildcardRejectsNonPreviewOrigins(t *testing.T) {
+	h := CORS("https://*.vercel.app")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+
+	for _, origin := range []string{
+		"https://vercel.app",
+		"http://settlr-preview.vercel.app",
+		"https://settlr-preview.vercel.app.attacker.test",
+		"https://settlr-preview.vercel.app:444",
+	} {
+		r := httptest.NewRequest(http.MethodOptions, "/", nil)
+		r.Header.Set("Origin", origin)
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if got := w.Header().Get("Access-Control-Allow-Origin"); got != "" {
+			t.Fatalf("origin %q = %q, want rejected", origin, got)
+		}
+	}
+}

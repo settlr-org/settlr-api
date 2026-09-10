@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -73,12 +74,21 @@ func Recover(next http.Handler) http.Handler {
 	})
 }
 
-// CORS allows configured origins (permissive in dev). Also allows any vercel.app and theswissknife.com subdomains for preview deployments.
+// CORS allows configured origins (permissive in development). Wildcard origins
+// such as https://*.vercel.app are supported for preview deployments.
 func CORS(allowedOrigins string) func(http.Handler) http.Handler {
 	origins := make(map[string]struct{})
+	// Vercel previews are an approved Settlr web deployment target. Keep the
+	// rule in code as well as the environment examples so rolling out this API
+	// version does not require an in-place production environment edit.
+	patterns := []string{"https://*.vercel.app"}
 	for _, value := range strings.Split(allowedOrigins, ",") {
 		if origin := strings.TrimSpace(value); origin != "" {
-			origins[origin] = struct{}{}
+			if strings.Contains(origin, "*.") {
+				patterns = append(patterns, origin)
+			} else {
+				origins[origin] = struct{}{}
+			}
 		}
 	}
 	allowAll := allowedOrigins == "" || allowedOrigins == "*"
@@ -89,7 +99,7 @@ func CORS(allowedOrigins string) func(http.Handler) http.Handler {
 			if !allowed {
 				if _, ok := origins[origin]; ok {
 					allowed = true
-				} else if strings.HasSuffix(origin, ".vercel.app") || strings.HasSuffix(origin, ".theswissknife.com") || strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:") || strings.HasPrefix(origin, "http://10.0.2.2:") {
+				} else if matchesAnyOriginPattern(origin, patterns) || isLocalDevelopmentOrigin(origin) {
 					allowed = true
 				}
 			}
@@ -109,6 +119,43 @@ func CORS(allowedOrigins string) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func matchesAnyOriginPattern(origin string, patterns []string) bool {
+	for _, pattern := range patterns {
+		if matchesOriginPattern(origin, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+// matchesOriginPattern supports a single wildcard as the leftmost hostname
+// label. It intentionally requires an HTTPS origin with no custom port, so a
+// configured https://*.vercel.app cannot accidentally admit a lookalike or a
+// local HTTP host.
+func matchesOriginPattern(origin, pattern string) bool {
+	originURL, err := url.Parse(origin)
+	if err != nil || originURL.Scheme != "https" || originURL.Hostname() == "" || originURL.Port() != "" {
+		return false
+	}
+	patternURL, err := url.Parse(pattern)
+	if err != nil || patternURL.Scheme != "https" || patternURL.Port() != "" {
+		return false
+	}
+	hostPattern := strings.ToLower(patternURL.Hostname())
+	if !strings.HasPrefix(hostPattern, "*.") {
+		return false
+	}
+	baseHost := strings.TrimPrefix(hostPattern, "*.")
+	hostname := strings.ToLower(originURL.Hostname())
+	return hostname != baseHost && strings.HasSuffix(hostname, "."+baseHost)
+}
+
+func isLocalDevelopmentOrigin(origin string) bool {
+	return strings.HasPrefix(origin, "http://localhost:") ||
+		strings.HasPrefix(origin, "http://127.0.0.1:") ||
+		strings.HasPrefix(origin, "http://10.0.2.2:")
 }
 
 // SecurityHeaders sets common security headers.
