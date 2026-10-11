@@ -7,8 +7,12 @@
   },
   "servers": [
     {
-      "url": "https://api.example.com",
+      "url": "https://settlrapi.theswissknife.com",
       "description": "Production"
+    },
+    {
+      "url": "http://localhost:18081",
+      "description": "Local (make dev)"
     }
   ],
   "components": {
@@ -39,25 +43,42 @@
     }
   },
   "paths": {
-    "/api/v1/auth/register": {
-      "post": {
-        "summary": "register",
-        "responses": {
-          "201": {
-            "description": "Account created; email verification required before sign-in"
-          }
-        }
-      }
-    },
-    "/api/v1/auth/login": {
-      "post": {
-        "summary": "login",
+    "/api/v1/activity": {
+      "get": {
+        "summary": "Global activity",
         "responses": {
           "200": {
             "description": "OK"
-          },
-          "403": {
-            "description": "Email verification required"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/attachments/{id}": {
+      "delete": {
+        "summary": "Delete attachment",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/forgot-password": {
+      "post": {
+        "summary": "forgot-password",
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }
@@ -75,12 +96,13 @@
           "503": {
             "description": "Google OAuth is not configured"
           }
-        }
+        },
+        "description": "Exchange a Google ID token whose audience is an allow-listed client (GOOGLE_OAUTH_CLIENT_IDS). Web and Android both request tokens for the web client id."
       }
     },
-    "/api/v1/auth/refresh": {
+    "/api/v1/auth/login": {
       "post": {
-        "summary": "refresh",
+        "summary": "login",
         "responses": {
           "200": {
             "description": "OK"
@@ -98,9 +120,29 @@
         }
       }
     },
-    "/api/v1/auth/forgot-password": {
+    "/api/v1/auth/refresh": {
       "post": {
-        "summary": "forgot-password",
+        "summary": "refresh",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "summary": "register",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/resend-verification": {
+      "post": {
+        "summary": "resend-verification",
         "responses": {
           "200": {
             "description": "OK"
@@ -111,26 +153,6 @@
     "/api/v1/auth/reset-password": {
       "post": {
         "summary": "reset-password",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/v1/auth/verify-email": {
-      "post": {
-        "summary": "verify-email",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/v1/auth/resend-verification": {
-      "post": {
-        "summary": "Resend verification for the authenticated user or supplied email",
         "responses": {
           "200": {
             "description": "OK"
@@ -191,9 +213,62 @@
         ]
       }
     },
-    "/api/v1/me": {
+    "/api/v1/auth/verify-email": {
+      "post": {
+        "summary": "verify-email",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/categories": {
       "get": {
-        "summary": "Get me",
+        "summary": "Categories",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "Create category",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/comments/{id}": {
+      "delete": {
+        "summary": "Delete comment",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/expenses/{id}": {
+      "get": {
+        "summary": "Get expense",
         "responses": {
           "200": {
             "description": "OK"
@@ -206,7 +281,7 @@
         ]
       },
       "patch": {
-        "summary": "Update me",
+        "summary": "Update expense",
         "responses": {
           "200": {
             "description": "OK"
@@ -219,7 +294,7 @@
         ]
       },
       "delete": {
-        "summary": "Delete account",
+        "summary": "Delete expense",
         "responses": {
           "200": {
             "description": "OK"
@@ -232,24 +307,22 @@
         ]
       }
     },
-    "/api/v1/me/password": {
-      "patch": {
-        "summary": "Change password",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/me/balances": {
+    "/api/v1/expenses/{id}/attachments": {
       "get": {
-        "summary": "My balances",
+        "summary": "List attachments",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "Upload attachment",
         "responses": {
           "200": {
             "description": "OK"
@@ -262,12 +335,53 @@
         ]
       }
     },
-    "/api/v1/users/search": {
+    "/api/v1/expenses/{id}/comments": {
       "get": {
-        "summary": "Search users",
+        "summary": "List comments",
         "responses": {
           "200": {
             "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "Add comment",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/friend-invites/{token}/accept": {
+      "post": {
+        "summary": "Accept an emailed friend invite; returns {message, user_id}",
+        "tags": [
+          "Friends"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         },
         "security": [
@@ -277,8 +391,9 @@
         ],
         "parameters": [
           {
-            "name": "q",
-            "in": "query",
+            "name": "token",
+            "in": "path",
+            "required": true,
             "schema": {
               "type": "string"
             }
@@ -286,12 +401,131 @@
         ]
       }
     },
-    "/api/v1/users/{id}": {
+    "/api/v1/friends": {
       "get": {
-        "summary": "Get user",
+        "summary": "List friends",
         "responses": {
           "200": {
             "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/friends/invite": {
+      "post": {
+        "summary": "Invite someone to Settlr by email",
+        "tags": [
+          "Friends"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/friends/requests": {
+      "get": {
+        "summary": "Pending requests",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/friends/{id}": {
+      "delete": {
+        "summary": "Remove friend",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/friends/{id}/accept": {
+      "post": {
+        "summary": "Accept",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/friends/{id}/balance": {
+      "get": {
+        "summary": "Balance with a friend (positive = they owe you)",
+        "tags": [
+          "Friends"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         },
         "security": [
@@ -307,6 +541,89 @@
             "schema": {
               "type": "string"
             }
+          }
+        ]
+      }
+    },
+    "/api/v1/friends/{id}/block": {
+      "post": {
+        "summary": "Block",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/friends/{id}/ledger": {
+      "get": {
+        "summary": "Direct ledger group with a friend",
+        "tags": [
+          "Friends"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/friends/{id}/reject": {
+      "post": {
+        "summary": "Reject",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/friends/{id}/request": {
+      "post": {
+        "summary": "Send request",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
           }
         ]
       }
@@ -410,9 +727,235 @@
         ]
       }
     },
+    "/api/v1/groups/{id}/activity": {
+      "get": {
+        "summary": "Group activity",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/groups/{id}/archive": {
       "post": {
         "summary": "Archive",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/groups/{id}/balances": {
+      "get": {
+        "summary": "Balances",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/groups/{id}/debts": {
+      "get": {
+        "summary": "Debts",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/groups/{id}/expenses": {
+      "get": {
+        "summary": "List expenses (paginated)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "Create expense",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/groups/{id}/export": {
+      "get": {
+        "summary": "Export group (format via query)",
+        "tags": [
+          "Export"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/groups/{id}/export.csv": {
+      "get": {
+        "summary": "Export group as CSV",
+        "tags": [
+          "Export"
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV file",
+            "content": {
+              "text/csv": {}
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/groups/{id}/export.json": {
+      "get": {
+        "summary": "Export group as JSON",
+        "tags": [
+          "Export"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/groups/{id}/invites": {
+      "get": {
+        "summary": "List invites",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "Create invite",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/groups/{id}/leave": {
+      "post": {
+        "summary": "Leave",
         "responses": {
           "200": {
             "description": "OK"
@@ -481,39 +1024,146 @@
         ]
       }
     },
-    "/api/v1/groups/{id}/leave": {
+    "/api/v1/groups/{id}/recurring": {
+      "get": {
+        "summary": "List recurring expenses",
+        "tags": [
+          "Recurring"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
       "post": {
-        "summary": "Leave",
+        "summary": "Create recurring expense (category optional)",
+        "tags": [
+          "Recurring"
+        ],
         "responses": {
-          "200": {
-            "description": "OK"
+          "201": {
+            "description": "Created; returns {id, next_run_at}"
           }
         },
         "security": [
           {
             "bearerAuth": []
           }
-        ]
-      }
-    },
-    "/api/v1/groups/{id}/activity": {
-      "get": {
-        "summary": "Group activity",
-        "responses": {
-          "200": {
-            "description": "OK"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string"
+                  },
+                  "amount": {
+                    "type": "integer"
+                  },
+                  "currency": {
+                    "type": "string"
+                  },
+                  "paid_by": {
+                    "type": "string"
+                  },
+                  "frequency": {
+                    "type": "string",
+                    "enum": [
+                      "DAILY",
+                      "WEEKLY",
+                      "MONTHLY",
+                      "YEARLY"
+                    ]
+                  },
+                  "start_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "category_id": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "split_mode": {
+                    "type": "string"
+                  },
+                  "splits": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "user_id": {
+                          "type": "string"
+                        },
+                        "amount": {
+                          "type": "integer"
+                        },
+                        "percentage": {
+                          "type": "number"
+                        },
+                        "shares": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "user_id"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "description",
+                  "amount",
+                  "paid_by",
+                  "frequency"
+                ]
+              }
+            }
           }
         },
-        "security": [
+        "parameters": [
           {
-            "bearerAuth": []
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ]
       }
     },
-    "/api/v1/groups/{id}/invites": {
+    "/api/v1/groups/{id}/settlements": {
       "get": {
-        "summary": "List invites",
+        "summary": "List settlements",
         "responses": {
           "200": {
             "description": "OK"
@@ -526,7 +1176,22 @@
         ]
       },
       "post": {
-        "summary": "Create invite",
+        "summary": "Create settlement",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/groups/{id}/stats": {
+      "get": {
+        "summary": "Stats",
         "responses": {
           "200": {
             "description": "OK"
@@ -550,6 +1215,43 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/invites/id/{id}/accept": {
+      "post": {
+        "summary": "Accept a pending group invite from the inbox (invitee only)",
+        "tags": [
+          "Groups"
+        ],
+        "responses": {
+          "200": {
+            "description": "Joined; returns {message, group_id}"
+          },
+          "403": {
+            "description": "Invite email does not match"
+          },
+          "404": {
+            "description": "Invalid or expired"
+          },
+          "409": {
+            "description": "Already accepted / already a member"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ]
       }
@@ -579,37 +1281,9 @@
         ]
       }
     },
-    "/api/v1/groups/{id}/expenses": {
+    "/api/v1/me": {
       "get": {
-        "summary": "List expenses (paginated)",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      },
-      "post": {
-        "summary": "Create expense",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/expenses/{id}": {
-      "get": {
-        "summary": "Get expense",
+        "summary": "Get me",
         "responses": {
           "200": {
             "description": "OK"
@@ -622,7 +1296,7 @@
         ]
       },
       "patch": {
-        "summary": "Update expense",
+        "summary": "Update me",
         "responses": {
           "200": {
             "description": "OK"
@@ -635,7 +1309,7 @@
         ]
       },
       "delete": {
-        "summary": "Delete expense",
+        "summary": "Delete account",
         "responses": {
           "200": {
             "description": "OK"
@@ -648,12 +1322,92 @@
         ]
       }
     },
-    "/api/v1/expenses/{id}/comments": {
+    "/api/v1/me/balances": {
       "get": {
-        "summary": "List comments",
+        "summary": "My balances",
         "responses": {
           "200": {
             "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/export.csv": {
+      "get": {
+        "summary": "Export my data as CSV",
+        "tags": [
+          "Export"
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV file",
+            "content": {
+              "text/csv": {}
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/export.json": {
+      "get": {
+        "summary": "Export my data as JSON",
+        "tags": [
+          "Export"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/notification-preferences": {
+      "get": {
+        "summary": "Get notification preferences",
+        "tags": [
+          "Notifications"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         },
         "security": [
@@ -662,91 +1416,63 @@
           }
         ]
       },
-      "post": {
-        "summary": "Add comment",
+      "patch": {
+        "summary": "Update notification preferences",
+        "tags": [
+          "Notifications"
+        ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         },
         "security": [
           {
             "bearerAuth": []
           }
-        ]
-      }
-    },
-    "/api/v1/comments/{id}": {
-      "delete": {
-        "summary": "Delete comment",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/expenses/{id}/attachments": {
-      "get": {
-        "summary": "List attachments",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      },
-      "post": {
-        "summary": "Upload attachment",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/attachments/{id}": {
-      "delete": {
-        "summary": "Delete attachment",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
-    "/uploads/{id}": {
-      "get": {
-        "summary": "Serve file",
-        "responses": {
-          "200": {
-            "description": "OK"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email_enabled": {
+                    "type": "boolean"
+                  },
+                  "push_enabled": {
+                    "type": "boolean"
+                  },
+                  "friend_request_enabled": {
+                    "type": "boolean"
+                  },
+                  "expense_enabled": {
+                    "type": "boolean"
+                  },
+                  "settlement_enabled": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
           }
         }
       }
     },
-    "/api/v1/groups/{id}/balances": {
-      "get": {
-        "summary": "Balances",
+    "/api/v1/me/password": {
+      "patch": {
+        "summary": "Change password",
         "responses": {
           "200": {
             "description": "OK"
@@ -759,9 +1485,84 @@
         ]
       }
     },
-    "/api/v1/groups/{id}/debts": {
+    "/api/v1/me/payment-info": {
       "get": {
-        "summary": "Debts",
+        "summary": "Get my payment details",
+        "tags": [
+          "Users"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "summary": "Set my payment details",
+        "tags": [
+          "Users"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bank_name": {
+                    "type": "string"
+                  },
+                  "payment_handle": {
+                    "type": "string"
+                  },
+                  "bank_qr_url": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "summary": "Notifications",
         "responses": {
           "200": {
             "description": "OK"
@@ -774,12 +1575,152 @@
         ]
       }
     },
-    "/api/v1/groups/{id}/settlements": {
-      "get": {
-        "summary": "List settlements",
+    "/api/v1/notifications/read-all": {
+      "post": {
+        "summary": "Mark all read",
         "responses": {
           "200": {
             "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/notifications/{id}/read": {
+      "post": {
+        "summary": "Mark read",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/personal/budget": {
+      "get": {
+        "summary": "Get monthly budget",
+        "tags": [
+          "Personal"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "YYYY-MM"
+          }
+        ]
+      },
+      "put": {
+        "summary": "Set monthly budget",
+        "tags": [
+          "Personal"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "type": "integer"
+                  },
+                  "currency": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "amount"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "YYYY-MM"
+          }
+        ]
+      }
+    },
+    "/api/v1/personal/expenses": {
+      "get": {
+        "summary": "List personal expenses",
+        "tags": [
+          "Personal"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         },
         "security": [
@@ -789,7 +1730,372 @@
         ]
       },
       "post": {
-        "summary": "Create settlement",
+        "summary": "Create personal expense",
+        "tags": [
+          "Personal"
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string"
+                  },
+                  "amount": {
+                    "type": "integer",
+                    "description": "minor units"
+                  },
+                  "currency": {
+                    "type": "string"
+                  },
+                  "category_id": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "expense_date": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                },
+                "required": [
+                  "description",
+                  "amount"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/personal/expenses/{id}": {
+      "delete": {
+        "summary": "Delete personal expense",
+        "tags": [
+          "Personal"
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "get": {
+        "summary": "Get personal expense",
+        "tags": [
+          "Personal"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "patch": {
+        "summary": "Update personal expense (send category_id \"\" to clear)",
+        "tags": [
+          "Personal"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string"
+                  },
+                  "amount": {
+                    "type": "integer",
+                    "description": "minor units"
+                  },
+                  "currency": {
+                    "type": "string"
+                  },
+                  "category_id": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "expense_date": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                },
+                "required": [
+                  "description",
+                  "amount"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/personal/export.csv": {
+      "get": {
+        "summary": "Export personal expenses as CSV",
+        "tags": [
+          "Personal"
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV file",
+            "content": {
+              "text/csv": {}
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/personal/stats": {
+      "get": {
+        "summary": "Personal spending stats (total is all-time; by_month per YYYY-MM)",
+        "tags": [
+          "Personal"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/rates": {
+      "get": {
+        "summary": "Exchange rates (cached)",
+        "tags": [
+          "Rates"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "base",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ISO currency code"
+          }
+        ]
+      }
+    },
+    "/api/v1/recurring/{id}": {
+      "patch": {
+        "summary": "Pause or resume a recurring expense",
+        "tags": [
+          "Recurring"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "active": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "active"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "delete": {
+        "summary": "Delete recurring expense",
+        "tags": [
+          "Recurring"
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/search": {
+      "get": {
+        "summary": "Search",
         "responses": {
           "200": {
             "description": "OK"
@@ -830,9 +2136,9 @@
         ]
       }
     },
-    "/api/v1/friends": {
+    "/api/v1/users/search": {
       "get": {
-        "summary": "List friends",
+        "summary": "Search users",
         "responses": {
           "200": {
             "description": "OK"
@@ -842,12 +2148,21 @@
           {
             "bearerAuth": []
           }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
         ]
       }
     },
-    "/api/v1/friends/requests": {
+    "/api/v1/users/{id}": {
       "get": {
-        "summary": "Pending requests",
+        "summary": "Get user",
         "responses": {
           "200": {
             "description": "OK"
@@ -857,193 +2172,66 @@
           {
             "bearerAuth": []
           }
-        ]
-      }
-    },
-    "/api/v1/friends/{id}/request": {
-      "post": {
-        "summary": "Send request",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
+        ],
+        "parameters": [
           {
-            "bearerAuth": []
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ]
       }
     },
-    "/api/v1/friends/{id}/accept": {
-      "post": {
-        "summary": "Accept",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/friends/{id}/reject": {
-      "post": {
-        "summary": "Reject",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/friends/{id}": {
-      "delete": {
-        "summary": "Remove friend",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/friends/{id}/block": {
-      "post": {
-        "summary": "Block",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/notifications": {
+    "/api/v1/users/{id}/payment-info": {
       "get": {
-        "summary": "Notifications",
+        "summary": "Get a user's payment details",
+        "tags": [
+          "Users"
+        ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         },
         "security": [
           {
             "bearerAuth": []
           }
-        ]
-      }
-    },
-    "/api/v1/notifications/{id}/read": {
-      "post": {
-        "summary": "Mark read",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
+        ],
+        "parameters": [
           {
-            "bearerAuth": []
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ]
       }
     },
-    "/api/v1/notifications/read-all": {
-      "post": {
-        "summary": "Mark all read",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/categories": {
+    "/docs": {
       "get": {
-        "summary": "Categories",
+        "summary": "Swagger UI",
+        "tags": [
+          "Docs"
+        ],
         "responses": {
           "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      },
-      "post": {
-        "summary": "Create category",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/groups/{id}/stats": {
-      "get": {
-        "summary": "Stats",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/activity": {
-      "get": {
-        "summary": "Global activity",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ]
-      }
-    },
-    "/api/v1/search": {
-      "get": {
-        "summary": "Search",
-        "responses": {
-          "200": {
-            "description": "OK"
+            "description": "HTML"
           }
         },
         "security": [
@@ -1056,6 +2244,60 @@
     "/health": {
       "get": {
         "summary": "Health",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "summary": "This OpenAPI document",
+        "tags": [
+          "Docs"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/readyz": {
+      "get": {
+        "summary": "Readiness (checks the database)",
+        "tags": [
+          "Health"
+        ],
+        "responses": {
+          "200": {
+            "description": "Ready"
+          },
+          "503": {
+            "description": "Database unavailable"
+          }
+        }
+      }
+    },
+    "/uploads/{id}": {
+      "get": {
+        "summary": "Serve file",
         "responses": {
           "200": {
             "description": "OK"
