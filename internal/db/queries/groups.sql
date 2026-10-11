@@ -211,9 +211,10 @@ ORDER BY created_at DESC, id DESC
 LIMIT $3;
 
 -- name: ListMyInvites :many
-SELECT gi.id, gi.group_id, g.name AS group_name, gi.email, gi.created_at
+SELECT gi.id, gi.group_id, g.name AS group_name, gi.email, gi.created_at, gi.expires_at, u.name AS inviter_name
 FROM group_invites gi
 JOIN groups g ON g.id = gi.group_id
+JOIN users u ON u.id = gi.invited_by
 WHERE lower(gi.email) = lower($1) AND gi.status = 'PENDING' AND gi.expires_at > now();
 
 -- name: GetInviteByHash :one
@@ -223,6 +224,13 @@ SELECT id, group_id, email, invited_by, status FROM group_invites WHERE token_ha
 SELECT id, group_id, email, invited_by, status
 FROM group_invites
 WHERE token_hash = $1
+FOR UPDATE;
+
+-- name: GetInviteByIDForUpdate :one
+-- Lets the invitee accept from their in-app inbox, where the raw token is unknown.
+SELECT id, group_id, email, invited_by, status
+FROM group_invites
+WHERE id = $1
 FOR UPDATE;
 
 -- name: IsGroupInviteCurrent :one

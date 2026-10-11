@@ -136,6 +136,8 @@ type Querier interface {
 	GetGroupStatsTotalThisYear(ctx context.Context, groupID uuid.UUID) (GetGroupStatsTotalThisYearRow, error)
 	GetInviteByHash(ctx context.Context, tokenHash string) (GetInviteByHashRow, error)
 	GetInviteByHashForUpdate(ctx context.Context, tokenHash string) (GetInviteByHashForUpdateRow, error)
+	// Lets the invitee accept from their in-app inbox, where the raw token is unknown.
+	GetInviteByIDForUpdate(ctx context.Context, id uuid.UUID) (GetInviteByIDForUpdateRow, error)
 	GetInviteToken(ctx context.Context, id uuid.UUID) (pgtype.Text, error)
 	GetMe(ctx context.Context, id uuid.UUID) (GetMeRow, error)
 	GetMemberRole(ctx context.Context, arg GetMemberRoleParams) (string, error)

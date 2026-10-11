@@ -423,6 +423,35 @@ func (q *Queries) GetInviteByHashForUpdate(ctx context.Context, tokenHash string
 	return i, err
 }
 
+const getInviteByIDForUpdate = `-- name: GetInviteByIDForUpdate :one
+SELECT id, group_id, email, invited_by, status
+FROM group_invites
+WHERE id = $1
+FOR UPDATE
+`
+
+type GetInviteByIDForUpdateRow struct {
+	ID        uuid.UUID `json:"id"`
+	GroupID   uuid.UUID `json:"group_id"`
+	Email     string    `json:"email"`
+	InvitedBy uuid.UUID `json:"invited_by"`
+	Status    string    `json:"status"`
+}
+
+// Lets the invitee accept from their in-app inbox, where the raw token is unknown.
+func (q *Queries) GetInviteByIDForUpdate(ctx context.Context, id uuid.UUID) (GetInviteByIDForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, getInviteByIDForUpdate, id)
+	var i GetInviteByIDForUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.GroupID,
+		&i.Email,
+		&i.InvitedBy,
+		&i.Status,
+	)
+	return i, err
+}
+
 const getInviteToken = `-- name: GetInviteToken :one
 SELECT invite_token FROM groups WHERE id = $1
 `
@@ -874,18 +903,21 @@ func (q *Queries) ListGroupsFiltered(ctx context.Context, arg ListGroupsFiltered
 }
 
 const listMyInvites = `-- name: ListMyInvites :many
-SELECT gi.id, gi.group_id, g.name AS group_name, gi.email, gi.created_at
+SELECT gi.id, gi.group_id, g.name AS group_name, gi.email, gi.created_at, gi.expires_at, u.name AS inviter_name
 FROM group_invites gi
 JOIN groups g ON g.id = gi.group_id
+JOIN users u ON u.id = gi.invited_by
 WHERE lower(gi.email) = lower($1) AND gi.status = 'PENDING' AND gi.expires_at > now()
 `
 
 type ListMyInvitesRow struct {
-	ID        uuid.UUID          `json:"id"`
-	GroupID   uuid.UUID          `json:"group_id"`
-	GroupName string             `json:"group_name"`
-	Email     string             `json:"email"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID          uuid.UUID          `json:"id"`
+	GroupID     uuid.UUID          `json:"group_id"`
+	GroupName   string             `json:"group_name"`
+	Email       string             `json:"email"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+	InviterName string             `json:"inviter_name"`
 }
 
 func (q *Queries) ListMyInvites(ctx context.Context, lower string) ([]ListMyInvitesRow, error) {
@@ -903,6 +935,8 @@ func (q *Queries) ListMyInvites(ctx context.Context, lower string) ([]ListMyInvi
 			&i.GroupName,
 			&i.Email,
 			&i.CreatedAt,
+			&i.ExpiresAt,
+			&i.InviterName,
 		); err != nil {
 			return nil, err
 		}
