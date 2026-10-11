@@ -1041,11 +1041,22 @@ func (h *Handler) UpdateExpense(w http.ResponseWriter, r *http.Request) {
 		ba := int64(math.Round(float64(req.Amount) * rate))
 		baseAmount = &ba
 	}
-	notes := ""
+	// PATCH semantics: omitted notes/category/expense_date keep their stored values;
+	// "" clears notes or category. (Previously omitted fields were wiped / reset to today.)
+	current, curErr := q.GetExpense(r.Context(), expenseID)
+	if curErr != nil {
+		httpx.WriteError(w, r, curErr)
+		return
+	}
+	notes := current.Notes
 	if req.Notes != nil {
 		notes = *req.Notes
 	}
 	var categoryID *uuid.UUID
+	if req.CategoryID == nil && current.CategoryID != uuid.Nil {
+		keep := current.CategoryID
+		categoryID = &keep
+	}
 	if req.CategoryID != nil && *req.CategoryID != "" {
 		id, err := uuid.Parse(*req.CategoryID)
 		if err != nil {
@@ -1055,6 +1066,9 @@ func (h *Handler) UpdateExpense(w http.ResponseWriter, r *http.Request) {
 		categoryID = &id
 	}
 	expenseDate := time.Now().UTC()
+	if current.ExpenseDate.Valid {
+		expenseDate = current.ExpenseDate.Time
+	}
 	if req.ExpenseDate != nil && *req.ExpenseDate != "" {
 		t, err := time.Parse("2006-01-02", *req.ExpenseDate)
 		if err != nil {

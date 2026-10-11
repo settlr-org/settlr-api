@@ -203,3 +203,51 @@ func TestIntegration_Regression_RecurringCatchUpAndFailures(t *testing.T) {
 		t.Fatalf("second run created more instances: %d", n)
 	}
 }
+
+// PATCH /expenses/{id} used to behave as a full replace: an omitted category/notes was wiped
+// and an omitted expense_date reset to today. Omitted fields must now be preserved.
+func TestIntegration_Regression_PatchKeepsOmittedFields(t *testing.T) {
+	pool := testutil.CleanDB(t)
+	srv, tokenFor := newTestServer(t, pool)
+	defer srv.Close()
+	alice := registerUserViaAPI(t, srv, "Alice", "alice-patch@test.local", "password123")
+	tok := tokenFor(alice)
+	code, group := doJSON(t, "POST", srv.URL+"/api/v1/groups", tok, map[string]string{"name": "Patch", "currency": "NPR"}, nil)
+	if code != 201 {
+		t.Fatalf("create group: %d", code)
+	}
+	gid := group["id"].(string)
+	var cat string
+	if err := pool.QueryRow(context.Background(), `INSERT INTO categories (name, is_system) VALUES ('Food-patch-test', true) RETURNING id`).Scan(&cat); err != nil {
+		t.Fatal(err)
+	}
+	splits := []map[string]string{{"user_id": alice.String()}}
+	code, exp := doJSON(t, "POST", fmt.Sprintf("%s/api/v1/groups/%s/expenses", srv.URL, gid), tok, map[string]any{
+		"description": "Dinner", "amount": 1000, "split_mode": "EQUAL", "paid_by": alice.String(), "splits": splits,
+		"category_id": cat, "notes": "birthday", "expense_date": "2026-01-05",
+	}, map[string]string{"Idempotency-Key": uuid.NewString()})
+	if code != 201 {
+		t.Fatalf("create: %d %v", code, exp)
+	}
+	id := exp["id"].(string)
+
+	if code, out := doJSON(t, "PATCH", srv.URL+"/api/v1/expenses/"+id, tok, map[string]any{
+		"description": "Dinner out", "amount": 1200, "split_mode": "EQUAL", "paid_by": alice.String(), "splits": splits,
+	}, nil); code != 200 {
+		t.Fatalf("patch: %d %v", code, out)
+	}
+	_, got := doJSON(t, "GET", srv.URL+"/api/v1/expenses/"+id, tok, nil, nil)
+	if got["description"] != "Dinner out" || got["category_id"] != cat || got["notes"] != "birthday" || got["expense_date"] != "2026-01-05" {
+		t.Fatalf("omitted fields not preserved: %v", got)
+	}
+
+	if code, out := doJSON(t, "PATCH", srv.URL+"/api/v1/expenses/"+id, tok, map[string]any{
+		"description": "Dinner out", "amount": 1200, "split_mode": "EQUAL", "paid_by": alice.String(), "splits": splits, "category_id": "",
+	}, nil); code != 200 {
+		t.Fatalf("patch clear: %d %v", code, out)
+	}
+	_, got = doJSON(t, "GET", srv.URL+"/api/v1/expenses/"+id, tok, nil, nil)
+	if got["category_id"] != nil {
+		t.Fatalf("category_id \"\" should clear the category, got %v", got["category_id"])
+	}
+}

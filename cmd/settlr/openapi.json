@@ -291,7 +291,8 @@
           {
             "bearerAuth": []
           }
-        ]
+        ],
+        "description": "Partial update: omitted category_id, notes and expense_date keep their stored values; send \"\" to clear category_id or notes. Splits are recalculated from split_mode/splits."
       },
       "delete": {
         "summary": "Delete expense",
