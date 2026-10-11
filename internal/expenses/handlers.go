@@ -316,7 +316,7 @@ func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 				httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "percentage required for PERCENTAGE split"}})
 				return
 			}
-			bps[i] = int64(*s.Percentage * 100)
+			bps[i] = int64(math.Round(*s.Percentage * 100)) // round: 0.29*100 = 28.999… in float64
 		}
 		// sort bps to match sorted participant order
 		sortedBps := make([]int64, n)
@@ -972,7 +972,7 @@ func (h *Handler) UpdateExpense(w http.ResponseWriter, r *http.Request) {
 				httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "percentage required for PERCENTAGE split"}})
 				return
 			}
-			bps[i] = int64(*s.Percentage * 100)
+			bps[i] = int64(math.Round(*s.Percentage * 100)) // round: 0.29*100 = 28.999… in float64
 		}
 		sortedBps := make([]int64, n)
 		for sortedPos, origIdx := range sortedIdx {

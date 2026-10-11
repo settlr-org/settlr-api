@@ -115,3 +115,31 @@ func TestIntegration_Regression_QuotedTextActivityAndRecurring(t *testing.T) {
 		t.Fatalf("recurring instance expenses = %d, want 1", n)
 	}
 }
+
+// Percentages were converted with int64(p*100), truncating 29.29 → 2928 bps, so a split that
+// sums to exactly 100% was rejected ("percentages must sum to 10000").
+func TestIntegration_Regression_PercentageRounding(t *testing.T) {
+	pool := testutil.CleanDB(t)
+	srv, tokenFor := newTestServer(t, pool)
+	defer srv.Close()
+	alice := registerUserViaAPI(t, srv, "Alice", "alice-pct@test.local", "password123")
+	bob := registerUserViaAPI(t, srv, "Bob", "bob-pct@test.local", "password123")
+	ensureFriends(t, pool, alice, bob)
+	tok := tokenFor(alice)
+
+	code, group := doJSON(t, "POST", srv.URL+"/api/v1/groups", tok, map[string]string{"name": "Pct", "currency": "NPR"}, nil)
+	if code != 201 {
+		t.Fatalf("create group: %d %v", code, group)
+	}
+	gid := group["id"].(string)
+	if code, out := doJSON(t, "POST", fmt.Sprintf("%s/api/v1/groups/%s/members", srv.URL, gid), tok, map[string]string{"user_id": bob.String()}, nil); code >= 300 {
+		t.Fatalf("add member: %d %v", code, out)
+	}
+	code, exp := doJSON(t, "POST", fmt.Sprintf("%s/api/v1/groups/%s/expenses", srv.URL, gid), tok, map[string]any{
+		"description": "Rent", "amount": 10000, "split_mode": "PERCENTAGE", "paid_by": alice.String(),
+		"splits": []map[string]any{{"user_id": alice.String(), "percentage": 70.71}, {"user_id": bob.String(), "percentage": 29.29}},
+	}, map[string]string{"Idempotency-Key": uuid.NewString()})
+	if code != 201 {
+		t.Fatalf("percentage split summing to 100 rejected: %d %v", code, exp)
+	}
+}
