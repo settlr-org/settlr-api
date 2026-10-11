@@ -28,22 +28,34 @@ DELETE FROM recurring_expenses
 WHERE id = $1 AND group_id IN (SELECT group_id FROM group_members WHERE user_id = $2);
 
 -- name: ClaimDueRecurring :one
-UPDATE recurring_expenses
-SET next_run_at = CASE frequency
-                    WHEN 'DAILY' THEN next_run_at + interval '1 day'
-                    WHEN 'WEEKLY' THEN next_run_at + interval '7 days'
-                    WHEN 'MONTHLY' THEN next_run_at + interval '1 month'
-                    ELSE next_run_at + interval '1 year' END,
-    last_run_at = next_run_at,
-    updated_at = now()
-WHERE id = (
-    SELECT id FROM recurring_expenses
-    WHERE active = true AND next_run_at <= now()
+-- Claims one due schedule and moves it past now() in a single step: run_at is the latest
+-- occurrence <= now() (the instance to create); missed earlier periods are skipped rather
+-- than back-filled. $1 lists schedules that already failed in this run so a broken row
+-- cannot be re-claimed in a hot loop.
+WITH due AS (
+    SELECT id, next_run_at,
+           CASE frequency
+               WHEN 'DAILY' THEN interval '1 day'
+               WHEN 'WEEKLY' THEN interval '7 days'
+               WHEN 'MONTHLY' THEN interval '1 month'
+               ELSE interval '1 year' END AS step
+    FROM recurring_expenses
+    WHERE active = true AND next_run_at <= now() AND NOT (id = ANY(coalesce($1::uuid[], '{}')))
     ORDER BY next_run_at
     FOR UPDATE SKIP LOCKED
     LIMIT 1
+), occ AS (
+    SELECT d.id, d.step, max(t)::timestamptz AS run_at
+    FROM due d, generate_series(d.next_run_at, now(), d.step) AS t
+    GROUP BY d.id, d.step
 )
-RETURNING id, group_id, description, amount, currency, split_mode, category_id, splits, paid_by, next_run_at;
+UPDATE recurring_expenses r
+SET last_run_at = occ.run_at,
+    next_run_at = occ.run_at + occ.step,
+    updated_at = now()
+FROM occ
+WHERE r.id = occ.id
+RETURNING r.id, r.group_id, r.description, r.amount, r.currency, r.split_mode, r.category_id, r.splits, r.paid_by, r.next_run_at, occ.run_at;
 
 -- name: ListRecurringGroupMembers :many
 SELECT user_id FROM group_members WHERE group_id = $1;

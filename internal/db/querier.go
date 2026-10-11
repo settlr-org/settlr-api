@@ -35,7 +35,11 @@ type Querier interface {
 	// Transaction usage: qtx := h.Queries.WithTx(tx)
 	CheckSettlementIsGroupMember(ctx context.Context, arg CheckSettlementIsGroupMemberParams) (bool, error)
 	CheckUserExistsNotAnonymous(ctx context.Context, id uuid.UUID) (bool, error)
-	ClaimDueRecurring(ctx context.Context) (ClaimDueRecurringRow, error)
+	// Claims one due schedule and moves it past now() in a single step: run_at is the latest
+	// occurrence <= now() (the instance to create); missed earlier periods are skipped rather
+	// than back-filled. $1 lists schedules that already failed in this run so a broken row
+	// cannot be re-claimed in a hot loop.
+	ClaimDueRecurring(ctx context.Context, dollar_1 []pgtype.UUID) (ClaimDueRecurringRow, error)
 	CountExpensesByGroup(ctx context.Context, groupID uuid.UUID) (int64, error)
 	CountUnreadNotifications(ctx context.Context, userID uuid.UUID) (int64, error)
 	CreateAttachment(ctx context.Context, arg CreateAttachmentParams) error

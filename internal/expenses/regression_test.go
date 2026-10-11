@@ -143,3 +143,63 @@ func TestIntegration_Regression_PercentageRounding(t *testing.T) {
 		t.Fatalf("percentage split summing to 100 rejected: %d %v", code, exp)
 	}
 }
+
+// A schedule that started long ago must produce one instance (its latest occurrence) and move
+// next_run_at into the future — not back-fill every missed period. A broken schedule must not
+// make RunDue spin or block healthy schedules.
+func TestIntegration_Regression_RecurringCatchUpAndFailures(t *testing.T) {
+	pool := testutil.CleanDB(t)
+	srv, tokenFor := newTestServer(t, pool)
+	defer srv.Close()
+	alice := registerUserViaAPI(t, srv, "Alice", "alice-rec@test.local", "password123")
+	tok := tokenFor(alice)
+	code, group := doJSON(t, "POST", srv.URL+"/api/v1/groups", tok, map[string]string{"name": "Rec", "currency": "NPR"}, nil)
+	if code != 201 {
+		t.Fatalf("create group: %d", code)
+	}
+	gid := group["id"].(string)
+	ctx := context.Background()
+
+	if _, err := pool.Exec(ctx, `INSERT INTO recurring_expenses (id, group_id, created_by, description, amount, currency, split_mode, splits, paid_by, frequency, next_run_at)
+		VALUES (gen_random_uuid(), $1, $2, 'Rent', 1000, 'NPR', 'EQUAL', '[]', $2, 'MONTHLY', '2020-01-15T00:00:00Z')`, gid, alice); err != nil {
+		t.Fatal(err)
+	}
+	// Broken: its stored split names a user that does not exist, so inserting the split
+	// violates a FK on every attempt.
+	if _, err := pool.Exec(ctx, `INSERT INTO recurring_expenses (id, group_id, created_by, description, amount, currency, split_mode, splits, paid_by, frequency, next_run_at)
+		VALUES (gen_random_uuid(), $1, $2, 'Broken', 1000, 'NPR', 'EXACT', jsonb_build_array(jsonb_build_object('user_id', gen_random_uuid()::text, 'amount', 1000)), $2, 'DAILY', now() - interval '1 hour')`, gid, alice); err != nil {
+		t.Fatalf("broken fixture: %v", err)
+	}
+
+	rec := &recurring.Handler{Pool: pool, Queries: db.New(pool)}
+	done := make(chan struct{})
+	go func() { rec.RunDue(ctx); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("RunDue did not return: failing schedule caused a hot loop")
+	}
+
+	var n int
+	var date time.Time
+	if err := pool.QueryRow(ctx, `SELECT count(*), coalesce(max(expense_date), '1970-01-01') FROM expenses WHERE group_id=$1 AND description='Rent (recurring)'`, gid).Scan(&n, &date); err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("rent instances = %d, want exactly 1 (no back-fill)", n)
+	}
+	now := time.Now().UTC()
+	if date.Day() != 15 || date.After(now) || now.Sub(date) > 32*24*time.Hour {
+		t.Fatalf("instance dated %v, want the latest 15th on or before today", date)
+	}
+	var future bool
+	if err := pool.QueryRow(ctx, `SELECT next_run_at > now() FROM recurring_expenses WHERE description='Rent'`).Scan(&future); err != nil || !future {
+		t.Fatalf("next_run_at should be in the future: %v %v", future, err)
+	}
+	// A second run creates nothing new.
+	rec.RunDue(ctx)
+	_ = pool.QueryRow(ctx, `SELECT count(*) FROM expenses WHERE group_id=$1 AND description='Rent (recurring)'`, gid).Scan(&n)
+	if n != 1 {
+		t.Fatalf("second run created more instances: %d", n)
+	}
+}
