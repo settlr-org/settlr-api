@@ -9,3 +9,4 @@ certbot_certs/
 certbot_www/
 *.log
 .DS_Store
+/settlr
