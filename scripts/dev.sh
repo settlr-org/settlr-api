@@ -33,6 +33,8 @@ export SMTP_PASS=""
 export BREVO_API_KEY=""
 export MAIL_FROM_EMAIL="noreply@localhost"
 export MAIL_FROM_NAME="Settlr"
+# Public Google *web* OAuth client id (also used by settlr-web and settlr-android).
+export GOOGLE_OAUTH_CLIENT_IDS="${GOOGLE_OAUTH_CLIENT_IDS:-128162491528-v0joadldv53esa5nfjsqqjgjghh4m5fp.apps.googleusercontent.com}"
 
 cd "$ROOT"
 if command -v air >/dev/null 2>&1; then

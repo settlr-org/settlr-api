@@ -174,7 +174,7 @@ func (h *Handler) CreateSettlement(w http.ResponseWriter, r *http.Request) {
 		GroupID:  groupID,
 		ActorID:  createdBy,
 		EntityID: id,
-		Payload:  json.RawMessage(`{"amount":` + strconv.FormatInt(req.Amount, 10) + `}`),
+		Payload:  httpx.Payload(map[string]any{"amount": req.Amount, "currency": currency, "from_user": from, "to_user": to}),
 	})
 	// Notify participants
 	for _, nid := range []uuid.UUID{from, to} {

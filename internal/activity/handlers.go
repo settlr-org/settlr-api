@@ -51,7 +51,7 @@ func (h *Handler) Global(w http.ResponseWriter, r *http.Request) {
 			err = qerr
 			if err == nil {
 				for _, row := range rows {
-					out = append(out, map[string]any{"id": row.ID, "group_id": row.GroupID, "actor_id": row.ActorID, "type": row.Type, "entity_type": row.EntityType, "entity_id": row.EntityID, "payload": row.Payload, "created_at": row.CreatedAt.Time})
+					out = append(out, map[string]any{"id": row.ID, "group_id": row.GroupID, "actor_id": row.ActorID, "type": row.Type, "entity_type": row.EntityType, "entity_id": row.EntityID, "payload": httpx.RawJSON(row.Payload), "created_at": row.CreatedAt.Time})
 					tmp := row.ID
 					lastID = &tmp
 				}
@@ -62,7 +62,7 @@ func (h *Handler) Global(w http.ResponseWriter, r *http.Request) {
 			err = qerr
 			if err == nil {
 				for _, row := range rows {
-					out = append(out, map[string]any{"id": row.ID, "group_id": row.GroupID, "actor_id": row.ActorID, "type": row.Type, "entity_type": row.EntityType, "entity_id": row.EntityID, "payload": row.Payload, "created_at": row.CreatedAt.Time})
+					out = append(out, map[string]any{"id": row.ID, "group_id": row.GroupID, "actor_id": row.ActorID, "type": row.Type, "entity_type": row.EntityType, "entity_id": row.EntityID, "payload": httpx.RawJSON(row.Payload), "created_at": row.CreatedAt.Time})
 					tmp := row.ID
 					lastID = &tmp
 				}
@@ -73,7 +73,7 @@ func (h *Handler) Global(w http.ResponseWriter, r *http.Request) {
 		err = qerr
 		if err == nil {
 			for _, row := range rows {
-				out = append(out, map[string]any{"id": row.ID, "group_id": row.GroupID, "actor_id": row.ActorID, "type": row.Type, "entity_type": row.EntityType, "entity_id": row.EntityID, "payload": row.Payload, "created_at": row.CreatedAt.Time})
+				out = append(out, map[string]any{"id": row.ID, "group_id": row.GroupID, "actor_id": row.ActorID, "type": row.Type, "entity_type": row.EntityType, "entity_id": row.EntityID, "payload": httpx.RawJSON(row.Payload), "created_at": row.CreatedAt.Time})
 				tmp := row.ID
 				lastID = &tmp
 			}

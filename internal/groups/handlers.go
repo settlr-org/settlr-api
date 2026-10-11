@@ -54,6 +54,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) h
 	mux.Handle("GET /api/v1/groups/{id}/invites", authMw(http.HandlerFunc(h.ListInvites)))
 	mux.Handle("GET /api/v1/invites", authMw(http.HandlerFunc(h.MyInvites)))
 	mux.Handle("POST /api/v1/invites/{token}/accept", authMw(http.HandlerFunc(h.AcceptInvite)))
+	mux.Handle("POST /api/v1/invites/id/{id}/accept", authMw(http.HandlerFunc(h.AcceptInviteByID)))
 }
 
 func (h *Handler) mustBeMember(r *http.Request, groupID uuid.UUID) (userID uuid.UUID, role string, ok bool) {
@@ -178,7 +179,7 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	if err = qtx.InsertActivityEvent(r.Context(), db.InsertActivityEventParams{GroupID: groupID, ActorID: userID, Type: "GROUP_CREATED", EntityType: "group", EntityID: groupID, Payload: json.RawMessage(`{"name":"` + req.Name + `"}`)}); err != nil {
+	if err = qtx.InsertActivityEvent(r.Context(), db.InsertActivityEventParams{GroupID: groupID, ActorID: userID, Type: "GROUP_CREATED", EntityType: "group", EntityID: groupID, Payload: httpx.Payload(map[string]any{"name": req.Name})}); err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
@@ -590,7 +591,7 @@ func (h *Handler) Activity(w http.ResponseWriter, r *http.Request) {
 		}
 		for _, row := range rows {
 			id := row.ID
-			out = append(out, map[string]any{"id": row.ID, "actor_id": row.ActorID, "type": row.Type, "entity_type": row.EntityType, "entity_id": row.EntityID, "payload": row.Payload, "created_at": row.CreatedAt})
+			out = append(out, map[string]any{"id": row.ID, "actor_id": row.ActorID, "type": row.Type, "entity_type": row.EntityType, "entity_id": row.EntityID, "payload": httpx.RawJSON(row.Payload), "created_at": row.CreatedAt})
 			lastID = &id
 		}
 	} else {
@@ -601,7 +602,7 @@ func (h *Handler) Activity(w http.ResponseWriter, r *http.Request) {
 		}
 		for _, row := range rows {
 			id := row.ID
-			out = append(out, map[string]any{"id": row.ID, "actor_id": row.ActorID, "type": row.Type, "entity_type": row.EntityType, "entity_id": row.EntityID, "payload": row.Payload, "created_at": row.CreatedAt})
+			out = append(out, map[string]any{"id": row.ID, "actor_id": row.ActorID, "type": row.Type, "entity_type": row.EntityType, "entity_id": row.EntityID, "payload": httpx.RawJSON(row.Payload), "created_at": row.CreatedAt})
 			lastID = &id
 		}
 	}
@@ -725,7 +726,7 @@ func (h *Handler) MyInvites(w http.ResponseWriter, r *http.Request) {
 	}
 	var out []map[string]any
 	for _, row := range rows {
-		out = append(out, map[string]any{"id": row.ID, "group_id": row.GroupID, "group_name": row.GroupName, "email": row.Email, "created_at": row.CreatedAt})
+		out = append(out, map[string]any{"id": row.ID, "group_id": row.GroupID, "group_name": row.GroupName, "email": row.Email, "created_at": row.CreatedAt, "expires_at": row.ExpiresAt, "inviter_name": row.InviterName})
 	}
 	if out == nil {
 		out = []map[string]any{}
@@ -758,6 +759,45 @@ func (h *Handler) AcceptInvite(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
+	h.acceptLockedInvite(w, r, tx, qtx, lockedInvite{ID: invite.ID, GroupID: invite.GroupID, Email: invite.Email, InvitedBy: invite.InvitedBy, Status: invite.Status}, userID)
+}
+
+// AcceptInviteByID accepts a pending invite from the invitee's inbox (GET /invites), where the
+// raw token is not available. Authorisation is the same email match as token acceptance.
+func (h *Handler) AcceptInviteByID(w http.ResponseWriter, r *http.Request) {
+	inviteID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid invite id"}})
+		return
+	}
+	uid, _ := httpx.GetUserID(r.Context())
+	userID, _ := uuid.Parse(uid)
+	tx, err := h.Pool.Begin(r.Context())
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	defer tx.Rollback(r.Context())
+	qtx := h.queries().WithTx(tx)
+	invite, err := qtx.GetInviteByIDForUpdate(r.Context(), inviteID)
+	if err == pgx.ErrNoRows {
+		httpx.WriteJSON(w, 404, map[string]any{"error": map[string]string{"code": "NOT_FOUND", "message": "invalid or expired invite"}})
+		return
+	}
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	h.acceptLockedInvite(w, r, tx, qtx, lockedInvite{ID: invite.ID, GroupID: invite.GroupID, Email: invite.Email, InvitedBy: invite.InvitedBy, Status: invite.Status}, userID)
+}
+
+type lockedInvite struct {
+	ID, GroupID, InvitedBy uuid.UUID
+	Email, Status          string
+}
+
+// acceptLockedInvite validates and redeems an invite row already locked FOR UPDATE in tx.
+func (h *Handler) acceptLockedInvite(w http.ResponseWriter, r *http.Request, tx pgx.Tx, qtx *db.Queries, invite lockedInvite, userID uuid.UUID) {
 	if invite.Status != "PENDING" {
 		httpx.WriteJSON(w, 409, map[string]any{"error": map[string]string{"code": "CONFLICT", "message": "invite has already been accepted"}})
 		return

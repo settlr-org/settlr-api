@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"embed"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -254,9 +255,15 @@ func seedSystemCategories(ctx context.Context, pool *pgxpool.Pool) error {
 		{"Electricity", "zap", "#EAB308", "Utilities"},
 		{"Water", "droplets", "#06B6D4", "Utilities"},
 	}
+	// The only uniqueness on categories is the partial index idx_categories_system_name
+	// (lower(name) WHERE is_system); ON CONFLICT must name that exact target.
 	for _, c := range cats {
-		_, _ = pool.Exec(ctx,
-			`INSERT INTO categories (name, icon, color, grouping, is_system) VALUES ($1,$2,$3,$4,true) ON CONFLICT (name) DO UPDATE SET grouping=$4, icon=$2, color=$3`, c.name, c.icon, c.color, c.grouping)
+		if _, err := pool.Exec(ctx,
+			`INSERT INTO categories (name, icon, color, grouping, is_system) VALUES ($1,$2,$3,$4,true)
+			 ON CONFLICT (lower(name)) WHERE is_system DO UPDATE SET grouping=$4, icon=$2, color=$3`,
+			c.name, c.icon, c.color, c.grouping); err != nil {
+			return fmt.Errorf("seed category %q: %w", c.name, err)
+		}
 	}
 	return nil
 }

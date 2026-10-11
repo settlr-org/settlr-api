@@ -125,7 +125,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		Description: req.Description,
 		Amount:      req.Amount,
 		Currency:    currency,
-		CategoryID:  categoryID,
+		Column7:     pgtype.UUID{Bytes: categoryID, Valid: categoryID != uuid.Nil},
 		SplitMode:   req.SplitMode,
 		Splits:      splitsJSON,
 		PaidBy:      req.PaidBy,
@@ -252,6 +252,13 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 // RunDue materializes all due recurring expenses into real expenses.
 // Called on startup and periodically by a ticker in main.
 func (h *Handler) RunDue(ctx context.Context) {
+	// Schedules whose instance failed this run; excluded from further claims so a broken
+	// row is retried on the next tick instead of spinning in a hot loop.
+	failed := []pgtype.UUID{}
+	fail := func(tx pgx.Tx, id uuid.UUID) {
+		_ = tx.Rollback(ctx)
+		failed = append(failed, pgtype.UUID{Bytes: id, Valid: true})
+	}
 	for {
 		tx, err := h.Pool.Begin(ctx)
 		if err != nil {
@@ -265,7 +272,7 @@ func (h *Handler) RunDue(ctx context.Context) {
 			return
 		}
 		qtx := q.WithTx(tx)
-		row, err := qtx.ClaimDueRecurring(ctx)
+		row, err := qtx.ClaimDueRecurring(ctx, failed)
 		if err != nil {
 			_ = tx.Rollback(ctx)
 			if err != pgx.ErrNoRows {
@@ -281,7 +288,7 @@ func (h *Handler) RunDue(ctx context.Context) {
 			memberIDs, err := qtx.ListRecurringGroupMembers(ctx, row.GroupID)
 			if err != nil {
 				log.Printf("recurring: members query failed: %v", err)
-				_ = tx.Rollback(ctx)
+				fail(tx, row.ID)
 				continue
 			}
 			var ids []map[string]any
@@ -292,7 +299,12 @@ func (h *Handler) RunDue(ctx context.Context) {
 		}
 		splitsPayload, _ := json.Marshal(splits)
 		expenseID := uuid.New()
-		expenseDate := pgtype.Date{Time: time.Now(), Valid: true}
+		// Date the instance on its scheduled occurrence, not on whenever the job happened to run.
+		runAt := time.Now()
+		if row.RunAt.Valid {
+			runAt = row.RunAt.Time
+		}
+		expenseDate := pgtype.Date{Time: runAt, Valid: true}
 		err = qtx.CreateRecurringExpenseInstance(ctx, db.CreateRecurringExpenseInstanceParams{
 			ID:          expenseID,
 			GroupID:     row.GroupID,
@@ -301,18 +313,18 @@ func (h *Handler) RunDue(ctx context.Context) {
 			Currency:    row.Currency,
 			PaidBy:      row.PaidBy,
 			SplitMode:   row.SplitMode,
-			CategoryID:  row.CategoryID,
+			Column8:     pgtype.UUID{Bytes: row.CategoryID, Valid: row.CategoryID != uuid.Nil},
 			Column9:     expenseDate,
 		})
 		if err != nil {
 			log.Printf("recurring: expense insert failed: %v", err)
-			_ = tx.Rollback(ctx)
+			fail(tx, row.ID)
 			continue
 		}
 		// Insert splits with the same distribution logic as the API path
 		if err := h.insertSplits(ctx, qtx, expenseID, row.GroupID, row.Amount, row.SplitMode, splitsPayload); err != nil {
 			log.Printf("recurring: splits insert failed: %v", err)
-			_ = tx.Rollback(ctx)
+			fail(tx, row.ID)
 			continue
 		}
 		if err = qtx.CreateRecurringActivity(ctx, db.CreateRecurringActivityParams{
@@ -322,11 +334,12 @@ func (h *Handler) RunDue(ctx context.Context) {
 			Column4:  row.Description,
 		}); err != nil {
 			log.Printf("recurring: activity insert failed: %v", err)
-			_ = tx.Rollback(ctx)
+			fail(tx, row.ID)
 			continue
 		}
 		if err = tx.Commit(ctx); err != nil {
 			log.Printf("recurring: commit failed: %v", err)
+			failed = append(failed, pgtype.UUID{Bytes: row.ID, Valid: true})
 			continue
 		}
 	}

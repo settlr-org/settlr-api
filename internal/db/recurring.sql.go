@@ -33,22 +33,30 @@ func (q *Queries) CheckRecurringGroupMember(ctx context.Context, arg CheckRecurr
 }
 
 const claimDueRecurring = `-- name: ClaimDueRecurring :one
-UPDATE recurring_expenses
-SET next_run_at = CASE frequency
-                    WHEN 'DAILY' THEN next_run_at + interval '1 day'
-                    WHEN 'WEEKLY' THEN next_run_at + interval '7 days'
-                    WHEN 'MONTHLY' THEN next_run_at + interval '1 month'
-                    ELSE next_run_at + interval '1 year' END,
-    last_run_at = next_run_at,
-    updated_at = now()
-WHERE id = (
-    SELECT id FROM recurring_expenses
-    WHERE active = true AND next_run_at <= now()
+WITH due AS (
+    SELECT id, next_run_at,
+           CASE frequency
+               WHEN 'DAILY' THEN interval '1 day'
+               WHEN 'WEEKLY' THEN interval '7 days'
+               WHEN 'MONTHLY' THEN interval '1 month'
+               ELSE interval '1 year' END AS step
+    FROM recurring_expenses
+    WHERE active = true AND next_run_at <= now() AND NOT (id = ANY(coalesce($1::uuid[], '{}')))
     ORDER BY next_run_at
     FOR UPDATE SKIP LOCKED
     LIMIT 1
+), occ AS (
+    SELECT d.id, d.step, max(t)::timestamptz AS run_at
+    FROM due d, generate_series(d.next_run_at, now(), d.step) AS t
+    GROUP BY d.id, d.step
 )
-RETURNING id, group_id, description, amount, currency, split_mode, category_id, splits, paid_by, next_run_at
+UPDATE recurring_expenses r
+SET last_run_at = occ.run_at,
+    next_run_at = occ.run_at + occ.step,
+    updated_at = now()
+FROM occ
+WHERE r.id = occ.id
+RETURNING r.id, r.group_id, r.description, r.amount, r.currency, r.split_mode, r.category_id, r.splits, r.paid_by, r.next_run_at, occ.run_at
 `
 
 type ClaimDueRecurringRow struct {
@@ -62,10 +70,15 @@ type ClaimDueRecurringRow struct {
 	Splits      []byte             `json:"splits"`
 	PaidBy      uuid.UUID          `json:"paid_by"`
 	NextRunAt   pgtype.Timestamptz `json:"next_run_at"`
+	RunAt       pgtype.Timestamptz `json:"run_at"`
 }
 
-func (q *Queries) ClaimDueRecurring(ctx context.Context) (ClaimDueRecurringRow, error) {
-	row := q.db.QueryRow(ctx, claimDueRecurring)
+// Claims one due schedule and moves it past now() in a single step: run_at is the latest
+// occurrence <= now() (the instance to create); missed earlier periods are skipped rather
+// than back-filled. $1 lists schedules that already failed in this run so a broken row
+// cannot be re-claimed in a hot loop.
+func (q *Queries) ClaimDueRecurring(ctx context.Context, dollar_1 []pgtype.UUID) (ClaimDueRecurringRow, error) {
+	row := q.db.QueryRow(ctx, claimDueRecurring, dollar_1)
 	var i ClaimDueRecurringRow
 	err := row.Scan(
 		&i.ID,
@@ -78,6 +91,7 @@ func (q *Queries) ClaimDueRecurring(ctx context.Context) (ClaimDueRecurringRow, 
 		&i.Splits,
 		&i.PaidBy,
 		&i.NextRunAt,
+		&i.RunAt,
 	)
 	return i, err
 }
@@ -106,7 +120,7 @@ func (q *Queries) CreateRecurringActivity(ctx context.Context, arg CreateRecurri
 
 const createRecurringExpense = `-- name: CreateRecurringExpense :exec
 INSERT INTO recurring_expenses (id, group_id, created_by, description, amount, currency, category_id, split_mode, splits, paid_by, frequency, next_run_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7::uuid, '00000000-0000-0000-0000-000000000000'::uuid), $8, $9, $10, $11, $12)
 `
 
 type CreateRecurringExpenseParams struct {
@@ -116,7 +130,7 @@ type CreateRecurringExpenseParams struct {
 	Description string             `json:"description"`
 	Amount      int64              `json:"amount"`
 	Currency    string             `json:"currency"`
-	CategoryID  uuid.UUID          `json:"category_id"`
+	Column7     pgtype.UUID        `json:"column_7"`
 	SplitMode   string             `json:"split_mode"`
 	Splits      []byte             `json:"splits"`
 	PaidBy      uuid.UUID          `json:"paid_by"`
@@ -132,7 +146,7 @@ func (q *Queries) CreateRecurringExpense(ctx context.Context, arg CreateRecurrin
 		arg.Description,
 		arg.Amount,
 		arg.Currency,
-		arg.CategoryID,
+		arg.Column7,
 		arg.SplitMode,
 		arg.Splits,
 		arg.PaidBy,
@@ -144,7 +158,7 @@ func (q *Queries) CreateRecurringExpense(ctx context.Context, arg CreateRecurrin
 
 const createRecurringExpenseInstance = `-- name: CreateRecurringExpenseInstance :exec
 INSERT INTO expenses (id, group_id, description, amount, currency, paid_by, split_mode, category_id, expense_date, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::date, $6)
+VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8::uuid, '00000000-0000-0000-0000-000000000000'::uuid), $9::date, $6)
 `
 
 type CreateRecurringExpenseInstanceParams struct {
@@ -155,7 +169,7 @@ type CreateRecurringExpenseInstanceParams struct {
 	Currency    string      `json:"currency"`
 	PaidBy      uuid.UUID   `json:"paid_by"`
 	SplitMode   string      `json:"split_mode"`
-	CategoryID  uuid.UUID   `json:"category_id"`
+	Column8     pgtype.UUID `json:"column_8"`
 	Column9     pgtype.Date `json:"column_9"`
 }
 
@@ -168,7 +182,7 @@ func (q *Queries) CreateRecurringExpenseInstance(ctx context.Context, arg Create
 		arg.Currency,
 		arg.PaidBy,
 		arg.SplitMode,
-		arg.CategoryID,
+		arg.Column8,
 		arg.Column9,
 	)
 	return err

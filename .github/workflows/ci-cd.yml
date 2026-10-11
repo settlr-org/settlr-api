@@ -87,7 +87,8 @@ jobs:
           cache-to: type=gha,mode=max
   deploy-production:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: publish-container
+    # Builds from source on the host (public repo), so it needs only a green verify.
+    needs: verify
     runs-on: ubuntu-latest
     concurrency:
       group: settlr-production-deploy
@@ -96,29 +97,32 @@ jobs:
       - name: Check deploy secrets
         id: check
         run: |
-          if [ -z "${{ secrets.HETZNER_HOST }}" ] || [ -z "${{ secrets.HETZNER_SSH_KEY }}" ] || [ -z "${{ secrets.HETZNER_USER }}" ]; then
+          # Production API host (myserver). Set up once with deploy/install-myserver.sh.
+          if [ -z "${{ secrets.DEPLOY_HOST }}" ] || [ -z "${{ secrets.DEPLOY_SSH_KEY }}" ] || [ -z "${{ secrets.DEPLOY_USER }}" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "HETZNER_HOST/HETZNER_SSH_KEY/HETZNER_USER not set — skipping deploy (public fork safe)"
+            echo "DEPLOY_HOST/DEPLOY_SSH_KEY/DEPLOY_USER not set — skipping deploy (public fork safe)"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Configure dedicated deployment key
         if: steps.check.outputs.skip == 'false'
         env:
-          SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
           install -d -m 700 ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-      - name: Deploy the approved Docker Hub digest
+      - name: Deploy this commit to myserver
         if: steps.check.outputs.skip == 'false'
         env:
-          HOST: ${{ secrets.HETZNER_HOST }}
-          USER: ${{ secrets.HETZNER_USER }}
-          IMAGE: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/settlr-api@${{ needs.publish-container.outputs.image_digest }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+          USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          ssh -4 -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new \
-            "$USER@$HOST" "sudo -n /usr/local/sbin/settlr-deploy-image '$IMAGE'"
+          # The key is restricted server-side to this exact command (deploy/settlr-deploy-ssh);
+          # the host builds the commit, waits for /readyz and rolls back on failure.
+          ssh -4 -p "$PORT" -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new \
+            "$USER@$HOST" "sudo -n /usr/local/sbin/settlr-deploy $GITHUB_SHA"
       - name: Verify public readiness
         env:
           HEALTH_URL: ${{ secrets.PRODUCTION_API_URL }}

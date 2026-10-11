@@ -316,7 +316,7 @@ func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 				httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "percentage required for PERCENTAGE split"}})
 				return
 			}
-			bps[i] = int64(*s.Percentage * 100)
+			bps[i] = int64(math.Round(*s.Percentage * 100)) // round: 0.29*100 = 28.999… in float64
 		}
 		// sort bps to match sorted participant order
 		sortedBps := make([]int64, n)
@@ -455,7 +455,7 @@ func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 		GroupID:  groupID,
 		ActorID:  createdBy,
 		EntityID: expenseID,
-		Payload:  json.RawMessage(`{"description":"` + req.Description + `"}`),
+		Payload:  httpx.Payload(map[string]any{"description": req.Description, "amount": req.Amount, "currency": currency, "expense_id": expenseID}),
 	})
 	if err != nil {
 		httpx.WriteError(w, r, err)
@@ -972,7 +972,7 @@ func (h *Handler) UpdateExpense(w http.ResponseWriter, r *http.Request) {
 				httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "percentage required for PERCENTAGE split"}})
 				return
 			}
-			bps[i] = int64(*s.Percentage * 100)
+			bps[i] = int64(math.Round(*s.Percentage * 100)) // round: 0.29*100 = 28.999… in float64
 		}
 		sortedBps := make([]int64, n)
 		for sortedPos, origIdx := range sortedIdx {
@@ -1041,11 +1041,22 @@ func (h *Handler) UpdateExpense(w http.ResponseWriter, r *http.Request) {
 		ba := int64(math.Round(float64(req.Amount) * rate))
 		baseAmount = &ba
 	}
-	notes := ""
+	// PATCH semantics: omitted notes/category/expense_date keep their stored values;
+	// "" clears notes or category. (Previously omitted fields were wiped / reset to today.)
+	current, curErr := q.GetExpense(r.Context(), expenseID)
+	if curErr != nil {
+		httpx.WriteError(w, r, curErr)
+		return
+	}
+	notes := current.Notes
 	if req.Notes != nil {
 		notes = *req.Notes
 	}
 	var categoryID *uuid.UUID
+	if req.CategoryID == nil && current.CategoryID != uuid.Nil {
+		keep := current.CategoryID
+		categoryID = &keep
+	}
 	if req.CategoryID != nil && *req.CategoryID != "" {
 		id, err := uuid.Parse(*req.CategoryID)
 		if err != nil {
@@ -1055,6 +1066,9 @@ func (h *Handler) UpdateExpense(w http.ResponseWriter, r *http.Request) {
 		categoryID = &id
 	}
 	expenseDate := time.Now().UTC()
+	if current.ExpenseDate.Valid {
+		expenseDate = current.ExpenseDate.Time
+	}
 	if req.ExpenseDate != nil && *req.ExpenseDate != "" {
 		t, err := time.Parse("2006-01-02", *req.ExpenseDate)
 		if err != nil {
@@ -1140,7 +1154,7 @@ func (h *Handler) UpdateExpense(w http.ResponseWriter, r *http.Request) {
 		GroupID:  groupID,
 		ActorID:  actorID,
 		EntityID: expenseID,
-		Payload:  json.RawMessage(`{"description":"` + req.Description + `"}`),
+		Payload:  httpx.Payload(map[string]any{"description": req.Description, "expense_id": expenseID}),
 	})
 	if err != nil {
 		httpx.WriteError(w, r, err)
@@ -1191,7 +1205,7 @@ func (h *Handler) DeleteExpense(w http.ResponseWriter, r *http.Request) {
 		GroupID:  groupID,
 		ActorID:  actorID,
 		EntityID: expenseID,
-		Payload:  json.RawMessage(`{}`),
+		Payload:  httpx.Payload(map[string]any{"expense_id": expenseID}),
 	})
 	httpx.WriteJSON(w, 200, map[string]any{"message": "deleted"})
 }

@@ -121,7 +121,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	_ = q.CreateCommentActivity(r.Context(), db.CreateCommentActivityParams{GroupID: groupID, ActorID: userID, EntityID: id, Payload: json.RawMessage(`{"expense_id":"` + expenseID.String() + `"}`)})
+	_ = q.CreateCommentActivity(r.Context(), db.CreateCommentActivityParams{GroupID: groupID, ActorID: userID, EntityID: id, Payload: httpx.Payload(map[string]any{"expense_id": expenseID})})
 	// Notify other participants
 	nids, _ := q.ListCommentNotifyUsers(r.Context(), db.ListCommentNotifyUsersParams{ExpenseID: expenseID, UserID: userID})
 	for _, nid := range nids {
