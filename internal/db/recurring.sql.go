@@ -106,7 +106,7 @@ func (q *Queries) CreateRecurringActivity(ctx context.Context, arg CreateRecurri
 
 const createRecurringExpense = `-- name: CreateRecurringExpense :exec
 INSERT INTO recurring_expenses (id, group_id, created_by, description, amount, currency, category_id, split_mode, splits, paid_by, frequency, next_run_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7::uuid, '00000000-0000-0000-0000-000000000000'::uuid), $8, $9, $10, $11, $12)
 `
 
 type CreateRecurringExpenseParams struct {
@@ -116,7 +116,7 @@ type CreateRecurringExpenseParams struct {
 	Description string             `json:"description"`
 	Amount      int64              `json:"amount"`
 	Currency    string             `json:"currency"`
-	CategoryID  uuid.UUID          `json:"category_id"`
+	Column7     pgtype.UUID        `json:"column_7"`
 	SplitMode   string             `json:"split_mode"`
 	Splits      []byte             `json:"splits"`
 	PaidBy      uuid.UUID          `json:"paid_by"`
@@ -132,7 +132,7 @@ func (q *Queries) CreateRecurringExpense(ctx context.Context, arg CreateRecurrin
 		arg.Description,
 		arg.Amount,
 		arg.Currency,
-		arg.CategoryID,
+		arg.Column7,
 		arg.SplitMode,
 		arg.Splits,
 		arg.PaidBy,
@@ -144,7 +144,7 @@ func (q *Queries) CreateRecurringExpense(ctx context.Context, arg CreateRecurrin
 
 const createRecurringExpenseInstance = `-- name: CreateRecurringExpenseInstance :exec
 INSERT INTO expenses (id, group_id, description, amount, currency, paid_by, split_mode, category_id, expense_date, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::date, $6)
+VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8::uuid, '00000000-0000-0000-0000-000000000000'::uuid), $9::date, $6)
 `
 
 type CreateRecurringExpenseInstanceParams struct {
@@ -155,7 +155,7 @@ type CreateRecurringExpenseInstanceParams struct {
 	Currency    string      `json:"currency"`
 	PaidBy      uuid.UUID   `json:"paid_by"`
 	SplitMode   string      `json:"split_mode"`
-	CategoryID  uuid.UUID   `json:"category_id"`
+	Column8     pgtype.UUID `json:"column_8"`
 	Column9     pgtype.Date `json:"column_9"`
 }
 
@@ -168,7 +168,7 @@ func (q *Queries) CreateRecurringExpenseInstance(ctx context.Context, arg Create
 		arg.Currency,
 		arg.PaidBy,
 		arg.SplitMode,
-		arg.CategoryID,
+		arg.Column8,
 		arg.Column9,
 	)
 	return err

@@ -10,7 +10,7 @@ ORDER BY created_at DESC;
 
 -- name: CreateRecurringExpense :exec
 INSERT INTO recurring_expenses (id, group_id, created_by, description, amount, currency, category_id, split_mode, splits, paid_by, frequency, next_run_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);
+VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7::uuid, '00000000-0000-0000-0000-000000000000'::uuid), $8, $9, $10, $11, $12);
 
 -- name: CheckRecurringGroupMember :one
 SELECT EXISTS(
@@ -50,7 +50,7 @@ SELECT user_id FROM group_members WHERE group_id = $1;
 
 -- name: CreateRecurringExpenseInstance :exec
 INSERT INTO expenses (id, group_id, description, amount, currency, paid_by, split_mode, category_id, expense_date, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::date, $6);
+VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8::uuid, '00000000-0000-0000-0000-000000000000'::uuid), $9::date, $6);
 
 -- name: CreateRecurringSplit :exec
 INSERT INTO expense_splits (id, expense_id, user_id, amount) VALUES (gen_random_uuid(), $1, $2, $3);

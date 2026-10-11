@@ -455,7 +455,7 @@ func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 		GroupID:  groupID,
 		ActorID:  createdBy,
 		EntityID: expenseID,
-		Payload:  json.RawMessage(`{"description":"` + req.Description + `"}`),
+		Payload:  httpx.Payload(map[string]any{"description": req.Description, "amount": req.Amount, "currency": currency, "expense_id": expenseID}),
 	})
 	if err != nil {
 		httpx.WriteError(w, r, err)
@@ -1140,7 +1140,7 @@ func (h *Handler) UpdateExpense(w http.ResponseWriter, r *http.Request) {
 		GroupID:  groupID,
 		ActorID:  actorID,
 		EntityID: expenseID,
-		Payload:  json.RawMessage(`{"description":"` + req.Description + `"}`),
+		Payload:  httpx.Payload(map[string]any{"description": req.Description, "expense_id": expenseID}),
 	})
 	if err != nil {
 		httpx.WriteError(w, r, err)
@@ -1191,7 +1191,7 @@ func (h *Handler) DeleteExpense(w http.ResponseWriter, r *http.Request) {
 		GroupID:  groupID,
 		ActorID:  actorID,
 		EntityID: expenseID,
-		Payload:  json.RawMessage(`{}`),
+		Payload:  httpx.Payload(map[string]any{"expense_id": expenseID}),
 	})
 	httpx.WriteJSON(w, 200, map[string]any{"message": "deleted"})
 }

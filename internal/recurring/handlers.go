@@ -125,7 +125,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		Description: req.Description,
 		Amount:      req.Amount,
 		Currency:    currency,
-		CategoryID:  categoryID,
+		Column7:     pgtype.UUID{Bytes: categoryID, Valid: categoryID != uuid.Nil},
 		SplitMode:   req.SplitMode,
 		Splits:      splitsJSON,
 		PaidBy:      req.PaidBy,
@@ -301,7 +301,7 @@ func (h *Handler) RunDue(ctx context.Context) {
 			Currency:    row.Currency,
 			PaidBy:      row.PaidBy,
 			SplitMode:   row.SplitMode,
-			CategoryID:  row.CategoryID,
+			Column8:     pgtype.UUID{Bytes: row.CategoryID, Valid: row.CategoryID != uuid.Nil},
 			Column9:     expenseDate,
 		})
 		if err != nil {

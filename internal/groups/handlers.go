@@ -178,7 +178,7 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	if err = qtx.InsertActivityEvent(r.Context(), db.InsertActivityEventParams{GroupID: groupID, ActorID: userID, Type: "GROUP_CREATED", EntityType: "group", EntityID: groupID, Payload: json.RawMessage(`{"name":"` + req.Name + `"}`)}); err != nil {
+	if err = qtx.InsertActivityEvent(r.Context(), db.InsertActivityEventParams{GroupID: groupID, ActorID: userID, Type: "GROUP_CREATED", EntityType: "group", EntityID: groupID, Payload: httpx.Payload(map[string]any{"name": req.Name})}); err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
@@ -590,7 +590,7 @@ func (h *Handler) Activity(w http.ResponseWriter, r *http.Request) {
 		}
 		for _, row := range rows {
 			id := row.ID
-			out = append(out, map[string]any{"id": row.ID, "actor_id": row.ActorID, "type": row.Type, "entity_type": row.EntityType, "entity_id": row.EntityID, "payload": row.Payload, "created_at": row.CreatedAt})
+			out = append(out, map[string]any{"id": row.ID, "actor_id": row.ActorID, "type": row.Type, "entity_type": row.EntityType, "entity_id": row.EntityID, "payload": httpx.RawJSON(row.Payload), "created_at": row.CreatedAt})
 			lastID = &id
 		}
 	} else {
@@ -601,7 +601,7 @@ func (h *Handler) Activity(w http.ResponseWriter, r *http.Request) {
 		}
 		for _, row := range rows {
 			id := row.ID
-			out = append(out, map[string]any{"id": row.ID, "actor_id": row.ActorID, "type": row.Type, "entity_type": row.EntityType, "entity_id": row.EntityID, "payload": row.Payload, "created_at": row.CreatedAt})
+			out = append(out, map[string]any{"id": row.ID, "actor_id": row.ActorID, "type": row.Type, "entity_type": row.EntityType, "entity_id": row.EntityID, "payload": httpx.RawJSON(row.Payload), "created_at": row.CreatedAt})
 			lastID = &id
 		}
 	}
