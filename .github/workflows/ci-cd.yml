@@ -96,16 +96,17 @@ jobs:
       - name: Check deploy secrets
         id: check
         run: |
-          if [ -z "${{ secrets.HETZNER_HOST }}" ] || [ -z "${{ secrets.HETZNER_SSH_KEY }}" ] || [ -z "${{ secrets.HETZNER_USER }}" ]; then
+          # Production API host (myserver). Set up once with deploy/install-myserver.sh.
+          if [ -z "${{ secrets.DEPLOY_HOST }}" ] || [ -z "${{ secrets.DEPLOY_SSH_KEY }}" ] || [ -z "${{ secrets.DEPLOY_USER }}" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "HETZNER_HOST/HETZNER_SSH_KEY/HETZNER_USER not set — skipping deploy (public fork safe)"
+            echo "DEPLOY_HOST/DEPLOY_SSH_KEY/DEPLOY_USER not set — skipping deploy (public fork safe)"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Configure dedicated deployment key
         if: steps.check.outputs.skip == 'false'
         env:
-          SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
           install -d -m 700 ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
@@ -113,11 +114,13 @@ jobs:
       - name: Deploy the approved Docker Hub digest
         if: steps.check.outputs.skip == 'false'
         env:
-          HOST: ${{ secrets.HETZNER_HOST }}
-          USER: ${{ secrets.HETZNER_USER }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+          USER: ${{ secrets.DEPLOY_USER }}
           IMAGE: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/settlr-api@${{ needs.publish-container.outputs.image_digest }}
         run: |
-          ssh -4 -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new \
+          # The key is restricted server-side to this exact command (deploy/settlr-deploy-ssh).
+          ssh -4 -p "$PORT" -o BatchMode=yes -o ConnectTimeout=20 -o StrictHostKeyChecking=accept-new \
             "$USER@$HOST" "sudo -n /usr/local/sbin/settlr-deploy-image '$IMAGE'"
       - name: Verify public readiness
         env:
