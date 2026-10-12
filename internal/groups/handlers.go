@@ -55,6 +55,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) h
 	mux.Handle("GET /api/v1/invites", authMw(http.HandlerFunc(h.MyInvites)))
 	mux.Handle("POST /api/v1/invites/{token}/accept", authMw(http.HandlerFunc(h.AcceptInvite)))
 	mux.Handle("POST /api/v1/invites/id/{id}/accept", authMw(http.HandlerFunc(h.AcceptInviteByID)))
+	mux.Handle("POST /api/v1/invites/id/{id}/decline", authMw(http.HandlerFunc(h.DeclineInviteByID)))
 }
 
 func (h *Handler) mustBeMember(r *http.Request, groupID uuid.UUID) (userID uuid.UUID, role string, ok bool) {
@@ -789,6 +790,33 @@ func (h *Handler) AcceptInviteByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.acceptLockedInvite(w, r, tx, qtx, lockedInvite{ID: invite.ID, GroupID: invite.GroupID, Email: invite.Email, InvitedBy: invite.InvitedBy, Status: invite.Status}, userID)
+}
+
+// DeclineInviteByID removes a pending invite addressed to the caller's email (inbox "Decline").
+func (h *Handler) DeclineInviteByID(w http.ResponseWriter, r *http.Request) {
+	inviteID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid invite id"}})
+		return
+	}
+	uid, _ := httpx.GetUserID(r.Context())
+	userID, _ := uuid.Parse(uid)
+	q := h.queries()
+	email, err := q.GetUserEmail(r.Context(), userID)
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	n, err := q.DeclineInviteForEmail(r.Context(), db.DeclineInviteForEmailParams{ID: inviteID, Lower: email})
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	if n == 0 {
+		httpx.WriteJSON(w, 404, map[string]any{"error": map[string]string{"code": "NOT_FOUND", "message": "invalid or expired invite"}})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 type lockedInvite struct {

@@ -73,6 +73,8 @@ type Querier interface {
 	CreateSettlementActivity(ctx context.Context, arg CreateSettlementActivityParams) error
 	CreateSettlementNotification(ctx context.Context, arg CreateSettlementNotificationParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) error
+	// The invitee dismisses a pending invite from their inbox; the inviter can invite again later.
+	DeclineInviteForEmail(ctx context.Context, arg DeclineInviteForEmailParams) (int64, error)
 	DeleteAttachment(ctx context.Context, id uuid.UUID) error
 	DeleteExpenseSplits(ctx context.Context, expenseID uuid.UUID) error
 	DeleteExpiredIdempotencyKeys(ctx context.Context) (int64, error)
@@ -84,6 +86,8 @@ type Querier interface {
 	DeleteGroupRecurring(ctx context.Context, groupID uuid.UUID) error
 	DeleteGroupSettlements(ctx context.Context, groupID uuid.UUID) error
 	DeleteRecurring(ctx context.Context, arg DeleteRecurringParams) (int64, error)
+	// Rotated/revoked or expired sessions older than 30 days carry no reuse-detection value any more.
+	DeleteStaleSessions(ctx context.Context) (int64, error)
 	EnsureFriendship(ctx context.Context, arg EnsureFriendshipParams) error
 	ExportGroupCSV(ctx context.Context, groupID uuid.UUID) ([]ExportGroupCSVRow, error)
 	ExportGroupJSON(ctx context.Context, groupID uuid.UUID) ([]ExportGroupJSONRow, error)
@@ -254,6 +258,7 @@ type Querier interface {
 	// Handler usage: Handler{Pool *pgxpool.Pool, Queries *db.Queries} where Queries wraps the pool.
 	ListRecurringByGroup(ctx context.Context, groupID uuid.UUID) ([]ListRecurringByGroupRow, error)
 	ListRecurringGroupMembers(ctx context.Context, groupID uuid.UUID) ([]uuid.UUID, error)
+	// Live sessions only: every refresh rotates (revokes) the previous row, so revoked rows are history.
 	ListSessionsByUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsByUserRow, error)
 	ListSettlements(ctx context.Context, arg ListSettlementsParams) ([]ListSettlementsRow, error)
 	ListSettlementsByGroup(ctx context.Context, groupID uuid.UUID) ([]ListSettlementsByGroupRow, error)
@@ -274,6 +279,7 @@ type Querier interface {
 	RevokeSessionByHash(ctx context.Context, refreshTokenHash string) error
 	RevokeSessionByID(ctx context.Context, arg RevokeSessionByIDParams) error
 	RevokeSessionByIDReturning(ctx context.Context, arg RevokeSessionByIDReturningParams) (uuid.UUID, error)
+	// Keep the device and original sign-in time so the session list stays meaningful across refreshes.
 	RotateSession(ctx context.Context, arg RotateSessionParams) (uuid.UUID, error)
 	SearchExpenses(ctx context.Context, arg SearchExpensesParams) ([]SearchExpensesRow, error)
 	SearchGroups(ctx context.Context, arg SearchGroupsParams) ([]SearchGroupsRow, error)

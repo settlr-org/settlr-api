@@ -113,6 +113,21 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	return err
 }
 
+const deleteStaleSessions = `-- name: DeleteStaleSessions :execrows
+DELETE FROM sessions
+WHERE (revoked_at IS NOT NULL AND revoked_at < now() - interval '30 days')
+   OR expires_at < now() - interval '30 days'
+`
+
+// Rotated/revoked or expired sessions older than 30 days carry no reuse-detection value any more.
+func (q *Queries) DeleteStaleSessions(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteStaleSessions)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getEmailVerificationTokenUser = `-- name: GetEmailVerificationTokenUser :one
 SELECT user_id FROM email_verification_tokens WHERE token_hash = $1 AND expires_at > now() AND verified_at IS NULL LIMIT 1
 `
@@ -287,7 +302,9 @@ func (q *Queries) GetUserVerificationByID(ctx context.Context, id uuid.UUID) (Ge
 }
 
 const listSessionsByUser = `-- name: ListSessionsByUser :many
-SELECT id, user_agent, ip, created_at, last_used_at, expires_at, revoked_at FROM sessions WHERE user_id = $1 ORDER BY created_at DESC
+SELECT id, user_agent, ip, created_at, last_used_at, expires_at, revoked_at FROM sessions
+WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > now()
+ORDER BY last_used_at DESC
 `
 
 type ListSessionsByUserRow struct {
@@ -300,6 +317,7 @@ type ListSessionsByUserRow struct {
 	RevokedAt  pgtype.Timestamptz `json:"revoked_at"`
 }
 
+// Live sessions only: every refresh rotates (revokes) the previous row, so revoked rows are history.
 func (q *Queries) ListSessionsByUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsByUserRow, error) {
 	rows, err := q.db.Query(ctx, listSessionsByUser, userID)
 	if err != nil {
@@ -396,10 +414,11 @@ func (q *Queries) RevokeSessionByIDReturning(ctx context.Context, arg RevokeSess
 
 const rotateSession = `-- name: RotateSession :one
 WITH rotated AS (
-    UPDATE sessions SET revoked_at = now() WHERE sessions.refresh_token_hash = $1 AND sessions.revoked_at IS NULL RETURNING sessions.user_id, sessions.id
+    UPDATE sessions SET revoked_at = now() WHERE sessions.refresh_token_hash = $1 AND sessions.revoked_at IS NULL
+    RETURNING sessions.user_id, sessions.id, sessions.user_agent, sessions.ip, sessions.created_at
 )
-INSERT INTO sessions (user_id, refresh_token_hash, expires_at, rotated_from)
-SELECT rotated.user_id, $2, now() + interval '30 days', rotated.id FROM rotated
+INSERT INTO sessions (user_id, refresh_token_hash, expires_at, rotated_from, user_agent, ip, created_at)
+SELECT rotated.user_id, $2, now() + interval '30 days', rotated.id, rotated.user_agent, rotated.ip, rotated.created_at FROM rotated
 RETURNING id
 `
 
@@ -408,6 +427,7 @@ type RotateSessionParams struct {
 	RefreshTokenHash_2 string `json:"refresh_token_hash_2"`
 }
 
+// Keep the device and original sign-in time so the session list stays meaningful across refreshes.
 func (q *Queries) RotateSession(ctx context.Context, arg RotateSessionParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, rotateSession, arg.RefreshTokenHash, arg.RefreshTokenHash_2)
 	var id uuid.UUID

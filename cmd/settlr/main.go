@@ -152,6 +152,14 @@ func main() {
 	// records on startup and every 15 minutes.
 	recurringHandler.RunDue(ctx)
 	idempotency.Cleanup(ctx, queries)
+	pruneSessions := func() {
+		if n, err := queries.DeleteStaleSessions(ctx); err != nil {
+			slog.Warn("prune stale sessions", "err", err)
+		} else if n > 0 {
+			slog.Info("pruned stale sessions", "count", n)
+		}
+	}
+	pruneSessions()
 	go func() {
 		ticker := time.NewTicker(15 * time.Minute)
 		defer ticker.Stop()
@@ -162,6 +170,7 @@ func main() {
 			case <-ticker.C:
 				recurringHandler.RunDue(ctx)
 				idempotency.Cleanup(ctx, queries)
+				pruneSessions()
 			}
 		}
 	}()
