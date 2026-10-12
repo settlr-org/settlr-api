@@ -40,6 +40,7 @@ type Querier interface {
 	// than back-filled. $1 lists schedules that already failed in this run so a broken row
 	// cannot be re-claimed in a hot loop.
 	ClaimDueRecurring(ctx context.Context, dollar_1 []pgtype.UUID) (ClaimDueRecurringRow, error)
+	CompleteIdempotencyKey(ctx context.Context, arg CompleteIdempotencyKeyParams) (int64, error)
 	CountExpensesByGroup(ctx context.Context, groupID uuid.UUID) (int64, error)
 	CountUnreadNotifications(ctx context.Context, userID uuid.UUID) (int64, error)
 	CreateAttachment(ctx context.Context, arg CreateAttachmentParams) error
@@ -74,6 +75,7 @@ type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) error
 	DeleteAttachment(ctx context.Context, id uuid.UUID) error
 	DeleteExpenseSplits(ctx context.Context, expenseID uuid.UUID) error
+	DeleteExpiredIdempotencyKeys(ctx context.Context) (int64, error)
 	DeleteFriendship(ctx context.Context, arg DeleteFriendshipParams) (int64, error)
 	DeleteGroup(ctx context.Context, id uuid.UUID) error
 	DeleteGroupExpenseAttachments(ctx context.Context, groupID uuid.UUID) error
@@ -138,6 +140,7 @@ type Querier interface {
 	GetGroupStatsTotalLast30(ctx context.Context, groupID uuid.UUID) (GetGroupStatsTotalLast30Row, error)
 	GetGroupStatsTotalThisMonth(ctx context.Context, groupID uuid.UUID) (GetGroupStatsTotalThisMonthRow, error)
 	GetGroupStatsTotalThisYear(ctx context.Context, groupID uuid.UUID) (GetGroupStatsTotalThisYearRow, error)
+	GetIdempotencyKey(ctx context.Context, arg GetIdempotencyKeyParams) (GetIdempotencyKeyRow, error)
 	GetInviteByHash(ctx context.Context, tokenHash string) (GetInviteByHashRow, error)
 	GetInviteByHashForUpdate(ctx context.Context, tokenHash string) (GetInviteByHashForUpdateRow, error)
 	// Lets the invitee accept from their in-app inbox, where the raw token is unknown.
@@ -260,7 +263,13 @@ type Querier interface {
 	MarkNotificationRead(ctx context.Context, arg MarkNotificationReadParams) (int64, error)
 	MarkPasswordResetUsed(ctx context.Context, tokenHash string) error
 	RejectFriendRequest(ctx context.Context, arg RejectFriendRequestParams) (int64, error)
+	ReleaseIdempotencyKey(ctx context.Context, arg ReleaseIdempotencyKeyParams) error
 	RemoveGroupMember(ctx context.Context, arg RemoveGroupMemberParams) error
+	// Idempotency-Key reservations (see internal/idempotency).
+	// Inserts a pending reservation, or takes over an existing row whose key has
+	// expired or whose pending lease went stale (e.g. the server died mid-request).
+	// Returns no row when a live reservation/response already exists.
+	ReserveIdempotencyKey(ctx context.Context, arg ReserveIdempotencyKeyParams) (pgtype.UUID, error)
 	RevokeAllUserSessions(ctx context.Context, userID uuid.UUID) error
 	RevokeSessionByHash(ctx context.Context, refreshTokenHash string) error
 	RevokeSessionByID(ctx context.Context, arg RevokeSessionByIDParams) error

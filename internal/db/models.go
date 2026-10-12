@@ -149,6 +149,21 @@ type GroupMember struct {
 	JoinedAt pgtype.Timestamptz `json:"joined_at"`
 }
 
+type IdempotencyKey struct {
+	UserID              uuid.UUID          `json:"user_id"`
+	Key                 string             `json:"key"`
+	RequestMethod       string             `json:"request_method"`
+	RequestPath         string             `json:"request_path"`
+	RequestHash         string             `json:"request_hash"`
+	State               string             `json:"state"`
+	LockToken           pgtype.UUID        `json:"lock_token"`
+	ResponseStatus      pgtype.Int4        `json:"response_status"`
+	ResponseContentType pgtype.Text        `json:"response_content_type"`
+	ResponseBody        []byte             `json:"response_body"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	ExpiresAt           pgtype.Timestamptz `json:"expires_at"`
+}
+
 type Notification struct {
 	ID        uuid.UUID          `json:"id"`
 	UserID    uuid.UUID          `json:"user_id"`
