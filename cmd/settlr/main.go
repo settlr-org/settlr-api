@@ -26,6 +26,7 @@ import (
 	"github.com/settlr-org/settlr-api/internal/friends"
 	"github.com/settlr-org/settlr-api/internal/groups"
 	"github.com/settlr-org/settlr-api/internal/httpx"
+	"github.com/settlr-org/settlr-api/internal/idempotency"
 	"github.com/settlr-org/settlr-api/internal/mailer"
 	"github.com/settlr-org/settlr-api/internal/notifications"
 	"github.com/settlr-org/settlr-api/internal/personal"
@@ -147,8 +148,10 @@ func main() {
 	personalHandler.RegisterRoutes(mux, authMw)
 	ratesHandler.RegisterRoutes(mux, authMw)
 
-	// Materialize due recurring expenses on startup and every 15 minutes
+	// Materialize due recurring expenses and purge expired Idempotency-Key
+	// records on startup and every 15 minutes.
 	recurringHandler.RunDue(ctx)
+	idempotency.Cleanup(ctx, queries)
 	go func() {
 		ticker := time.NewTicker(15 * time.Minute)
 		defer ticker.Stop()
@@ -158,6 +161,7 @@ func main() {
 				return
 			case <-ticker.C:
 				recurringHandler.RunDue(ctx)
+				idempotency.Cleanup(ctx, queries)
 			}
 		}
 	}()
