@@ -40,6 +40,21 @@
           }
         }
       }
+    },
+    "parameters": {
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": false,
+        "description": "Optional client-generated key (1-128 visible ASCII characters, e.g. a UUID) that makes retries of this write safe. Scoped per user for 24 hours. The first request with a key runs normally and its response (2xx or 4xx) is stored; a retry with the same key, method, path and body replays that stored response verbatim with the header `Idempotent-Replayed: true` and does not re-execute. While the first request is still running a retry gets 409 `IDEMPOTENCY_IN_PROGRESS` (retry later). Reusing a key for a different method, path or body gets 422 `IDEMPOTENCY_KEY_REUSED`. A malformed key gets 400 `IDEMPOTENCY_KEY_INVALID`. 5xx responses are not stored, so the request may be retried with the same key.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[!-~]{1,128}$"
+        },
+        "example": "3f0c8f9e-4c1a-4b52-9d1e-6a7b2c9d0e11"
+      }
     }
   },
   "paths": {
@@ -69,6 +84,11 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -248,6 +268,11 @@
           {
             "bearerAuth": []
           }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
         ]
       }
     },
@@ -262,6 +287,11 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -292,7 +322,12 @@
             "bearerAuth": []
           }
         ],
-        "description": "Partial update: omitted category_id, notes and expense_date keep their stored values; send \"\" to clear category_id or notes. Splits are recalculated from split_mode/splits."
+        "description": "Partial update: omitted category_id, notes and expense_date keep their stored values; send \"\" to clear category_id or notes. Splits are recalculated from split_mode/splits.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       },
       "delete": {
         "summary": "Delete expense",
@@ -304,6 +339,11 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -333,6 +373,11 @@
           {
             "bearerAuth": []
           }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
         ]
       }
     },
@@ -360,6 +405,11 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -398,6 +448,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -460,7 +513,12 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/api/v1/friends/requests": {
@@ -490,6 +548,11 @@
           {
             "bearerAuth": []
           }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
         ]
       }
     },
@@ -504,6 +567,11 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -558,6 +626,11 @@
           {
             "bearerAuth": []
           }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
         ]
       }
     },
@@ -611,6 +684,11 @@
           {
             "bearerAuth": []
           }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
         ]
       }
     },
@@ -625,6 +703,11 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -653,6 +736,11 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -701,6 +789,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       },
@@ -724,6 +815,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -754,6 +848,11 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -812,6 +911,11 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -951,6 +1055,11 @@
           {
             "bearerAuth": []
           }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
         ]
       }
     },
@@ -965,6 +1074,11 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -994,6 +1108,11 @@
           {
             "bearerAuth": []
           }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
         ]
       }
     },
@@ -1009,6 +1128,11 @@
           {
             "bearerAuth": []
           }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
         ]
       },
       "patch": {
@@ -1021,6 +1145,11 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -1158,6 +1287,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -1186,6 +1318,11 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -1253,6 +1390,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -1278,6 +1418,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -1307,6 +1450,11 @@
           {
             "bearerAuth": []
           }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
         ]
       },
       "delete": {
@@ -1319,6 +1467,11 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -1468,7 +1621,12 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/api/v1/me/password": {
@@ -1482,6 +1640,11 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -1558,7 +1721,12 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/api/v1/notifications": {
@@ -1588,6 +1756,11 @@
           {
             "bearerAuth": []
           }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
         ]
       }
     },
@@ -1602,6 +1775,11 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -1699,6 +1877,9 @@
               "type": "string"
             },
             "description": "YYYY-MM"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -1781,7 +1962,12 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
       }
     },
     "/api/v1/personal/expenses/{id}": {
@@ -1808,6 +1994,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       },
@@ -1917,6 +2106,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -2064,6 +2256,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       },
@@ -2090,6 +2285,9 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
@@ -2121,6 +2319,11 @@
           {
             "bearerAuth": []
           }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
         ]
       },
       "delete": {
@@ -2133,6 +2336,11 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ]
       }
