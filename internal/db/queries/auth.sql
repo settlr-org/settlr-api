@@ -82,12 +82,23 @@ UPDATE sessions SET revoked_at = now() WHERE id = $1 AND user_id = $2 AND revoke
 UPDATE sessions SET revoked_at = now() WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL RETURNING id;
 
 -- name: ListSessionsByUser :many
-SELECT id, user_agent, ip, created_at, last_used_at, expires_at, revoked_at FROM sessions WHERE user_id = $1 ORDER BY created_at DESC;
+-- Live sessions only: every refresh rotates (revokes) the previous row, so revoked rows are history.
+SELECT id, user_agent, ip, created_at, last_used_at, expires_at, revoked_at FROM sessions
+WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > now()
+ORDER BY last_used_at DESC;
+
+-- name: DeleteStaleSessions :execrows
+-- Rotated/revoked or expired sessions older than 30 days carry no reuse-detection value any more.
+DELETE FROM sessions
+WHERE (revoked_at IS NOT NULL AND revoked_at < now() - interval '30 days')
+   OR expires_at < now() - interval '30 days';
 
 -- name: RotateSession :one
 WITH rotated AS (
-    UPDATE sessions SET revoked_at = now() WHERE sessions.refresh_token_hash = $1 AND sessions.revoked_at IS NULL RETURNING sessions.user_id, sessions.id
+    UPDATE sessions SET revoked_at = now() WHERE sessions.refresh_token_hash = $1 AND sessions.revoked_at IS NULL
+    RETURNING sessions.user_id, sessions.id, sessions.user_agent, sessions.ip, sessions.created_at
 )
-INSERT INTO sessions (user_id, refresh_token_hash, expires_at, rotated_from)
-SELECT rotated.user_id, $2, now() + interval '30 days', rotated.id FROM rotated
+-- Keep the device and original sign-in time so the session list stays meaningful across refreshes.
+INSERT INTO sessions (user_id, refresh_token_hash, expires_at, rotated_from, user_agent, ip, created_at)
+SELECT rotated.user_id, $2, now() + interval '30 days', rotated.id, rotated.user_agent, rotated.ip, rotated.created_at FROM rotated
 RETURNING id;

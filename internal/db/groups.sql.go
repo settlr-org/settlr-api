@@ -201,6 +201,25 @@ func (q *Queries) CreateGroupMember(ctx context.Context, arg CreateGroupMemberPa
 	return err
 }
 
+const declineInviteForEmail = `-- name: DeclineInviteForEmail :execrows
+DELETE FROM group_invites
+WHERE id = $1 AND status = 'PENDING' AND lower(email) = lower($2)
+`
+
+type DeclineInviteForEmailParams struct {
+	ID    uuid.UUID `json:"id"`
+	Lower string    `json:"lower"`
+}
+
+// The invitee dismisses a pending invite from their inbox; the inviter can invite again later.
+func (q *Queries) DeclineInviteForEmail(ctx context.Context, arg DeclineInviteForEmailParams) (int64, error) {
+	result, err := q.db.Exec(ctx, declineInviteForEmail, arg.ID, arg.Lower)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteGroup = `-- name: DeleteGroup :exec
 DELETE FROM groups WHERE id = $1
 `

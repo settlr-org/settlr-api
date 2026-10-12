@@ -1397,6 +1397,43 @@
         ]
       }
     },
+    "/api/v1/invites/id/{id}/decline": {
+      "post": {
+        "summary": "Decline a pending group invite from the inbox (invitee only)",
+        "tags": [
+          "Groups"
+        ],
+        "responses": {
+          "204": {
+            "description": "Declined; the invite is removed"
+          },
+          "404": {
+            "description": "No pending invite with this id for your email"
+          },
+          "422": {
+            "description": "Invalid invite id"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
     "/api/v1/invites/{token}/accept": {
       "post": {
         "summary": "Accept invite",

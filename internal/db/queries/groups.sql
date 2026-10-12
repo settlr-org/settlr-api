@@ -226,6 +226,11 @@ FROM group_invites
 WHERE token_hash = $1
 FOR UPDATE;
 
+-- name: DeclineInviteForEmail :execrows
+-- The invitee dismisses a pending invite from their inbox; the inviter can invite again later.
+DELETE FROM group_invites
+WHERE id = $1 AND status = 'PENDING' AND lower(email) = lower($2);
+
 -- name: GetInviteByIDForUpdate :one
 -- Lets the invitee accept from their in-app inbox, where the raw token is unknown.
 SELECT id, group_id, email, invited_by, status
