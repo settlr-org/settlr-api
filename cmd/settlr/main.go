@@ -78,6 +78,9 @@ func main() {
 	mailSender := mailer.FromConfig(cfg.Mail)
 	authHandler := &auth.Handler{Svc: authSvc, Mailer: mailSender, Queries: queries}
 	rateLimiter := httpx.NewRateLimiter(20, time.Minute)
+	// Refresh needs a valid refresh token, so brute force isn't a concern; clients refresh on every
+	// page load and several tabs (often behind one proxy IP) must not lock users out.
+	refreshLimiter := httpx.NewRateLimiter(300, time.Minute)
 
 	mux := http.NewServeMux()
 
@@ -182,7 +185,11 @@ func main() {
 			path = strings.TrimPrefix(r.URL.Path, "/settlr")
 		}
 		if strings.HasPrefix(path, "/api/v1/auth/") {
-			if !rateLimiter.Allow(httpx.ClientIP(r, cfg.TrustProxyHeaders) + ":" + path) {
+			limiter := rateLimiter
+			if path == "/api/v1/auth/refresh" {
+				limiter = refreshLimiter
+			}
+			if !limiter.Allow(httpx.ClientIP(r, cfg.TrustProxyHeaders) + ":" + path) {
 				httpx.WriteJSON(w, 429, map[string]any{"error": map[string]string{"code": "RATE_LIMITED", "message": "too many requests"}})
 				return
 			}
