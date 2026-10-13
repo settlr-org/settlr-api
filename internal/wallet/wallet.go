@@ -384,14 +384,17 @@ func (f *fx) missingList() []string {
 	return out
 }
 
-// balances returns each live account's balance in its own currency.
-func (h *Handler) balances(ctx context.Context, userID uuid.UUID, accounts []db.Account, f *fx) (map[uuid.UUID]int64, error) {
+// balances returns each live account's balance in its own currency, plus, per
+// account, the currency pairs that could not be converted (the balance is then
+// incomplete).
+func (h *Handler) balances(ctx context.Context, userID uuid.UUID, accounts []db.Account, f *fx) (map[uuid.UUID]int64, map[uuid.UUID][]string, error) {
 	rows, err := h.q().AccountBalances(ctx, db.AccountBalancesParams{UserID: userID})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	cur := make(map[uuid.UUID]string, len(accounts))
 	out := make(map[uuid.UUID]int64, len(accounts))
+	missing := make(map[uuid.UUID][]string)
 	for _, a := range accounts {
 		cur[a.ID] = strings.TrimSpace(a.Currency)
 		out[a.ID] = 0
@@ -407,9 +410,11 @@ func (h *Handler) balances(ctx context.Context, userID uuid.UUID, accounts []db.
 		}
 		if v, ok := f.convert(ctx, row.Total, row.Currency, c); ok {
 			out[id] += v
+		} else {
+			missing[id] = append(missing[id], strings.TrimSpace(row.Currency)+"/"+c)
 		}
 	}
-	return out, nil
+	return out, missing, nil
 }
 
 func pu(id uuid.UUID) pgtype.UUID { return pgtype.UUID{Bytes: id, Valid: true} }

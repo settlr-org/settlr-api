@@ -321,3 +321,8 @@ DELETE FROM settlement_accounts WHERE settlement_id = $1 AND user_id = $2;
 
 -- name: GetSettlementAccount :one
 SELECT account_id FROM settlement_accounts WHERE settlement_id = $1 AND user_id = $2;
+
+-- name: LockUserWallet :exec
+-- Serialises account bootstrapping (default "Cash" / "Cash XXX") per user for the
+-- rest of the current transaction.
+SELECT pg_advisory_xact_lock(hashtext('wallet-accounts:' || @user_id::text));

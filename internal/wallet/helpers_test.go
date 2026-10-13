@@ -16,6 +16,7 @@ import (
 	"github.com/settlr-org/settlr-api/internal/auth"
 	"github.com/settlr-org/settlr-api/internal/categories"
 	"github.com/settlr-org/settlr-api/internal/config"
+	db "github.com/settlr-org/settlr-api/internal/db"
 	"github.com/settlr-org/settlr-api/internal/expenses"
 	"github.com/settlr-org/settlr-api/internal/groups"
 	"github.com/settlr-org/settlr-api/internal/personal"
@@ -62,8 +63,10 @@ func newEnv(t *testing.T, pool *pgxpool.Pool) *env {
 	(&expenses.Handler{Pool: pool}).RegisterRoutes(mux, authMw)
 	(&settlements.Handler{Pool: pool}).RegisterRoutes(mux, authMw)
 	(&categories.Handler{Pool: pool}).RegisterRoutes(mux, authMw)
-	(&personal.Handler{Pool: pool}).RegisterRoutes(mux, authMw)
-	(&wallet.Handler{Pool: pool, Rates: rates.NewConverter(testRates)}).RegisterRoutes(mux, authMw)
+	// Queries is set up front (as in main) so concurrent requests don't race on lazy init.
+	queries := db.New(pool)
+	(&personal.Handler{Pool: pool, Queries: queries}).RegisterRoutes(mux, authMw)
+	(&wallet.Handler{Pool: pool, Queries: queries, Rates: rates.NewConverter(testRates)}).RegisterRoutes(mux, authMw)
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 	return &env{t: t, srv: srv, pool: pool}

@@ -1,10 +1,14 @@
 package wallet_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"net/http"
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/jackc/pgx/v5/stdlib"
@@ -101,6 +105,11 @@ func TestIntegration_PersonalCompatOverTransactions(t *testing.T) {
 	e.status(422, "POST", "/api/v1/personal/expenses", alice, map[string]any{"description": "x", "amount": 1, "currency": "XYZ"})
 	e.status(422, "POST", "/api/v1/personal/expenses", alice, map[string]any{"description": "", "amount": 1})
 
+	// The compat DELETE never touches planned transactions.
+	plannedTx := e.must(201, "POST", "/api/v1/transactions", alice, map[string]any{"type": "EXPENSE", "account_id": cashID, "amount": 900, "due_at": "2030-01-01"})
+	e.must(200, "DELETE", "/api/v1/personal/expenses/"+str(plannedTx["id"]), alice, nil)
+	e.status(200, "GET", "/api/v1/transactions/"+str(plannedTx["id"]), alice, nil)
+
 	e.must(200, "DELETE", "/api/v1/personal/expenses/"+id, alice, nil)
 	e.status(404, "GET", "/api/v1/personal/expenses/"+id, alice, nil)
 	e.status(404, "GET", "/api/v1/transactions/"+id, alice, nil)
@@ -109,6 +118,55 @@ func TestIntegration_PersonalCompatOverTransactions(t *testing.T) {
 	e.must(200, "PUT", "/api/v1/personal/budget?month=2026-09", alice, map[string]any{"amount": 5000, "currency": "NPR"})
 	if b := e.must(200, "GET", "/api/v1/personal/budget?month=2026-09", alice, nil); num(b["amount"]) != 5000 {
 		t.Fatalf("budget: %v", b)
+	}
+}
+
+// Concurrent first-time /personal writes must not race on the default account or
+// create duplicate per-currency accounts.
+func TestIntegration_PersonalConcurrentAccountBootstrap(t *testing.T) {
+	e := newEnv(t, testutil.CleanDB(t))
+	alice := e.register("Alice", "alice-wallet-race@test.local")
+	const n = 12
+	statuses := make(chan int, n)
+	var wg sync.WaitGroup
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			body := map[string]any{"description": "Race", "amount": 100 + i}
+			if i%2 == 1 {
+				body["currency"] = "USD"
+			}
+			b, _ := json.Marshal(body)
+			req, _ := http.NewRequest("POST", e.srv.URL+"/api/v1/personal/expenses", bytes.NewReader(b))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer "+alice.token)
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				statuses <- 0
+				return
+			}
+			resp.Body.Close()
+			statuses <- resp.StatusCode
+		}(i)
+	}
+	wg.Wait()
+	close(statuses)
+	for s := range statuses {
+		if s != 201 {
+			t.Fatalf("concurrent create: status %d", s)
+		}
+	}
+	accs := list(e.must(200, "GET", "/api/v1/accounts", alice, nil), "data")
+	if len(accs) != 2 {
+		t.Fatalf("want exactly Cash + Cash USD, got %v", accs)
+	}
+	byName := e.accountsByName(alice)
+	if byName["Cash"]["is_default"] != true || byName["Cash USD"] == nil {
+		t.Fatalf("accounts: %v", byName)
+	}
+	if items := list(e.must(200, "GET", "/api/v1/personal/expenses", alice, nil), "data"); len(items) != n {
+		t.Fatalf("expenses: %d", len(items))
 	}
 }
 
@@ -210,11 +268,29 @@ func TestIntegration_MigrationOfLegacyPersonalRows(t *testing.T) {
 	exec(`INSERT INTO transactions (id, user_id, type, account_id, amount, currency, title, occurred_at, source)
 		SELECT '00000000-0000-0000-0000-000000000009', user_id, 'EXPENSE', id, 70, currency, 'New', '2026-04-04', 'PERSONAL_LEGACY'
 		FROM accounts WHERE user_id = '00000000-0000-0000-0000-0000000000a1' AND is_default`)
+	var deleted bool
+	// Legacy rows that stopped being live expenses must not come back as live ones.
+	exec(`UPDATE transactions SET type = 'INCOME' WHERE id = '00000000-0000-0000-0000-000000000002'`)
+	exec(`INSERT INTO transactions (id, user_id, type, account_id, amount, currency, title, due_at, source)
+		SELECT '00000000-0000-0000-0000-00000000000a', user_id, 'EXPENSE', id, 80, currency, 'Planned', '2026-12-01', 'PERSONAL_LEGACY'
+		FROM accounts WHERE user_id = '00000000-0000-0000-0000-0000000000a1' AND is_default`)
+	// Wallet-only data is discarded.
+	exec(`INSERT INTO transactions (id, user_id, type, account_id, amount, currency, title, occurred_at, source)
+		SELECT '00000000-0000-0000-0000-00000000000b', user_id, 'EXPENSE', id, 90, currency, 'Manual', '2026-04-05', 'MANUAL'
+		FROM accounts WHERE user_id = '00000000-0000-0000-0000-0000000000a1' AND is_default`)
 	if _, err := provider.DownTo(ctx, 12); err != nil {
 		t.Fatalf("down to 12 again: %v", err)
 	}
+	for _, id := range []string{"00000000-0000-0000-0000-000000000002", "00000000-0000-0000-0000-00000000000a"} {
+		if err := pool.QueryRow(ctx, `SELECT deleted_at IS NOT NULL FROM personal_expenses WHERE id = $1`, id).Scan(&deleted); err != nil || !deleted {
+			t.Fatalf("non-live legacy row %s should be copied back deleted (err=%v)", id, err)
+		}
+	}
+	_ = pool.QueryRow(ctx, `SELECT count(*) FROM personal_expenses WHERE id = '00000000-0000-0000-0000-00000000000b'`).Scan(&n)
+	if n != 0 {
+		t.Fatal("down must not copy wallet-only transactions")
+	}
 	var amt int64
-	var deleted bool
 	_ = pool.QueryRow(ctx, `SELECT amount, description FROM personal_expenses WHERE id = '00000000-0000-0000-0000-000000000001'`).Scan(&amt, &title)
 	if amt != 1111 || title != "Rice 2" {
 		t.Fatalf("down did not copy edits: %d %s", amt, title)

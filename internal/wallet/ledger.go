@@ -190,7 +190,7 @@ func (h *Handler) Overview(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	bals, err := h.balances(ctx, userID, accounts, f)
+	bals, _, err := h.balances(ctx, userID, accounts, f)
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return

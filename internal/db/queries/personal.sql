@@ -30,7 +30,7 @@ WHERE id = $1 AND user_id = $2
 
 -- name: SoftDeletePersonalExpense :exec
 UPDATE transactions SET deleted_at = now(), updated_at = now()
-WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL AND type = 'EXPENSE' AND source <> 'ADJUSTMENT';
+WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL AND type = 'EXPENSE' AND occurred_at IS NOT NULL AND source <> 'ADJUSTMENT';
 
 -- name: GetPersonalExpenseTotal :one
 SELECT COALESCE(SUM(amount), 0)::bigint AS total FROM transactions

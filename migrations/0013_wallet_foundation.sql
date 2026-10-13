@@ -326,14 +326,19 @@ JOIN accounts a ON a.user_id = pe.user_id AND a.currency = pe.currency AND a.del
 WHERE pe.deleted_at IS NULL;
 
 -- +goose Down
--- Copy legacy-API expenses (including edits/deletes made after the Up) back so the
--- previous release's /personal endpoints see them.
+-- Copy every legacy-API expense (PERSONAL_LEGACY) back so the previous release's
+-- /personal endpoints see edits, deletes and new rows. A row that is no longer a
+-- live, occurred EXPENSE (deleted, changed type, or turned into a planned item) is
+-- marked deleted so a rollback never resurrects stale data. Wallet-only data
+-- (MANUAL/IMPORT/ADJUSTMENT transactions, transfers, income, accounts, tags,
+-- settings, rate overrides, group account links) is discarded.
 INSERT INTO personal_expenses (id, user_id, description, amount, currency, category_id, notes,
                                expense_date, created_at, updated_at, deleted_at)
 SELECT t.id, t.user_id, t.title, t.amount, t.currency, t.category_id, t.description,
-       (t.occurred_at AT TIME ZONE 'UTC')::date, t.created_at, t.updated_at, t.deleted_at
+       (COALESCE(t.occurred_at, t.due_at, t.created_at) AT TIME ZONE 'UTC')::date, t.created_at, t.updated_at,
+       COALESCE(t.deleted_at, CASE WHEN t.type <> 'EXPENSE' OR t.occurred_at IS NULL THEN now() END)
 FROM transactions t
-WHERE t.source = 'PERSONAL_LEGACY' AND t.type = 'EXPENSE' AND t.occurred_at IS NOT NULL
+WHERE t.source = 'PERSONAL_LEGACY'
 ON CONFLICT (id) DO UPDATE SET
     description  = EXCLUDED.description,
     amount       = EXCLUDED.amount,

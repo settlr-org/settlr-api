@@ -1130,6 +1130,17 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 	return items, nil
 }
 
+const lockUserWallet = `-- name: LockUserWallet :exec
+SELECT pg_advisory_xact_lock(hashtext('wallet-accounts:' || $1::text))
+`
+
+// Serialises account bootstrapping (default "Cash" / "Cash XXX") per user for the
+// rest of the current transaction.
+func (q *Queries) LockUserWallet(ctx context.Context, userID string) error {
+	_, err := q.db.Exec(ctx, lockUserWallet, userID)
+	return err
+}
+
 const markDefaultAccount = `-- name: MarkDefaultAccount :exec
 UPDATE accounts SET is_default = true, updated_at = now() WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
 `

@@ -2,13 +2,11 @@ package wallet
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	db "github.com/settlr-org/settlr-api/internal/db"
@@ -20,8 +18,12 @@ const (
 	defaultAccountIcon  = "wallet"
 )
 
-func accountJSON(a db.Account, balance int64, balanceBase *int64, base string) map[string]any {
+func accountJSON(a db.Account, balance int64, balanceBase *int64, base string, missing []string) map[string]any {
+	if missing == nil {
+		missing = []string{}
+	}
 	return map[string]any{
+		"missing_rates":      missing,
 		"id":                 a.ID,
 		"name":               a.Name,
 		"currency":           strings.TrimSpace(a.Currency),
@@ -46,7 +48,7 @@ func (h *Handler) accountsJSON(ctx context.Context, userID uuid.UUID, accounts [
 	if err != nil {
 		return nil, nil, err
 	}
-	bals, err := h.balances(ctx, userID, accounts, f)
+	bals, missing, err := h.balances(ctx, userID, accounts, f)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -56,8 +58,10 @@ func (h *Handler) accountsJSON(ctx context.Context, userID uuid.UUID, accounts [
 		var bb *int64
 		if v, ok := f.convert(ctx, b, a.Currency, f.base); ok {
 			bb = &v
+		} else {
+			missing[a.ID] = append(missing[a.ID], strings.TrimSpace(a.Currency)+"/"+f.base)
 		}
-		out = append(out, accountJSON(a, b, bb, f.base))
+		out = append(out, accountJSON(a, b, bb, f.base, missing[a.ID]))
 	}
 	return out, f, nil
 }
@@ -158,6 +162,10 @@ func (h *Handler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	qtx := h.q().WithTx(tx)
+	if err := qtx.LockUserWallet(ctx, userID.String()); err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
 	_, defErr := qtx.GetDefaultAccount(ctx, userID)
 	hasDefault := defErr == nil
 	if defErr != nil && !isNoRows(defErr) {
@@ -431,9 +439,16 @@ func (h *Handler) AdjustAccount(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	bals, err := h.balances(ctx, userID, []db.Account{a}, f)
+	bals, missing, err := h.balances(ctx, userID, []db.Account{a}, f)
 	if err != nil {
 		httpx.WriteError(w, r, err)
+		return
+	}
+	if len(missing[a.ID]) > 0 {
+		// Part of the balance (a group entry in another currency) can't be converted,
+		// so the difference to post would be wrong.
+		writeErr(w, http.StatusUnprocessableEntity, "RATES_UNAVAILABLE",
+			"current balance is incomplete: no exchange rate for "+strings.Join(missing[a.ID], ", ")+"; set one via PUT /me/rates/{base}/{quote}")
 		return
 	}
 	delta := *req.Balance - bals[a.ID]
@@ -510,7 +525,7 @@ func (h *Handler) AccountSummary(w http.ResponseWriter, r *http.Request) {
 			add(&expense, row.TransferOut, row.Currency)
 		}
 	}
-	bals, err := h.balances(ctx, userID, []db.Account{a}, f)
+	bals, _, err := h.balances(ctx, userID, []db.Account{a}, f)
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
@@ -540,7 +555,13 @@ func (h *Handler) AccountSummary(w http.ResponseWriter, r *http.Request) {
 // default in the user's currency if the user has no account yet), else the first
 // account in that currency, else a new "Cash XXX" account. Empty currency means the
 // default account.
+//
+// q must be bound to a transaction: a per-user advisory lock held until commit
+// keeps concurrent first requests from racing to create the same accounts.
 func AccountForCurrency(ctx context.Context, q *db.Queries, userID uuid.UUID, currency string) (db.Account, error) {
+	if err := q.LockUserWallet(ctx, userID.String()); err != nil {
+		return db.Account{}, err
+	}
 	def, err := ensureDefaultAccount(ctx, q, userID)
 	if err != nil {
 		return db.Account{}, err
@@ -566,38 +587,25 @@ func AccountForCurrency(ctx context.Context, q *db.Queries, userID uuid.UUID, cu
 	})
 }
 
+// ensureDefaultAccount expects the caller to hold the LockUserWallet lock.
 func ensureDefaultAccount(ctx context.Context, q *db.Queries, userID uuid.UUID) (db.Account, error) {
-	for attempt := 0; attempt < 2; attempt++ {
-		def, err := q.GetDefaultAccount(ctx, userID)
-		if err == nil {
-			return def, nil
-		}
-		if !isNoRows(err) {
-			return db.Account{}, err
-		}
-		// Existing accounts but no default (e.g. it was deleted): promote one.
-		if err := q.PromoteDefaultAccount(ctx, userID); err != nil {
-			return db.Account{}, err
-		}
-		if def, err := q.GetDefaultAccount(ctx, userID); err == nil {
-			return def, nil
-		}
-		cur, err := q.GetUserDefaultCurrency(ctx, userID)
-		if err != nil {
-			return db.Account{}, err
-		}
-		a, err := q.CreateAccount(ctx, db.CreateAccountParams{
-			UserID: userID, Name: "Cash", Currency: strings.TrimSpace(cur), Color: defaultAccountColor,
-			Icon: defaultAccountIcon, IncludeInBalance: true, IsDefault: true,
-		})
-		if err == nil {
-			return a, nil
-		}
-		var pgErr *pgconn.PgError
-		if !errors.As(err, &pgErr) || pgErr.Code != "23505" {
-			return db.Account{}, err
-		}
-		// A concurrent request created the default first; read it on the next pass.
+	def, err := q.GetDefaultAccount(ctx, userID)
+	if err == nil || !isNoRows(err) {
+		return def, err
 	}
-	return q.GetDefaultAccount(ctx, userID)
+	// Existing accounts but no default (e.g. it was deleted): promote one.
+	if err := q.PromoteDefaultAccount(ctx, userID); err != nil {
+		return db.Account{}, err
+	}
+	if def, err := q.GetDefaultAccount(ctx, userID); err == nil || !isNoRows(err) {
+		return def, err
+	}
+	cur, err := q.GetUserDefaultCurrency(ctx, userID)
+	if err != nil {
+		return db.Account{}, err
+	}
+	return q.CreateAccount(ctx, db.CreateAccountParams{
+		UserID: userID, Name: "Cash", Currency: strings.TrimSpace(cur), Color: defaultAccountColor,
+		Icon: defaultAccountIcon, IncludeInBalance: true, IsDefault: true,
+	})
 }

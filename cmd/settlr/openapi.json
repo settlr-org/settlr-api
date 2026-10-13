@@ -104,6 +104,13 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "missing_rates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "currency pairs (FROM/TO) that could not be converted. Non-empty means balance (entries in another currency, e.g. group expenses paid from this account) and/or balance_base is incomplete."
           }
         }
       },
@@ -3691,7 +3698,7 @@
             }
           }
         },
-        "description": "Posts the difference as an ADJUSTMENT income/expense (none when already at the target).",
+        "description": "Posts the difference as an ADJUSTMENT income/expense (none when already at the target). Returns 422 RATES_UNAVAILABLE when the current balance is incomplete (see Account.missing_rates); set a rate override first.",
         "requestBody": {
           "required": true,
           "content": {
@@ -4805,7 +4812,7 @@
             }
           }
         },
-        "description": "Balance (base currency, accounts with include_in_balance), income and expense in [from, to). Default range: the current period per month_start_day.",
+        "description": "Balance (base currency, accounts with include_in_balance), income and expense in [from, to). Default range: the current period per month_start_day. Income/expense include ADJUSTMENT transactions (initial balances and balance adjustments), as in Ivy Wallet; transfers and settlements are never counted.",
         "parameters": [
           {
             "name": "from",

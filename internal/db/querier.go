@@ -314,6 +314,9 @@ type Querier interface {
 	ListTags(ctx context.Context, userID uuid.UUID) ([]Tag, error)
 	ListTagsForTransactions(ctx context.Context, transactionIds []pgtype.UUID) ([]ListTagsForTransactionsRow, error)
 	ListTransactions(ctx context.Context, arg ListTransactionsParams) ([]Transaction, error)
+	// Serialises account bootstrapping (default "Cash" / "Cash XXX") per user for the
+	// rest of the current transaction.
+	LockUserWallet(ctx context.Context, userID string) error
 	MarkAllNotificationsRead(ctx context.Context, userID uuid.UUID) error
 	MarkDefaultAccount(ctx context.Context, arg MarkDefaultAccountParams) error
 	MarkEmailVerificationVerified(ctx context.Context, tokenHash string) error

@@ -200,7 +200,34 @@ func TestIntegration_SettingsAndRateOverrides(t *testing.T) {
 	if num(ov["balance"]) != 133000 || len(ov["missing_rates"].([]any)) != 1 {
 		t.Fatalf("overview with missing rate: %v", ov)
 	}
-	if a := e.accountsByName(alice)["Rand"]; a["balance_base"] != nil || num(a["balance"]) != 500 {
-		t.Fatalf("unconvertible balance_base should be null: %v", a)
+	if a := e.accountsByName(alice)["Rand"]; a["balance_base"] != nil || num(a["balance"]) != 500 || len(a["missing_rates"].([]any)) != 1 {
+		t.Fatalf("unconvertible balance_base should be null and reported: %v", a)
+	}
+
+	// A group expense in a currency without a rate, paid from an NPR account, leaves
+	// the balance incomplete: it is reported and /adjust refuses to guess.
+	npr := e.createAccount(alice, "NPR Bank", "NPR", 0)
+	nprID := str(npr["id"])
+	g := e.must(201, "POST", "/api/v1/groups", alice, map[string]any{"name": "Trip", "currency": "NPR"})
+	e.must(201, "POST", "/api/v1/groups/"+str(g["id"])+"/expenses", alice, map[string]any{
+		"description": "Safari", "amount": 1000, "currency": "ZAR", "exchange_rate": 7.5, "paid_by": alice.id.String(),
+		"split_mode": "EQUAL", "splits": []map[string]string{{"user_id": alice.id.String()}}, "payer_account_id": nprID,
+	})
+	a := e.must(200, "GET", "/api/v1/accounts/"+nprID, alice, nil)
+	if mr := a["missing_rates"].([]any); len(mr) != 1 || mr[0] != "ZAR/NPR" || num(a["balance"]) != 0 {
+		t.Fatalf("incomplete balance should list missing rate: %v", a)
+	}
+	status, out := e.do("POST", "/api/v1/accounts/"+nprID+"/adjust", alice.token, map[string]any{"balance": 5000})
+	if status != 422 || out["error"].(map[string]any)["code"] != "RATES_UNAVAILABLE" {
+		t.Fatalf("adjust with incomplete balance: %d %v", status, out)
+	}
+	e.must(200, "PUT", "/api/v1/me/rates/ZAR/NPR", alice, map[string]any{"rate": 7.5})
+	a = e.must(200, "GET", "/api/v1/accounts/"+nprID, alice, nil)
+	if len(a["missing_rates"].([]any)) != 0 || num(a["balance"]) != -7500 {
+		t.Fatalf("balance with override: %v", a)
+	}
+	adj := e.must(200, "POST", "/api/v1/accounts/"+nprID+"/adjust", alice, map[string]any{"balance": 5000})
+	if num(adj["transaction"].(map[string]any)["amount"]) != 12500 {
+		t.Fatalf("adjust after override: %v", adj)
 	}
 }

@@ -258,7 +258,7 @@ func (q *Queries) ListPersonalExpensesExport(ctx context.Context, userID uuid.UU
 
 const softDeletePersonalExpense = `-- name: SoftDeletePersonalExpense :exec
 UPDATE transactions SET deleted_at = now(), updated_at = now()
-WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL AND type = 'EXPENSE' AND source <> 'ADJUSTMENT'
+WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL AND type = 'EXPENSE' AND occurred_at IS NOT NULL AND source <> 'ADJUSTMENT'
 `
 
 type SoftDeletePersonalExpenseParams struct {
