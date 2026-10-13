@@ -146,16 +146,20 @@ func (q *Queries) GetSettlementGroupCurrency(ctx context.Context, id uuid.UUID) 
 }
 
 const listSettlements = `-- name: ListSettlements :many
-SELECT id, from_user, to_user, amount, currency, note, settled_at, created_by, created_at
-FROM settlements
-WHERE group_id = $1 AND deleted_at IS NULL
-ORDER BY settled_at DESC, created_at DESC
-LIMIT $2
+SELECT s.id, s.from_user, s.to_user, s.amount, s.currency, s.note, s.settled_at, s.created_by, s.created_at,
+       (CASE WHEN s.from_user = $1::uuid THEN s.from_account_id
+             WHEN s.to_user = $1::uuid THEN sa.account_id END)::uuid AS account_id
+FROM settlements s
+LEFT JOIN settlement_accounts sa ON sa.settlement_id = s.id AND sa.user_id = $1::uuid
+WHERE s.group_id = $2 AND s.deleted_at IS NULL
+ORDER BY s.settled_at DESC, s.created_at DESC
+LIMIT $3::int
 `
 
 type ListSettlementsParams struct {
-	GroupID uuid.UUID `json:"group_id"`
-	Limit   int32     `json:"limit"`
+	UserID  pgtype.UUID `json:"user_id"`
+	GroupID uuid.UUID   `json:"group_id"`
+	Lim     int32       `json:"lim"`
 }
 
 type ListSettlementsRow struct {
@@ -168,10 +172,13 @@ type ListSettlementsRow struct {
 	SettledAt pgtype.Timestamptz `json:"settled_at"`
 	CreatedBy uuid.UUID          `json:"created_by"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	AccountID pgtype.UUID        `json:"account_id"`
 }
 
+// account_id is the caller's own wallet account for the settlement (payer side:
+// from_account_id, receiver side: settlement_accounts), never another user's.
 func (q *Queries) ListSettlements(ctx context.Context, arg ListSettlementsParams) ([]ListSettlementsRow, error) {
-	rows, err := q.db.Query(ctx, listSettlements, arg.GroupID, arg.Limit)
+	rows, err := q.db.Query(ctx, listSettlements, arg.UserID, arg.GroupID, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -189,6 +196,7 @@ func (q *Queries) ListSettlements(ctx context.Context, arg ListSettlementsParams
 			&i.SettledAt,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.AccountID,
 		); err != nil {
 			return nil, err
 		}

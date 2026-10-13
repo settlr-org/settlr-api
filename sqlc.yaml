@@ -69,3 +69,11 @@ sql:
             go_type:
               import: "github.com/google/uuid"
               type: "UUID"
+          - column: "ledger_entries.account_amount"
+            go_type:
+              import: "github.com/jackc/pgx/v5/pgtype"
+              type: "Int8"
+          - column: "ledger_entries.to_account_amount"
+            go_type:
+              import: "github.com/jackc/pgx/v5/pgtype"
+              type: "Int8"

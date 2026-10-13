@@ -112,21 +112,22 @@ func (q *Queries) DeleteExpenseSplits(ctx context.Context, expenseID uuid.UUID) 
 }
 
 const getExpense = `-- name: GetExpense :one
-SELECT group_id, description, amount, currency, split_mode, paid_by, category_id, notes, expense_date, created_by, deleted_at FROM expenses WHERE id = $1
+SELECT group_id, description, amount, currency, split_mode, paid_by, category_id, notes, expense_date, created_by, deleted_at, payer_account_id FROM expenses WHERE id = $1
 `
 
 type GetExpenseRow struct {
-	GroupID     uuid.UUID          `json:"group_id"`
-	Description string             `json:"description"`
-	Amount      int64              `json:"amount"`
-	Currency    string             `json:"currency"`
-	SplitMode   string             `json:"split_mode"`
-	PaidBy      uuid.UUID          `json:"paid_by"`
-	CategoryID  uuid.UUID          `json:"category_id"`
-	Notes       string             `json:"notes"`
-	ExpenseDate pgtype.Date        `json:"expense_date"`
-	CreatedBy   uuid.UUID          `json:"created_by"`
-	DeletedAt   pgtype.Timestamptz `json:"deleted_at"`
+	GroupID        uuid.UUID          `json:"group_id"`
+	Description    string             `json:"description"`
+	Amount         int64              `json:"amount"`
+	Currency       string             `json:"currency"`
+	SplitMode      string             `json:"split_mode"`
+	PaidBy         uuid.UUID          `json:"paid_by"`
+	CategoryID     uuid.UUID          `json:"category_id"`
+	Notes          string             `json:"notes"`
+	ExpenseDate    pgtype.Date        `json:"expense_date"`
+	CreatedBy      uuid.UUID          `json:"created_by"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+	PayerAccountID pgtype.UUID        `json:"payer_account_id"`
 }
 
 func (q *Queries) GetExpense(ctx context.Context, id uuid.UUID) (GetExpenseRow, error) {
@@ -144,6 +145,7 @@ func (q *Queries) GetExpense(ctx context.Context, id uuid.UUID) (GetExpenseRow, 
 		&i.ExpenseDate,
 		&i.CreatedBy,
 		&i.DeletedAt,
+		&i.PayerAccountID,
 	)
 	return i, err
 }

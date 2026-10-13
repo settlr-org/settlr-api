@@ -12,6 +12,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countVisibleCategories = `-- name: CountVisibleCategories :one
+SELECT COUNT(*)::int FROM categories WHERE id = ANY($1::uuid[]) AND (is_system OR owner_id = $2::uuid)
+`
+
+type CountVisibleCategoriesParams struct {
+	Ids    []pgtype.UUID `json:"ids"`
+	UserID pgtype.UUID   `json:"user_id"`
+}
+
+func (q *Queries) CountVisibleCategories(ctx context.Context, arg CountVisibleCategoriesParams) (int32, error) {
+	row := q.db.QueryRow(ctx, countVisibleCategories, arg.Ids, arg.UserID)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createCategory = `-- name: CreateCategory :exec
 INSERT INTO categories (id, name, icon, color, grouping, is_system, owner_id)
 VALUES ($1, $2, $3, $4, $5, false, $6)
@@ -38,28 +54,86 @@ func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) 
 	return err
 }
 
-const listCategories = `-- name: ListCategories :many
-
-SELECT id, name, icon, color, is_system, coalesce(grouping, 'Uncategorized') AS grouping
-FROM categories
-WHERE is_system = true OR owner_id = $1
-ORDER BY grouping, is_system DESC, name
+const deleteCategory = `-- name: DeleteCategory :execrows
+DELETE FROM categories WHERE id = $1 AND owner_id = $2 AND NOT is_system
 `
 
-type ListCategoriesRow struct {
+type DeleteCategoryParams struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
+// Transactions, personal and group expenses keep existing with category_id set to NULL (FK ON DELETE SET NULL).
+func (q *Queries) DeleteCategory(ctx context.Context, arg DeleteCategoryParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteCategory, arg.ID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const getVisibleCategory = `-- name: GetVisibleCategory :one
+SELECT id, name, icon, color, is_system, owner_id, coalesce(grouping, 'Uncategorized') AS grouping
+FROM categories
+WHERE id = $1 AND (is_system OR owner_id = $2)
+`
+
+type GetVisibleCategoryParams struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
+type GetVisibleCategoryRow struct {
 	ID       uuid.UUID `json:"id"`
 	Name     string    `json:"name"`
 	Icon     string    `json:"icon"`
 	Color    string    `json:"color"`
 	IsSystem bool      `json:"is_system"`
+	OwnerID  uuid.UUID `json:"owner_id"`
 	Grouping string    `json:"grouping"`
+}
+
+func (q *Queries) GetVisibleCategory(ctx context.Context, arg GetVisibleCategoryParams) (GetVisibleCategoryRow, error) {
+	row := q.db.QueryRow(ctx, getVisibleCategory, arg.ID, arg.UserID)
+	var i GetVisibleCategoryRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Icon,
+		&i.Color,
+		&i.IsSystem,
+		&i.OwnerID,
+		&i.Grouping,
+	)
+	return i, err
+}
+
+const listCategories = `-- name: ListCategories :many
+
+SELECT c.id, c.name, c.icon, c.color, c.is_system, coalesce(c.grouping, 'Uncategorized') AS grouping,
+       co.sort_order AS sort_order
+FROM categories c
+LEFT JOIN category_order co ON co.category_id = c.id AND co.user_id = $1
+WHERE c.is_system = true OR c.owner_id = $1
+ORDER BY co.sort_order IS NULL, co.sort_order, grouping, c.is_system DESC, c.name
+`
+
+type ListCategoriesRow struct {
+	ID        uuid.UUID   `json:"id"`
+	Name      string      `json:"name"`
+	Icon      string      `json:"icon"`
+	Color     string      `json:"color"`
+	IsSystem  bool        `json:"is_system"`
+	Grouping  string      `json:"grouping"`
+	SortOrder pgtype.Int4 `json:"sort_order"`
 }
 
 // Categories domain queries for sqlc with pgx/v5.
 // These replace manual Pool.Query/Exec calls in internal/categories/handlers.go
 // Handler usage: Handler{Pool *pgxpool.Pool, Queries *db.Queries} where Queries wraps the pool.
-func (q *Queries) ListCategories(ctx context.Context, ownerID uuid.UUID) ([]ListCategoriesRow, error) {
-	rows, err := q.db.Query(ctx, listCategories, ownerID)
+// Categories the user reordered (POST /categories/reorder) come first in their order.
+func (q *Queries) ListCategories(ctx context.Context, userID uuid.UUID) ([]ListCategoriesRow, error) {
+	rows, err := q.db.Query(ctx, listCategories, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -74,6 +148,7 @@ func (q *Queries) ListCategories(ctx context.Context, ownerID uuid.UUID) ([]List
 			&i.Color,
 			&i.IsSystem,
 			&i.Grouping,
+			&i.SortOrder,
 		); err != nil {
 			return nil, err
 		}
@@ -83,4 +158,65 @@ func (q *Queries) ListCategories(ctx context.Context, ownerID uuid.UUID) ([]List
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateCategory = `-- name: UpdateCategory :one
+UPDATE categories SET name = $1, icon = $2, color = $3, grouping = $4
+WHERE id = $5 AND owner_id = $6 AND NOT is_system
+RETURNING id, name, icon, color, is_system, coalesce(grouping, 'Uncategorized') AS grouping
+`
+
+type UpdateCategoryParams struct {
+	Name     string      `json:"name"`
+	Icon     string      `json:"icon"`
+	Color    string      `json:"color"`
+	Grouping pgtype.Text `json:"grouping"`
+	ID       uuid.UUID   `json:"id"`
+	UserID   uuid.UUID   `json:"user_id"`
+}
+
+type UpdateCategoryRow struct {
+	ID       uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+	Icon     string    `json:"icon"`
+	Color    string    `json:"color"`
+	IsSystem bool      `json:"is_system"`
+	Grouping string    `json:"grouping"`
+}
+
+func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) (UpdateCategoryRow, error) {
+	row := q.db.QueryRow(ctx, updateCategory,
+		arg.Name,
+		arg.Icon,
+		arg.Color,
+		arg.Grouping,
+		arg.ID,
+		arg.UserID,
+	)
+	var i UpdateCategoryRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Icon,
+		&i.Color,
+		&i.IsSystem,
+		&i.Grouping,
+	)
+	return i, err
+}
+
+const upsertCategoryOrder = `-- name: UpsertCategoryOrder :exec
+INSERT INTO category_order (user_id, category_id, sort_order) VALUES ($1, $2, $3)
+ON CONFLICT (user_id, category_id) DO UPDATE SET sort_order = EXCLUDED.sort_order
+`
+
+type UpsertCategoryOrderParams struct {
+	UserID     uuid.UUID `json:"user_id"`
+	CategoryID uuid.UUID `json:"category_id"`
+	SortOrder  int32     `json:"sort_order"`
+}
+
+func (q *Queries) UpsertCategoryOrder(ctx context.Context, arg UpsertCategoryOrderParams) error {
+	_, err := q.db.Exec(ctx, upsertCategoryOrder, arg.UserID, arg.CategoryID, arg.SortOrder)
+	return err
 }

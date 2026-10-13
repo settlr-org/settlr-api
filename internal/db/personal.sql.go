@@ -12,58 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const checkPersonalExpenseExists = `-- name: CheckPersonalExpenseExists :one
-SELECT EXISTS(SELECT 1 FROM personal_expenses WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL) AS exists
-`
-
-type CheckPersonalExpenseExistsParams struct {
-	ID     uuid.UUID `json:"id"`
-	UserID uuid.UUID `json:"user_id"`
-}
-
-func (q *Queries) CheckPersonalExpenseExists(ctx context.Context, arg CheckPersonalExpenseExistsParams) (bool, error) {
-	row := q.db.QueryRow(ctx, checkPersonalExpenseExists, arg.ID, arg.UserID)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
-}
-
-const createPersonalExpense = `-- name: CreatePersonalExpense :exec
-INSERT INTO personal_expenses (id, user_id, description, amount, currency, category_id, notes, expense_date, base_currency, exchange_rate, base_amount)
-VALUES ($1, $2, $3, $4, $5, NULLIF($6::uuid, '00000000-0000-0000-0000-000000000000'::uuid), $7, $8, $9, $10, $11)
-`
-
-type CreatePersonalExpenseParams struct {
-	ID           uuid.UUID      `json:"id"`
-	UserID       uuid.UUID      `json:"user_id"`
-	Description  string         `json:"description"`
-	Amount       int64          `json:"amount"`
-	Currency     string         `json:"currency"`
-	Column6      pgtype.UUID    `json:"column_6"`
-	Notes        string         `json:"notes"`
-	ExpenseDate  pgtype.Date    `json:"expense_date"`
-	BaseCurrency pgtype.Text    `json:"base_currency"`
-	ExchangeRate pgtype.Numeric `json:"exchange_rate"`
-	BaseAmount   pgtype.Int8    `json:"base_amount"`
-}
-
-func (q *Queries) CreatePersonalExpense(ctx context.Context, arg CreatePersonalExpenseParams) error {
-	_, err := q.db.Exec(ctx, createPersonalExpense,
-		arg.ID,
-		arg.UserID,
-		arg.Description,
-		arg.Amount,
-		arg.Currency,
-		arg.Column6,
-		arg.Notes,
-		arg.ExpenseDate,
-		arg.BaseCurrency,
-		arg.ExchangeRate,
-		arg.BaseAmount,
-	)
-	return err
-}
-
 const getPersonalBudget = `-- name: GetPersonalBudget :one
 
 SELECT amount, currency FROM personal_budgets WHERE user_id = $1 AND month = $2
@@ -80,9 +28,10 @@ type GetPersonalBudgetRow struct {
 }
 
 // Personal domain queries for sqlc with pgx/v5.
-// These replace manual Pool.Query/Exec calls in internal/personal/handlers.go
-// Handler usage: Handler{Pool *pgxpool.Pool, Queries *db.Queries} where Queries wraps the pool.
-// Transaction usage: qtx := h.Queries.WithTx(tx)
+// Since the wallet (migration 0013) personal expenses are EXPENSE transactions;
+// /api/v1/personal/* is a compatibility layer over the transactions table
+// (description <-> title, notes <-> description, expense_date <-> occurred_at UTC date).
+// Balance adjustments are not personal expenses and are hidden here.
 func (q *Queries) GetPersonalBudget(ctx context.Context, arg GetPersonalBudgetParams) (GetPersonalBudgetRow, error) {
 	row := q.db.QueryRow(ctx, getPersonalBudget, arg.UserID, arg.Month)
 	var i GetPersonalBudgetRow
@@ -91,9 +40,11 @@ func (q *Queries) GetPersonalBudget(ctx context.Context, arg GetPersonalBudgetPa
 }
 
 const getPersonalExpense = `-- name: GetPersonalExpense :one
-SELECT description, amount, currency, category_id, notes, expense_date, created_at, base_currency, exchange_rate, base_amount
-FROM personal_expenses
-WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+SELECT id, title AS description, amount, currency::text AS currency, category_id, description AS notes,
+       (occurred_at AT TIME ZONE 'UTC')::date AS expense_date, created_at
+FROM transactions
+WHERE id = $1 AND user_id = $2
+  AND deleted_at IS NULL AND type = 'EXPENSE' AND occurred_at IS NOT NULL AND source <> 'ADJUSTMENT'
 `
 
 type GetPersonalExpenseParams struct {
@@ -102,22 +53,21 @@ type GetPersonalExpenseParams struct {
 }
 
 type GetPersonalExpenseRow struct {
-	Description  string             `json:"description"`
-	Amount       int64              `json:"amount"`
-	Currency     string             `json:"currency"`
-	CategoryID   uuid.UUID          `json:"category_id"`
-	Notes        string             `json:"notes"`
-	ExpenseDate  pgtype.Date        `json:"expense_date"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	BaseCurrency pgtype.Text        `json:"base_currency"`
-	ExchangeRate pgtype.Numeric     `json:"exchange_rate"`
-	BaseAmount   pgtype.Int8        `json:"base_amount"`
+	ID          uuid.UUID          `json:"id"`
+	Description string             `json:"description"`
+	Amount      int64              `json:"amount"`
+	Currency    string             `json:"currency"`
+	CategoryID  uuid.UUID          `json:"category_id"`
+	Notes       string             `json:"notes"`
+	ExpenseDate pgtype.Date        `json:"expense_date"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) GetPersonalExpense(ctx context.Context, arg GetPersonalExpenseParams) (GetPersonalExpenseRow, error) {
 	row := q.db.QueryRow(ctx, getPersonalExpense, arg.ID, arg.UserID)
 	var i GetPersonalExpenseRow
 	err := row.Scan(
+		&i.ID,
 		&i.Description,
 		&i.Amount,
 		&i.Currency,
@@ -125,15 +75,13 @@ func (q *Queries) GetPersonalExpense(ctx context.Context, arg GetPersonalExpense
 		&i.Notes,
 		&i.ExpenseDate,
 		&i.CreatedAt,
-		&i.BaseCurrency,
-		&i.ExchangeRate,
-		&i.BaseAmount,
 	)
 	return i, err
 }
 
 const getPersonalExpenseTotal = `-- name: GetPersonalExpenseTotal :one
-SELECT COALESCE(SUM(amount), 0)::bigint AS total FROM personal_expenses WHERE user_id = $1 AND deleted_at IS NULL
+SELECT COALESCE(SUM(amount), 0)::bigint AS total FROM transactions
+WHERE user_id = $1 AND deleted_at IS NULL AND type = 'EXPENSE' AND occurred_at IS NOT NULL AND source <> 'ADJUSTMENT'
 `
 
 func (q *Queries) GetPersonalExpenseTotal(ctx context.Context, userID uuid.UUID) (int64, error) {
@@ -144,11 +92,11 @@ func (q *Queries) GetPersonalExpenseTotal(ctx context.Context, userID uuid.UUID)
 }
 
 const listPersonalExpenseByCategory = `-- name: ListPersonalExpenseByCategory :many
-SELECT COALESCE(c.name, 'Uncategorized') AS category, SUM(pe.amount)::bigint AS total
-FROM personal_expenses pe LEFT JOIN categories c ON c.id = pe.category_id
-WHERE pe.user_id = $1 AND pe.deleted_at IS NULL
+SELECT COALESCE(c.name, 'Uncategorized')::text AS category, SUM(t.amount)::bigint AS total
+FROM transactions t LEFT JOIN categories c ON c.id = t.category_id
+WHERE t.user_id = $1 AND t.deleted_at IS NULL AND t.type = 'EXPENSE' AND t.occurred_at IS NOT NULL AND t.source <> 'ADJUSTMENT'
 GROUP BY c.name
-ORDER BY SUM(pe.amount) DESC
+ORDER BY SUM(t.amount) DESC
 `
 
 type ListPersonalExpenseByCategoryRow struct {
@@ -177,9 +125,10 @@ func (q *Queries) ListPersonalExpenseByCategory(ctx context.Context, userID uuid
 }
 
 const listPersonalExpenseByMonth = `-- name: ListPersonalExpenseByMonth :many
-SELECT to_char(expense_date, 'YYYY-MM') AS month, SUM(amount)::bigint AS total
-FROM personal_expenses
-WHERE user_id = $1 AND deleted_at IS NULL AND expense_date >= CURRENT_DATE - INTERVAL '6 months'
+SELECT to_char(occurred_at AT TIME ZONE 'UTC', 'YYYY-MM') AS month, SUM(amount)::bigint AS total
+FROM transactions
+WHERE user_id = $1 AND deleted_at IS NULL AND type = 'EXPENSE' AND source <> 'ADJUSTMENT'
+  AND occurred_at >= (CURRENT_DATE - INTERVAL '6 months')
 GROUP BY month
 ORDER BY month
 `
@@ -210,37 +159,35 @@ func (q *Queries) ListPersonalExpenseByMonth(ctx context.Context, userID uuid.UU
 }
 
 const listPersonalExpenses = `-- name: ListPersonalExpenses :many
-SELECT id, description, amount, currency, category_id, notes, expense_date, base_currency, exchange_rate, base_amount, created_at
-FROM personal_expenses
+SELECT id, title AS description, amount, currency::text AS currency, category_id, description AS notes,
+       (occurred_at AT TIME ZONE 'UTC')::date AS expense_date, created_at
+FROM transactions
 WHERE user_id = $1
-  AND deleted_at IS NULL
-  AND ($2::text = '' OR description ILIKE '%' || $2 || '%' OR notes ILIKE '%' || $2 || '%')
-ORDER BY expense_date DESC, created_at DESC
-LIMIT $3
+  AND deleted_at IS NULL AND type = 'EXPENSE' AND occurred_at IS NOT NULL AND source <> 'ADJUSTMENT'
+  AND ($2::text = '' OR title ILIKE '%' || $2::text || '%' OR description ILIKE '%' || $2::text || '%')
+ORDER BY occurred_at DESC, created_at DESC
+LIMIT $3::int
 `
 
 type ListPersonalExpensesParams struct {
-	UserID  uuid.UUID `json:"user_id"`
-	Column2 string    `json:"column_2"`
-	Limit   int32     `json:"limit"`
+	UserID uuid.UUID `json:"user_id"`
+	Q      string    `json:"q"`
+	Lim    int32     `json:"lim"`
 }
 
 type ListPersonalExpensesRow struct {
-	ID           uuid.UUID          `json:"id"`
-	Description  string             `json:"description"`
-	Amount       int64              `json:"amount"`
-	Currency     string             `json:"currency"`
-	CategoryID   uuid.UUID          `json:"category_id"`
-	Notes        string             `json:"notes"`
-	ExpenseDate  pgtype.Date        `json:"expense_date"`
-	BaseCurrency pgtype.Text        `json:"base_currency"`
-	ExchangeRate pgtype.Numeric     `json:"exchange_rate"`
-	BaseAmount   pgtype.Int8        `json:"base_amount"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	ID          uuid.UUID          `json:"id"`
+	Description string             `json:"description"`
+	Amount      int64              `json:"amount"`
+	Currency    string             `json:"currency"`
+	CategoryID  uuid.UUID          `json:"category_id"`
+	Notes       string             `json:"notes"`
+	ExpenseDate pgtype.Date        `json:"expense_date"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) ListPersonalExpenses(ctx context.Context, arg ListPersonalExpensesParams) ([]ListPersonalExpensesRow, error) {
-	rows, err := q.db.Query(ctx, listPersonalExpenses, arg.UserID, arg.Column2, arg.Limit)
+	rows, err := q.db.Query(ctx, listPersonalExpenses, arg.UserID, arg.Q, arg.Lim)
 	if err != nil {
 		return nil, err
 	}
@@ -256,9 +203,6 @@ func (q *Queries) ListPersonalExpenses(ctx context.Context, arg ListPersonalExpe
 			&i.CategoryID,
 			&i.Notes,
 			&i.ExpenseDate,
-			&i.BaseCurrency,
-			&i.ExchangeRate,
-			&i.BaseAmount,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -272,10 +216,10 @@ func (q *Queries) ListPersonalExpenses(ctx context.Context, arg ListPersonalExpe
 }
 
 const listPersonalExpensesExport = `-- name: ListPersonalExpensesExport :many
-SELECT description, amount, currency, expense_date, notes
-FROM personal_expenses
-WHERE user_id = $1 AND deleted_at IS NULL
-ORDER BY expense_date DESC
+SELECT title AS description, amount, currency::text AS currency, (occurred_at AT TIME ZONE 'UTC')::date AS expense_date, description AS notes
+FROM transactions
+WHERE user_id = $1 AND deleted_at IS NULL AND type = 'EXPENSE' AND occurred_at IS NOT NULL AND source <> 'ADJUSTMENT'
+ORDER BY occurred_at DESC
 `
 
 type ListPersonalExpensesExportRow struct {
@@ -313,7 +257,8 @@ func (q *Queries) ListPersonalExpensesExport(ctx context.Context, userID uuid.UU
 }
 
 const softDeletePersonalExpense = `-- name: SoftDeletePersonalExpense :exec
-UPDATE personal_expenses SET deleted_at = now(), updated_at = now() WHERE id = $1 AND user_id = $2
+UPDATE transactions SET deleted_at = now(), updated_at = now()
+WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL AND type = 'EXPENSE' AND source <> 'ADJUSTMENT'
 `
 
 type SoftDeletePersonalExpenseParams struct {
@@ -323,99 +268,6 @@ type SoftDeletePersonalExpenseParams struct {
 
 func (q *Queries) SoftDeletePersonalExpense(ctx context.Context, arg SoftDeletePersonalExpenseParams) error {
 	_, err := q.db.Exec(ctx, softDeletePersonalExpense, arg.ID, arg.UserID)
-	return err
-}
-
-const updatePersonalExpenseAmount = `-- name: UpdatePersonalExpenseAmount :exec
-UPDATE personal_expenses SET amount = $1, updated_at = now() WHERE id = $2
-`
-
-type UpdatePersonalExpenseAmountParams struct {
-	Amount int64     `json:"amount"`
-	ID     uuid.UUID `json:"id"`
-}
-
-func (q *Queries) UpdatePersonalExpenseAmount(ctx context.Context, arg UpdatePersonalExpenseAmountParams) error {
-	_, err := q.db.Exec(ctx, updatePersonalExpenseAmount, arg.Amount, arg.ID)
-	return err
-}
-
-const updatePersonalExpenseCategory = `-- name: UpdatePersonalExpenseCategory :exec
-UPDATE personal_expenses SET category_id = $1, updated_at = now() WHERE id = $2
-`
-
-type UpdatePersonalExpenseCategoryParams struct {
-	CategoryID uuid.UUID `json:"category_id"`
-	ID         uuid.UUID `json:"id"`
-}
-
-func (q *Queries) UpdatePersonalExpenseCategory(ctx context.Context, arg UpdatePersonalExpenseCategoryParams) error {
-	_, err := q.db.Exec(ctx, updatePersonalExpenseCategory, arg.CategoryID, arg.ID)
-	return err
-}
-
-const updatePersonalExpenseCategoryClear = `-- name: UpdatePersonalExpenseCategoryClear :exec
-UPDATE personal_expenses SET category_id = NULL, updated_at = now() WHERE id = $1
-`
-
-func (q *Queries) UpdatePersonalExpenseCategoryClear(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, updatePersonalExpenseCategoryClear, id)
-	return err
-}
-
-const updatePersonalExpenseCurrency = `-- name: UpdatePersonalExpenseCurrency :exec
-UPDATE personal_expenses SET currency = $1, updated_at = now() WHERE id = $2
-`
-
-type UpdatePersonalExpenseCurrencyParams struct {
-	Currency string    `json:"currency"`
-	ID       uuid.UUID `json:"id"`
-}
-
-func (q *Queries) UpdatePersonalExpenseCurrency(ctx context.Context, arg UpdatePersonalExpenseCurrencyParams) error {
-	_, err := q.db.Exec(ctx, updatePersonalExpenseCurrency, arg.Currency, arg.ID)
-	return err
-}
-
-const updatePersonalExpenseDate = `-- name: UpdatePersonalExpenseDate :exec
-UPDATE personal_expenses SET expense_date = $1, updated_at = now() WHERE id = $2
-`
-
-type UpdatePersonalExpenseDateParams struct {
-	ExpenseDate pgtype.Date `json:"expense_date"`
-	ID          uuid.UUID   `json:"id"`
-}
-
-func (q *Queries) UpdatePersonalExpenseDate(ctx context.Context, arg UpdatePersonalExpenseDateParams) error {
-	_, err := q.db.Exec(ctx, updatePersonalExpenseDate, arg.ExpenseDate, arg.ID)
-	return err
-}
-
-const updatePersonalExpenseDescription = `-- name: UpdatePersonalExpenseDescription :exec
-UPDATE personal_expenses SET description = $1, updated_at = now() WHERE id = $2
-`
-
-type UpdatePersonalExpenseDescriptionParams struct {
-	Description string    `json:"description"`
-	ID          uuid.UUID `json:"id"`
-}
-
-func (q *Queries) UpdatePersonalExpenseDescription(ctx context.Context, arg UpdatePersonalExpenseDescriptionParams) error {
-	_, err := q.db.Exec(ctx, updatePersonalExpenseDescription, arg.Description, arg.ID)
-	return err
-}
-
-const updatePersonalExpenseNotes = `-- name: UpdatePersonalExpenseNotes :exec
-UPDATE personal_expenses SET notes = $1, updated_at = now() WHERE id = $2
-`
-
-type UpdatePersonalExpenseNotesParams struct {
-	Notes string    `json:"notes"`
-	ID    uuid.UUID `json:"id"`
-}
-
-func (q *Queries) UpdatePersonalExpenseNotes(ctx context.Context, arg UpdatePersonalExpenseNotesParams) error {
-	_, err := q.db.Exec(ctx, updatePersonalExpenseNotes, arg.Notes, arg.ID)
 	return err
 }
 

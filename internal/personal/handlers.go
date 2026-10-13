@@ -1,8 +1,8 @@
 package personal
 
 import (
+	"context"
 	"encoding/csv"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,6 +15,7 @@ import (
 	"github.com/settlr-org/settlr-api/internal/auth"
 	db "github.com/settlr-org/settlr-api/internal/db"
 	"github.com/settlr-org/settlr-api/internal/httpx"
+	"github.com/settlr-org/settlr-api/internal/wallet"
 )
 
 // Handler handles personal expense and budget requests.
@@ -58,57 +59,6 @@ func budgetMonth(r *http.Request) time.Time {
 
 func timeToDate(t time.Time) pgtype.Date {
 	return pgtype.Date{Time: t, Valid: true}
-}
-
-func stringPtrToText(s *string) pgtype.Text {
-	if s == nil {
-		return pgtype.Text{Valid: false}
-	}
-	return pgtype.Text{String: *s, Valid: true}
-}
-
-func int64PtrToInt8(i *int64) pgtype.Int8 {
-	if i == nil {
-		return pgtype.Int8{Valid: false}
-	}
-	return pgtype.Int8{Int64: *i, Valid: true}
-}
-
-func float64PtrToNumeric(f *float64) pgtype.Numeric {
-	if f == nil {
-		return pgtype.Numeric{Valid: false}
-	}
-	var n pgtype.Numeric
-	_ = n.Scan(fmt.Sprintf("%v", *f))
-	return n
-}
-
-func numericToFloat64Ptr(n pgtype.Numeric) *float64 {
-	if !n.Valid {
-		return nil
-	}
-	val, err := n.Float64Value()
-	if err == nil && val.Valid {
-		f := val.Float64
-		return &f
-	}
-	return nil
-}
-
-func textToStringPtr(t pgtype.Text) *string {
-	if !t.Valid {
-		return nil
-	}
-	s := t.String
-	return &s
-}
-
-func int8ToInt64Ptr(i pgtype.Int8) *int64 {
-	if !i.Valid {
-		return nil
-	}
-	v := i.Int64
-	return &v
 }
 
 func dateToString(d pgtype.Date) string {
@@ -201,6 +151,25 @@ type createReq struct {
 	BaseAmount   *int64   `json:"base_amount"`
 }
 
+// Personal expenses are EXPENSE transactions since the wallet migration (0013). The
+// legacy base_currency/exchange_rate/base_amount fields are accepted but no longer
+// stored (no client used them) and are always returned as null.
+func personalJSON(id uuid.UUID, description string, amount int64, currency string, categoryID uuid.UUID, notes string, date pgtype.Date, createdAt pgtype.Timestamptz) map[string]any {
+	return map[string]any{
+		"id":            id,
+		"description":   description,
+		"amount":        amount,
+		"currency":      strings.TrimSpace(currency),
+		"category_id":   uuidToPtr(categoryID),
+		"notes":         notes,
+		"expense_date":  dateToString(date),
+		"base_currency": nil,
+		"exchange_rate": nil,
+		"base_amount":   nil,
+		"created_at":    createdAt.Time,
+	}
+}
+
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	h.ensureQueries()
 	uid, _ := httpx.GetUserID(r.Context())
@@ -212,40 +181,33 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		limit = v
 	}
 	rows, err := h.Queries.ListPersonalExpenses(r.Context(), db.ListPersonalExpensesParams{
-		UserID:  userID,
-		Column2: q,
-		Limit:   int32(limit),
+		UserID: userID,
+		Q:      q,
+		Lim:    int32(limit),
 	})
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	var out []map[string]any
+	out := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
-		catID := uuidToPtr(row.CategoryID)
-		out = append(out, map[string]any{
-			"id":            row.ID,
-			"description":   row.Description,
-			"amount":        row.Amount,
-			"currency":      row.Currency,
-			"category_id":   catID,
-			"notes":         row.Notes,
-			"expense_date":  dateToString(row.ExpenseDate),
-			"base_currency": textToStringPtr(row.BaseCurrency),
-			"exchange_rate": numericToFloat64Ptr(row.ExchangeRate),
-			"base_amount":   int8ToInt64Ptr(row.BaseAmount),
-			"created_at":    row.CreatedAt.Time,
-		})
-	}
-	if out == nil {
-		out = []map[string]any{}
+		out = append(out, personalJSON(row.ID, row.Description, row.Amount, row.Currency, row.CategoryID, row.Notes, row.ExpenseDate, row.CreatedAt))
 	}
 	httpx.WriteJSON(w, 200, map[string]any{"data": out})
 }
 
+func (h *Handler) categoryVisible(ctx context.Context, userID, catID uuid.UUID) bool {
+	ok, err := h.Queries.CategoryVisible(ctx, db.CategoryVisibleParams{
+		ID:     pgtype.UUID{Bytes: catID, Valid: true},
+		UserID: pgtype.UUID{Bytes: userID, Valid: true},
+	})
+	return err == nil && ok
+}
+
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	h.ensureQueries()
-	uid, _ := httpx.GetUserID(r.Context())
+	ctx := r.Context()
+	uid, _ := httpx.GetUserID(ctx)
 	userID, _ := uuid.Parse(uid)
 	var req createReq
 	if err := httpx.DecodeJSON(r, &req); err != nil {
@@ -261,7 +223,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "amount must be >0"}})
 		return
 	}
-	cur := "NPR"
+	cur := ""
 	if req.Currency != nil {
 		cur = strings.ToUpper(strings.TrimSpace(*req.Currency))
 		if !auth.SupportedCurrencies[cur] {
@@ -272,42 +234,62 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var catID *uuid.UUID
 	if req.CategoryID != nil && *req.CategoryID != "" {
 		if id, err := uuid.Parse(*req.CategoryID); err == nil {
+			if !h.categoryVisible(ctx, userID, id) {
+				httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "category_id not found"}})
+				return
+			}
 			catID = &id
 		}
 	}
-	date := time.Now()
+	occurred := time.Now().UTC()
 	if req.ExpenseDate != nil && *req.ExpenseDate != "" {
 		if d, err := time.Parse("2006-01-02", *req.ExpenseDate); err == nil {
-			date = d
+			occurred = d
 		}
 	}
 	notes := ""
 	if req.Notes != nil {
 		notes = *req.Notes
 	}
-	id := uuid.New()
 	var catUUID pgtype.UUID
 	if catID != nil {
 		catUUID = pgtype.UUID{Bytes: *catID, Valid: true}
 	}
-	err := h.Queries.CreatePersonalExpense(r.Context(), db.CreatePersonalExpenseParams{
-		ID:           id,
-		UserID:       userID,
-		Description:  req.Description,
-		Amount:       req.Amount,
-		Currency:     cur,
-		Column6:      catUUID,
-		Notes:        notes,
-		ExpenseDate:  timeToDate(date),
-		BaseCurrency: stringPtrToText(req.BaseCurrency),
-		ExchangeRate: float64PtrToNumeric(req.ExchangeRate),
-		BaseAmount:   int64PtrToInt8(req.BaseAmount),
+	tx, err := h.Pool.Begin(ctx)
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	qtx := h.Queries.WithTx(tx)
+	acct, err := wallet.AccountForCurrency(ctx, qtx, userID, cur)
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	cur = strings.TrimSpace(acct.Currency)
+	t, err := qtx.CreateTransaction(ctx, db.CreateTransactionParams{
+		ID:          uuid.New(),
+		UserID:      userID,
+		Type:        "EXPENSE",
+		AccountID:   pgtype.UUID{Bytes: acct.ID, Valid: true},
+		Amount:      req.Amount,
+		Currency:    cur,
+		CategoryID:  catUUID,
+		Title:       req.Description,
+		Description: notes,
+		OccurredAt:  pgtype.Timestamptz{Time: occurred, Valid: true},
+		Source:      "PERSONAL_LEGACY",
 	})
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	httpx.WriteJSON(w, 201, map[string]any{"id": id, "description": req.Description, "amount": req.Amount, "currency": cur, "category_id": catID, "notes": notes, "expense_date": date.Format("2006-01-02")})
+	if err := tx.Commit(ctx); err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, 201, map[string]any{"id": t.ID, "description": req.Description, "amount": req.Amount, "currency": cur, "category_id": catID, "notes": notes, "expense_date": occurred.Format("2006-01-02")})
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
@@ -327,24 +309,16 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
-	httpx.WriteJSON(w, 200, map[string]any{
-		"id":            id,
-		"description":   row.Description,
-		"amount":        row.Amount,
-		"currency":      row.Currency,
-		"category_id":   uuidToPtr(row.CategoryID),
-		"notes":         row.Notes,
-		"expense_date":  dateToString(row.ExpenseDate),
-		"created_at":    row.CreatedAt.Time,
-		"base_currency": textToStringPtr(row.BaseCurrency),
-		"exchange_rate": numericToFloat64Ptr(row.ExchangeRate),
-		"base_amount":   int8ToInt64Ptr(row.BaseAmount),
-	})
+	httpx.WriteJSON(w, 200, personalJSON(row.ID, row.Description, row.Amount, row.Currency, row.CategoryID, row.Notes, row.ExpenseDate, row.CreatedAt))
 }
 
+// Update keeps the legacy PATCH semantics: each present, valid field is applied and
+// invalid values are ignored. A currency change moves the expense to the account
+// for that currency.
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	h.ensureQueries()
-	uid, _ := httpx.GetUserID(r.Context())
+	ctx := r.Context()
+	uid, _ := httpx.GetUserID(ctx)
 	userID, _ := uuid.Parse(uid)
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
@@ -356,61 +330,69 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 400, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": err.Error()}})
 		return
 	}
-	exists, err := h.Queries.CheckPersonalExpenseExists(r.Context(), db.CheckPersonalExpenseExistsParams{
-		ID:     id,
-		UserID: userID,
-	})
-	if err != nil || !exists {
+	if _, err := h.Queries.GetPersonalExpense(ctx, db.GetPersonalExpenseParams{ID: id, UserID: userID}); err != nil {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
-	if req.Description != "" {
-		d := strings.TrimSpace(req.Description)
-		if d != "" {
-			_ = h.Queries.UpdatePersonalExpenseDescription(r.Context(), db.UpdatePersonalExpenseDescriptionParams{
-				Description: d,
-				ID:          id,
-			})
-		}
+	t, err := h.Queries.GetTransaction(ctx, db.GetTransactionParams{ID: id, UserID: userID})
+	if err != nil {
+		httpx.WriteError(w, r, httpx.ErrNotFound)
+		return
+	}
+	p := db.UpdateTransactionParams{
+		ID: id, UserID: userID, Type: t.Type, AccountID: t.AccountID, Amount: t.Amount, Currency: strings.TrimSpace(t.Currency),
+		Title: t.Title, Description: t.Description, OccurredAt: t.OccurredAt, DueAt: t.DueAt,
+	}
+	if t.CategoryID != uuid.Nil {
+		p.CategoryID = pgtype.UUID{Bytes: t.CategoryID, Valid: true}
+	}
+	if d := strings.TrimSpace(req.Description); d != "" {
+		p.Title = d
 	}
 	if req.Amount > 0 {
-		_ = h.Queries.UpdatePersonalExpenseAmount(r.Context(), db.UpdatePersonalExpenseAmountParams{
-			Amount: req.Amount,
-			ID:     id,
-		})
-	}
-	if req.Currency != nil {
-		c := strings.ToUpper(strings.TrimSpace(*req.Currency))
-		if auth.SupportedCurrencies[c] {
-			_ = h.Queries.UpdatePersonalExpenseCurrency(r.Context(), db.UpdatePersonalExpenseCurrencyParams{
-				Currency: c,
-				ID:       id,
-			})
-		}
+		p.Amount = req.Amount
 	}
 	if req.CategoryID != nil {
 		if *req.CategoryID == "" {
-			_ = h.Queries.UpdatePersonalExpenseCategoryClear(r.Context(), id)
-		} else if cid, err := uuid.Parse(*req.CategoryID); err == nil {
-			_ = h.Queries.UpdatePersonalExpenseCategory(r.Context(), db.UpdatePersonalExpenseCategoryParams{
-				CategoryID: cid,
-				ID:         id,
-			})
+			p.CategoryID = pgtype.UUID{}
+		} else if cid, err := uuid.Parse(*req.CategoryID); err == nil && h.categoryVisible(ctx, userID, cid) {
+			p.CategoryID = pgtype.UUID{Bytes: cid, Valid: true}
 		}
 	}
 	if req.Notes != nil {
-		_ = h.Queries.UpdatePersonalExpenseNotes(r.Context(), db.UpdatePersonalExpenseNotesParams{
-			Notes: *req.Notes,
-			ID:    id,
-		})
+		p.Description = *req.Notes
 	}
 	if req.ExpenseDate != nil && *req.ExpenseDate != "" {
 		if d, err := time.Parse("2006-01-02", *req.ExpenseDate); err == nil {
-			_ = h.Queries.UpdatePersonalExpenseDate(r.Context(), db.UpdatePersonalExpenseDateParams{
-				ExpenseDate: timeToDate(d),
-				ID:          id,
-			})
+			p.OccurredAt = pgtype.Timestamptz{Time: d, Valid: true}
 		}
+	}
+	tx, err := h.Pool.Begin(ctx)
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	qtx := h.Queries.WithTx(tx)
+	if req.Currency != nil {
+		c := strings.ToUpper(strings.TrimSpace(*req.Currency))
+		if auth.SupportedCurrencies[c] && c != p.Currency {
+			acct, err := wallet.AccountForCurrency(ctx, qtx, userID, c)
+			if err != nil {
+				httpx.WriteError(w, r, err)
+				return
+			}
+			p.AccountID = pgtype.UUID{Bytes: acct.ID, Valid: true}
+			p.Currency = strings.TrimSpace(acct.Currency)
+		}
+	}
+	if _, err := qtx.UpdateTransaction(ctx, p); err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	if err := tx.Commit(ctx); err != nil {
+		httpx.WriteError(w, r, err)
+		return
 	}
 	h.Get(w, r)
 }

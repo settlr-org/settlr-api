@@ -15,7 +15,7 @@ SELECT EXISTS(SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2) 
 SELECT role FROM group_members WHERE group_id = $1 AND user_id = $2;
 
 -- name: GetExpense :one
-SELECT group_id, description, amount, currency, split_mode, paid_by, category_id, notes, expense_date, created_by, deleted_at FROM expenses WHERE id = $1;
+SELECT group_id, description, amount, currency, split_mode, paid_by, category_id, notes, expense_date, created_by, deleted_at, payer_account_id FROM expenses WHERE id = $1;
 
 -- name: GetExpenseForUpdate :one
 SELECT group_id, created_by, deleted_at FROM expenses WHERE id = $1;
