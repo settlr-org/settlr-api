@@ -20,6 +20,7 @@ import (
 	db "github.com/settlr-org/settlr-api/internal/db"
 	"github.com/settlr-org/settlr-api/internal/httpx"
 	"github.com/settlr-org/settlr-api/internal/money"
+	"github.com/settlr-org/settlr-api/internal/wallet"
 )
 
 type Handler struct {
@@ -159,6 +160,35 @@ type createExpenseReq struct {
 	SplitMode    string       `json:"split_mode"`
 	Splits       []splitInput `json:"splits"`
 	ExchangeRate *float64     `json:"exchange_rate"`
+	// PayerAccountID is the payer's wallet account the money left from. Only the
+	// payer may set it; "" or null clears it. Omitted on PATCH keeps it while the
+	// payer stays the same.
+	PayerAccountID wallet.Opt[string] `json:"payer_account_id"`
+}
+
+// payerAccount validates payer_account_id for the caller. It returns the value to
+// store and false after writing an error response.
+func (h *Handler) payerAccount(w http.ResponseWriter, r *http.Request, req *createExpenseReq, paidBy uuid.UUID) (pgtype.UUID, bool) {
+	v, _ := req.PayerAccountID.Value()
+	v = strings.TrimSpace(v)
+	uid, _ := httpx.GetUserID(r.Context())
+	callerID, _ := uuid.Parse(uid)
+	if callerID != paidBy {
+		httpx.WriteJSON(w, 403, map[string]any{"error": map[string]string{"code": "FORBIDDEN", "message": "only the payer can choose the account the expense was paid from"}})
+		return pgtype.UUID{}, false
+	}
+	if v == "" {
+		return pgtype.UUID{}, true
+	}
+	accountID, err := uuid.Parse(v)
+	if err == nil {
+		_, err = h.Queries.GetAccount(r.Context(), db.GetAccountParams{ID: accountID, UserID: callerID})
+	}
+	if err != nil {
+		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "payer_account_id must be one of your accounts"}})
+		return pgtype.UUID{}, false
+	}
+	return pgtype.UUID{Bytes: accountID, Valid: true}, true
 }
 
 func validateGroupMembers(pool *pgxpool.Pool, r *http.Request, groupID uuid.UUID, userIDs []uuid.UUID) bool {
@@ -380,6 +410,13 @@ func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 	}
 	uid, _ := httpx.GetUserID(r.Context())
 	createdBy, _ := uuid.Parse(uid)
+	var payerAccount pgtype.UUID
+	if req.PayerAccountID.Set {
+		var ok bool
+		if payerAccount, ok = h.payerAccount(w, r, &req, paidBy); !ok {
+			return
+		}
+	}
 
 	tx, err := h.Pool.Begin(r.Context())
 	if err != nil {
@@ -427,6 +464,12 @@ func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
+	}
+	if payerAccount.Valid {
+		if err := qtx.SetExpensePayerAccount(r.Context(), db.SetExpensePayerAccountParams{ID: expenseID, PayerAccountID: payerAccount}); err != nil {
+			httpx.WriteError(w, r, err)
+			return
+		}
 	}
 	for i, pid := range participantIDs {
 		var pct pgtype.Numeric
@@ -480,6 +523,7 @@ func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 		"id": expenseID, "group_id": groupID, "description": req.Description, "amount": req.Amount,
 		"currency": currency, "split_mode": mode, "paid_by": paidBy, "notes": notes,
 		"expense_date": expenseDate.Format("2006-01-02"), "splits": buildSplitsResp(participantIDs, amounts, req.Splits, mode),
+		"payer_account_id": uuidPtr(payerAccount),
 	})
 }
 
@@ -839,6 +883,7 @@ func (h *Handler) GetExpense(w http.ResponseWriter, r *http.Request) {
 		"id": expenseID, "group_id": groupID, "description": description, "amount": amount, "currency": currency,
 		"split_mode": splitMode, "paid_by": paidBy, "category_id": categoryID, "notes": notes,
 		"expense_date": expenseDate.Format("2006-01-02"), "created_by": createdBy, "splits": splits,
+		"payer_account_id": h.callerPayerAccount(r, expenseID, paidBy),
 	})
 }
 
@@ -1079,6 +1124,19 @@ func (h *Handler) UpdateExpense(w http.ResponseWriter, r *http.Request) {
 	}
 	uid, _ := httpx.GetUserID(r.Context())
 	actorID, _ := uuid.Parse(uid)
+	// payer_account_id: explicit value is validated (payer only); omitted keeps the
+	// stored link unless the payer changed, in which case it no longer applies.
+	setPayerAccount := false
+	var payerAccount pgtype.UUID
+	if req.PayerAccountID.Set {
+		var ok bool
+		if payerAccount, ok = h.payerAccount(w, r, &req, paidBy); !ok {
+			return
+		}
+		setPayerAccount = true
+	} else if current.PaidBy != paidBy && current.PayerAccountID.Valid {
+		setPayerAccount = true
+	}
 
 	tx, err := h.Pool.Begin(r.Context())
 	if err != nil {
@@ -1122,6 +1180,12 @@ func (h *Handler) UpdateExpense(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
+	}
+	if setPayerAccount {
+		if err := qtx.SetExpensePayerAccount(r.Context(), db.SetExpensePayerAccountParams{ID: expenseID, PayerAccountID: payerAccount}); err != nil {
+			httpx.WriteError(w, r, err)
+			return
+		}
 	}
 	err = qtx.DeleteExpenseSplits(r.Context(), expenseID)
 	if err != nil {
@@ -1208,6 +1272,28 @@ func (h *Handler) DeleteExpense(w http.ResponseWriter, r *http.Request) {
 		Payload:  httpx.Payload(map[string]any{"expense_id": expenseID}),
 	})
 	httpx.WriteJSON(w, 200, map[string]any{"message": "deleted"})
+}
+
+func uuidPtr(id pgtype.UUID) *uuid.UUID {
+	if !id.Valid {
+		return nil
+	}
+	v := uuid.UUID(id.Bytes)
+	return &v
+}
+
+// callerPayerAccount returns the expense's payer account, but only to the payer:
+// other members never see someone else's wallet account.
+func (h *Handler) callerPayerAccount(r *http.Request, expenseID, paidBy uuid.UUID) *uuid.UUID {
+	uid, _ := httpx.GetUserID(r.Context())
+	if callerID, _ := uuid.Parse(uid); callerID != paidBy {
+		return nil
+	}
+	row, err := h.Queries.GetExpensePayerAccount(r.Context(), expenseID)
+	if err != nil {
+		return nil
+	}
+	return uuidPtr(row.PayerAccountID)
 }
 
 // Ensure imports are used

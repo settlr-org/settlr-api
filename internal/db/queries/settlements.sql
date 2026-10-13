@@ -20,11 +20,16 @@ INSERT INTO activity_events (group_id, actor_id, type, entity_type, entity_id, p
 INSERT INTO notifications (user_id, type, title, body, data) VALUES ($1, 'SETTLEMENT_RECORDED', $2, $3, $4);
 
 -- name: ListSettlements :many
-SELECT id, from_user, to_user, amount, currency, note, settled_at, created_by, created_at
-FROM settlements
-WHERE group_id = $1 AND deleted_at IS NULL
-ORDER BY settled_at DESC, created_at DESC
-LIMIT $2;
+-- account_id is the caller's own wallet account for the settlement (payer side:
+-- from_account_id, receiver side: settlement_accounts), never another user's.
+SELECT s.id, s.from_user, s.to_user, s.amount, s.currency, s.note, s.settled_at, s.created_by, s.created_at,
+       (CASE WHEN s.from_user = @user_id::uuid THEN s.from_account_id
+             WHEN s.to_user = @user_id::uuid THEN sa.account_id END)::uuid AS account_id
+FROM settlements s
+LEFT JOIN settlement_accounts sa ON sa.settlement_id = s.id AND sa.user_id = @user_id::uuid
+WHERE s.group_id = @group_id AND s.deleted_at IS NULL
+ORDER BY s.settled_at DESC, s.created_at DESC
+LIMIT @lim::int;
 
 -- name: GetSettlementForUpdate :one
 SELECT group_id, deleted_at FROM settlements WHERE id = $1;

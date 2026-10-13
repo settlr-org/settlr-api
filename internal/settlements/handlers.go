@@ -37,6 +37,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) h
 	mux.Handle("GET /api/v1/groups/{id}/settlements", authMw(http.HandlerFunc(h.ListSettlements)))
 	mux.Handle("PATCH /api/v1/settlements/{id}", authMw(http.HandlerFunc(h.UpdateSettlement)))
 	mux.Handle("DELETE /api/v1/settlements/{id}", authMw(http.HandlerFunc(h.DeleteSettlement)))
+	mux.Handle("PUT /api/v1/settlements/{id}/account", authMw(http.HandlerFunc(h.SetSettlementAccount)))
 }
 
 func (h *Handler) isMember(ctx context.Context, groupID, userID uuid.UUID) bool {
@@ -85,6 +86,8 @@ type createReq struct {
 	Currency  *string `json:"currency"`
 	Note      *string `json:"note"`
 	SettledAt *string `json:"settled_at"`
+	// FromAccountID is the payer's wallet account the money left from (payer only).
+	FromAccountID *uuid.UUID `json:"from_account_id"`
 }
 
 func (h *Handler) CreateSettlement(w http.ResponseWriter, r *http.Request) {
@@ -154,6 +157,18 @@ func (h *Handler) CreateSettlement(w http.ResponseWriter, r *http.Request) {
 	}
 	uid, _ := httpx.GetUserID(r.Context())
 	createdBy, _ := uuid.Parse(uid)
+	var fromAccount pgtype.UUID
+	if req.FromAccountID != nil {
+		if createdBy != from {
+			httpx.WriteJSON(w, 403, map[string]any{"error": map[string]string{"code": "FORBIDDEN", "message": "only the payer can choose the account the settlement was paid from"}})
+			return
+		}
+		if !h.ownsAccount(r.Context(), createdBy, *req.FromAccountID) {
+			httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "from_account_id must be one of your accounts"}})
+			return
+		}
+		fromAccount = pgtype.UUID{Bytes: *req.FromAccountID, Valid: true}
+	}
 	id := uuid.New()
 	err = h.Queries.CreateSettlement(r.Context(), db.CreateSettlementParams{
 		ID:        id,
@@ -169,6 +184,12 @@ func (h *Handler) CreateSettlement(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
+	}
+	if fromAccount.Valid {
+		if err := h.Queries.SetSettlementFromAccount(r.Context(), db.SetSettlementFromAccountParams{ID: id, FromAccountID: fromAccount}); err != nil {
+			httpx.WriteError(w, r, err)
+			return
+		}
 	}
 	_ = h.Queries.CreateSettlementActivity(r.Context(), db.CreateSettlementActivityParams{
 		GroupID:  groupID,
@@ -188,7 +209,7 @@ func (h *Handler) CreateSettlement(w http.ResponseWriter, r *http.Request) {
 			Data:   json.RawMessage(`{"group_id":"` + groupID.String() + `"}`),
 		})
 	}
-	httpx.WriteJSON(w, 201, map[string]any{"id": id, "group_id": groupID, "from_user": from, "to_user": to, "amount": req.Amount, "currency": currency})
+	httpx.WriteJSON(w, 201, map[string]any{"id": id, "group_id": groupID, "from_user": from, "to_user": to, "amount": req.Amount, "currency": currency, "from_account_id": req.FromAccountID})
 }
 
 func (h *Handler) ListSettlements(w http.ResponseWriter, r *http.Request) {
@@ -206,9 +227,12 @@ func (h *Handler) ListSettlements(w http.ResponseWriter, r *http.Request) {
 	if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 && v <= 100 {
 		limit = v
 	}
+	uid, _ := httpx.GetUserID(r.Context())
+	callerID, _ := uuid.Parse(uid)
 	rows, err := h.Queries.ListSettlements(r.Context(), db.ListSettlementsParams{
+		UserID:  pgtype.UUID{Bytes: callerID, Valid: true},
 		GroupID: groupID,
-		Limit:   int32(limit + 1),
+		Lim:     int32(limit + 1),
 	})
 	if err != nil {
 		httpx.WriteError(w, r, err)
@@ -216,7 +240,7 @@ func (h *Handler) ListSettlements(w http.ResponseWriter, r *http.Request) {
 	}
 	var out []map[string]any
 	for _, row := range rows {
-		out = append(out, map[string]any{"id": row.ID, "group_id": groupID, "from_user": row.FromUser, "to_user": row.ToUser, "amount": row.Amount, "currency": row.Currency, "note": row.Note, "settled_at": row.SettledAt.Time, "created_by": row.CreatedBy, "created_at": row.CreatedAt.Time})
+		out = append(out, map[string]any{"id": row.ID, "group_id": groupID, "from_user": row.FromUser, "to_user": row.ToUser, "amount": row.Amount, "currency": row.Currency, "note": row.Note, "settled_at": row.SettledAt.Time, "created_by": row.CreatedBy, "created_at": row.CreatedAt.Time, "account_id": accountIDPtr(row.AccountID)})
 	}
 	if len(out) > limit {
 		out = out[:limit]
@@ -299,6 +323,77 @@ func (h *Handler) DeleteSettlement(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = h.Queries.SoftDeleteSettlement(r.Context(), id)
 	httpx.WriteJSON(w, 200, map[string]any{"message": "deleted"})
+}
+
+func accountIDPtr(id pgtype.UUID) *uuid.UUID {
+	if !id.Valid {
+		return nil
+	}
+	v := uuid.UUID(id.Bytes)
+	return &v
+}
+
+func (h *Handler) ownsAccount(ctx context.Context, userID, accountID uuid.UUID) bool {
+	_, err := h.Queries.GetAccount(ctx, db.GetAccountParams{ID: accountID, UserID: userID})
+	return err == nil
+}
+
+// SetSettlementAccount links the caller's side of a settlement to one of their wallet
+// accounts (receiver: the account the money arrived in; payer: the account it left
+// from). {"account_id": null} removes the link.
+func (h *Handler) SetSettlementAccount(w http.ResponseWriter, r *http.Request) {
+	h.ensureQueries()
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "invalid settlement id"}})
+		return
+	}
+	st, err := h.Queries.GetSettlementParties(r.Context(), id)
+	if err == pgx.ErrNoRows {
+		httpx.WriteError(w, r, httpx.ErrNotFound)
+		return
+	}
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	if !h.mustBeMember(r, st.GroupID) {
+		httpx.WriteError(w, r, httpx.ErrNotFound)
+		return
+	}
+	uid, _ := httpx.GetUserID(r.Context())
+	callerID, _ := uuid.Parse(uid)
+	if callerID != st.FromUser && callerID != st.ToUser {
+		httpx.WriteJSON(w, 403, map[string]any{"error": map[string]string{"code": "FORBIDDEN", "message": "only the payer or the receiver can link an account"}})
+		return
+	}
+	var req struct {
+		AccountID *uuid.UUID `json:"account_id"`
+	}
+	if err := httpx.DecodeJSON(r, &req); err != nil {
+		httpx.WriteJSON(w, 400, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": err.Error()}})
+		return
+	}
+	if req.AccountID != nil && !h.ownsAccount(r.Context(), callerID, *req.AccountID) {
+		httpx.WriteJSON(w, 422, map[string]any{"error": map[string]string{"code": "VALIDATION_ERROR", "message": "account_id must be one of your accounts"}})
+		return
+	}
+	if callerID == st.FromUser {
+		var acct pgtype.UUID
+		if req.AccountID != nil {
+			acct = pgtype.UUID{Bytes: *req.AccountID, Valid: true}
+		}
+		err = h.Queries.SetSettlementFromAccount(r.Context(), db.SetSettlementFromAccountParams{ID: id, FromAccountID: acct})
+	} else if req.AccountID != nil {
+		err = h.Queries.UpsertSettlementAccount(r.Context(), db.UpsertSettlementAccountParams{SettlementID: pgtype.UUID{Bytes: id, Valid: true}, UserID: callerID, AccountID: pgtype.UUID{Bytes: *req.AccountID, Valid: true}})
+	} else {
+		err = h.Queries.DeleteSettlementAccount(r.Context(), db.DeleteSettlementAccountParams{SettlementID: pgtype.UUID{Bytes: id, Valid: true}, UserID: callerID})
+	}
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, 200, map[string]any{"settlement_id": id, "account_id": req.AccountID})
 }
 
 // Ensure imports are used
