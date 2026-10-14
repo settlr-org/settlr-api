@@ -240,6 +240,11 @@ func (h *Handler) CategorySummary(w http.ResponseWriter, r *http.Request) {
 		validation(w, err.Error())
 		return
 	}
+	cursorAt, cursorID, err := decodeCursor(r.URL.Query().Get("cursor"))
+	if err != nil {
+		validation(w, err.Error())
+		return
+	}
 	f, err := h.newFX(ctx, userID)
 	if err != nil {
 		httpx.WriteError(w, r, err)
@@ -253,7 +258,7 @@ func (h *Handler) CategorySummary(w http.ResponseWriter, r *http.Request) {
 	limit := queryLimit(r, 50, 200)
 	entries, next, err := h.ledgerPage(ctx, userID, db.ListLedgerEntriesParams{
 		UserID: userID, Planned: "exclude", FromAt: ts(from), ToAt: ts(to),
-		CategoryIds: pgUUIDs([]uuid.UUID{id}), Lim: int32(limit + 1),
+		CategoryIds: pgUUIDs([]uuid.UUID{id}), CursorAt: cursorAt, CursorID: cursorID, Lim: int32(limit + 1),
 	}, limit)
 	if err != nil {
 		httpx.WriteError(w, r, err)

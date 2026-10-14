@@ -493,6 +493,11 @@ func (h *Handler) AccountSummary(w http.ResponseWriter, r *http.Request) {
 		validation(w, err.Error())
 		return
 	}
+	cursorAt, cursorID, err := decodeCursor(r.URL.Query().Get("cursor"))
+	if err != nil {
+		validation(w, err.Error())
+		return
+	}
 	settings, err := h.loadSettings(ctx, userID)
 	if err != nil {
 		httpx.WriteError(w, r, err)
@@ -533,7 +538,7 @@ func (h *Handler) AccountSummary(w http.ResponseWriter, r *http.Request) {
 	limit := queryLimit(r, 50, 200)
 	entries, next, err := h.ledgerPage(ctx, userID, db.ListLedgerEntriesParams{
 		UserID: userID, Planned: "exclude", FromAt: ts(from), ToAt: ts(to),
-		AccountIds: pgUUIDs([]uuid.UUID{a.ID}), Lim: int32(limit + 1),
+		AccountIds: pgUUIDs([]uuid.UUID{a.ID}), CursorAt: cursorAt, CursorID: cursorID, Lim: int32(limit + 1),
 	}, limit)
 	if err != nil {
 		httpx.WriteError(w, r, err)

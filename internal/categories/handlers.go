@@ -103,7 +103,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	httpx.WriteJSON(w, 201, map[string]any{"id": id, "name": req.Name, "icon": icon, "color": color})
+	httpx.WriteJSON(w, 201, map[string]any{"id": id, "name": req.Name, "icon": icon, "color": color, "is_system": false, "grouping": grouping, "sort_order": nil})
 }
 
 func writeValidation(w http.ResponseWriter, msg string) {

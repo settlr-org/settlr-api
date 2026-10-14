@@ -1,7 +1,7 @@
 package rates
 
 import (
-	"encoding/json"
+	"context"
 	"net/http"
 	"strings"
 	"sync"
@@ -10,81 +10,122 @@ import (
 	"github.com/settlr-org/settlr-api/internal/httpx"
 )
 
-type Handler struct{}
+// Source serves rate tables for GET /rates. *HTTPProvider implements it.
+type Source interface {
+	Rates(ctx context.Context, base, date string) (Result, error)
+}
 
-var cache = struct {
-	sync.RWMutex
-	data map[string]cached
-}{data: make(map[string]cached)}
+type Handler struct {
+	// Source defaults to an HTTPProvider against the public upstreams.
+	Source Source
+	// Now is the cache clock (tests).
+	Now func() time.Time
+
+	mu    sync.Mutex
+	cache map[string]cached
+}
 
 type cached struct {
-	rates map[string]float64
-	ts    time.Time
+	res Result
+	ts  time.Time
 }
+
+const cacheTTL = time.Hour
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
 	mux.Handle("GET /api/v1/rates", authMw(http.HandlerFunc(h.GetRates)))
 }
 
+func (h *Handler) source() Source {
+	if h.Source != nil {
+		return h.Source
+	}
+	return &HTTPProvider{}
+}
+
+func (h *Handler) now() time.Time {
+	if h.Now != nil {
+		return h.Now()
+	}
+	return time.Now()
+}
+
+// table returns base's rate table for date, cached for an hour.
+func (h *Handler) table(ctx context.Context, base, date string) (Result, error) {
+	key := base + ":" + date
+	h.mu.Lock()
+	if h.cache == nil {
+		h.cache = make(map[string]cached)
+	}
+	if c, ok := h.cache[key]; ok && h.now().Sub(c.ts) < cacheTTL {
+		h.mu.Unlock()
+		return c.res, nil
+	}
+	h.mu.Unlock()
+	res, err := h.source().Rates(ctx, base, date)
+	if err != nil {
+		return Result{}, err
+	}
+	h.mu.Lock()
+	h.cache[key] = cached{res: res, ts: h.now()}
+	h.mu.Unlock()
+	return res, nil
+}
+
+// complete fills currencies missing from base's table with cross rates through
+// each pivot quoted in it: base→quote = base→pivot × pivot→quote. A missing
+// pivot table is not an error; the table is then returned as is.
+func (h *Handler) complete(ctx context.Context, res Result, date string) Result {
+	out := make(map[string]float64, len(res.Rates))
+	for k, v := range res.Rates {
+		out[k] = v
+	}
+	crossed := false
+	for _, p := range Pivots {
+		bp, ok := out[p]
+		if p == res.Base || !ok || bp <= 0 {
+			continue
+		}
+		pt, err := h.table(ctx, p, date)
+		if err != nil {
+			continue
+		}
+		for q, r := range pt.Rates {
+			if _, have := out[q]; have || q == res.Base || r <= 0 {
+				continue
+			}
+			out[q] = bp * r
+			crossed = true
+		}
+	}
+	res.Rates = out
+	if crossed {
+		res.Source += "+cross"
+	}
+	return res
+}
+
+// GetRates returns 1 base = rates[quote] quote for every currency known to the
+// upstream providers. Gaps in one provider's table are filled from the other and
+// then by crossing through EUR/USD, so ?base=USD and ?base=NPR quote each other.
 func (h *Handler) GetRates(w http.ResponseWriter, r *http.Request) {
 	base := strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("base")))
 	if base == "" {
 		base = "NPR"
 	}
 	date := strings.TrimSpace(r.URL.Query().Get("date")) // YYYY-MM-DD optional, for Frankfurter historical
-	// check cache 1h (key includes date)
-	cacheKey := base
-	if date != "" {
-		cacheKey = base + ":" + date
-	}
-	cache.RLock()
-	if c, ok := cache.data[cacheKey]; ok && time.Since(c.ts) < time.Hour {
-		cache.RUnlock()
-		httpx.WriteJSON(w, 200, map[string]any{"base": base, "date": date, "rates": c.rates, "cached": true})
-		return
-	}
-	cache.RUnlock()
-	// Try Frankfurter first (supports 34 codes, no key, handles historical)
-	frankfurterURL := "https://api.frankfurter.app/latest?from=" + base
-	if date != "" {
-		frankfurterURL = "https://api.frankfurter.app/" + date + "?from=" + base
-	}
-	resp, err := http.Get(frankfurterURL)
-	if err == nil && resp.StatusCode == 200 {
-		defer resp.Body.Close()
-		var fdata struct {
-			Rates map[string]float64 `json:"rates"`
-			Base  string             `json:"base"`
-			Date  string             `json:"date"`
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&fdata); err == nil && len(fdata.Rates) > 0 {
-			cache.Lock()
-			cache.data[cacheKey] = cached{rates: fdata.Rates, ts: time.Now()}
-			cache.Unlock()
-			httpx.WriteJSON(w, 200, map[string]any{"base": fdata.Base, "date": fdata.Date, "rates": fdata.Rates, "source": "frankfurter"})
-			return
-		}
-		if resp != nil {
-			resp.Body.Close()
-		}
-	}
-	// Fallback to exchangerate-api
-	resp, err = http.Get("https://api.exchangerate-api.com/v4/latest/" + base)
+	ctx := r.Context()
+	res, err := h.table(ctx, base, date)
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	defer resp.Body.Close()
-	var data struct {
-		Rates map[string]float64 `json:"rates"`
-		Base  string             `json:"base"`
+	res = h.complete(ctx, res, date)
+	resp := map[string]any{"base": res.Base, "rates": res.Rates, "source": res.Source}
+	if res.Date != "" {
+		resp["date"] = res.Date
+	} else {
+		resp["date"] = date
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	cache.Lock()
-	cache.data[cacheKey] = cached{rates: data.Rates, ts: time.Now()}
-	cache.Unlock()
-	httpx.WriteJSON(w, 200, map[string]any{"base": data.Base, "rates": data.Rates, "source": "exchangerate-api"})
+	httpx.WriteJSON(w, http.StatusOK, resp)
 }

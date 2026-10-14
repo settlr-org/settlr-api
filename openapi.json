@@ -717,6 +717,155 @@
             "description": "currency pairs (FROM/TO) that could not be converted and were left out"
           }
         }
+      },
+      "Category": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "icon",
+          "color",
+          "is_system",
+          "grouping",
+          "sort_order"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "icon": {
+            "type": "string",
+            "description": "icon name (default \"tag\")"
+          },
+          "color": {
+            "type": "string",
+            "description": "hex colour (default #6B7280)"
+          },
+          "is_system": {
+            "type": "boolean",
+            "description": "built-in category shared by all users; read-only"
+          },
+          "grouping": {
+            "type": "string",
+            "description": "section the category is listed under (default \"Uncategorized\")"
+          },
+          "sort_order": {
+            "type": "integer",
+            "nullable": true,
+            "description": "the caller's position from POST /categories/reorder; null when never reordered (always null on create)"
+          }
+        }
+      },
+      "CategoryInput": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "icon": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "grouping": {
+            "type": "string"
+          }
+        }
+      },
+      "SettlementInput": {
+        "type": "object",
+        "required": [
+          "from_user",
+          "to_user",
+          "amount"
+        ],
+        "properties": {
+          "from_user": {
+            "type": "string",
+            "format": "uuid",
+            "description": "payer (group member)"
+          },
+          "to_user": {
+            "type": "string",
+            "format": "uuid",
+            "description": "receiver (group member, differs from from_user)"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "description": "minor units (hundredths)"
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO code; defaults to the group currency"
+          },
+          "note": {
+            "type": "string"
+          },
+          "settled_at": {
+            "type": "string",
+            "description": "RFC 3339 or YYYY-MM-DD; defaults to now"
+          },
+          "from_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "payer's own wallet account the money left from; only from_user may set it (403), must be the caller's account (422)"
+          }
+        }
+      },
+      "Settlement": {
+        "type": "object",
+        "required": [
+          "id",
+          "group_id",
+          "from_user",
+          "to_user",
+          "amount",
+          "currency",
+          "from_account_id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "group_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "from_user": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "to_user": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "from_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
       }
     },
     "parameters": {
@@ -926,7 +1075,28 @@
         "summary": "Categories",
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Category"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         },
         "security": [
@@ -938,8 +1108,38 @@
       "post": {
         "summary": "Create category",
         "responses": {
-          "200": {
-            "description": "OK"
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Category"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -951,7 +1151,17 @@
           {
             "$ref": "#/components/parameters/IdempotencyKey"
           }
-        ]
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryInput"
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/comments/{id}": {
@@ -1991,8 +2201,48 @@
       "post": {
         "summary": "Create settlement",
         "responses": {
-          "200": {
-            "description": "OK"
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Settlement"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2005,7 +2255,17 @@
             "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
-        "description": "Optional body field `from_account_id` (uuid, nullable): payer's own wallet account; only from_user may set it (403); must be the caller's account (422)"
+        "description": "Records a payment from from_user to to_user. `from_account_id` (optional) books it to the payer's wallet account.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettlementInput"
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/groups/{id}/stats": {
@@ -2885,7 +3145,7 @@
     },
     "/api/v1/rates": {
       "get": {
-        "summary": "Exchange rates (cached)",
+        "summary": "Exchange rates",
         "tags": [
           "Rates"
         ],
@@ -2895,7 +3155,25 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "string"
+                    },
+                    "date": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string",
+                      "description": "e.g. frankfurter+exchangerate-api, with +cross when cross rates were added"
+                    },
+                    "rates": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "number"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -2918,8 +3196,18 @@
               "type": "string"
             },
             "description": "ISO currency code"
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "YYYY-MM-DD for historical (Frankfurter) rates"
           }
-        ]
+        ],
+        "description": "1 base = rates[quote] quote. Frankfurter (ECB) rates merged with exchangerate-api for currencies ECB lacks (e.g. NPR); remaining gaps are crossed via EUR/USD, so ?base=USD includes NPR and ?base=NPR includes USD. Cached for an hour."
       }
     },
     "/api/v1/recurring/{id}": {
@@ -3771,6 +4059,16 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "parameters": [
@@ -3808,6 +4106,15 @@
               "type": "integer"
             },
             "description": "entries page size (default 50, max 200)"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "next_cursor from the previous page (same opaque format as /ledger); totals always cover the whole range"
           }
         ]
       }
@@ -4869,6 +5176,16 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "parameters": [
@@ -4906,6 +5223,15 @@
               "type": "integer"
             },
             "description": "entries page size (default 50, max 200)"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "next_cursor from the previous page (same opaque format as /ledger); totals always cover the whole range"
           }
         ]
       }
