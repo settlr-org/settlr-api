@@ -31,7 +31,7 @@ sqlc-vet:
 	go run github.com/sqlc-dev/sqlc/cmd/sqlc@latest vet
 
 goose-validate:
-	go run github.com/pressly/goose/v3/cmd/goose@latest postgres "$${DATABASE_URL:-postgres://settlr:local-dev-password@127.0.0.1:5433/settlr_local?sslmode=disable}" -dir migrations validate
+	go run github.com/pressly/goose/v3/cmd/goose@latest -dir migrations validate
 
 vet:
 	go vet ./...
