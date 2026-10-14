@@ -1,6 +1,7 @@
-// Package wallet implements the personal-finance wallet (docs/design/wallet.md, phase 1):
+// Package wallet implements the personal-finance wallet (docs/design/wallet.md):
 // accounts, transactions, tags, the unified ledger (wallet transactions plus group
-// expense shares and settlements), overview, settings and exchange-rate overrides.
+// expense shares and settlements), overview, settings and exchange-rate overrides
+// (phase 1), and planned payments, budgets and loans (phase 2).
 package wallet
 
 import (
@@ -57,6 +58,33 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) h
 	mux.Handle("PATCH /api/v1/transactions/{id}", authMw(http.HandlerFunc(h.UpdateTransaction)))
 	mux.Handle("DELETE /api/v1/transactions/{id}", authMw(http.HandlerFunc(h.DeleteTransaction)))
 	mux.Handle("POST /api/v1/transactions/{id}/duplicate", authMw(http.HandlerFunc(h.DuplicateTransaction)))
+	mux.Handle("POST /api/v1/transactions/{id}/pay", authMw(http.HandlerFunc(h.PayTransaction)))
+	mux.Handle("POST /api/v1/transactions/{id}/skip", authMw(http.HandlerFunc(h.SkipTransaction)))
+	mux.Handle("POST /api/v1/transactions/skip-overdue", authMw(http.HandlerFunc(h.SkipOverdue)))
+
+	mux.Handle("GET /api/v1/planned", authMw(http.HandlerFunc(h.ListPlanned)))
+	mux.Handle("POST /api/v1/planned", authMw(http.HandlerFunc(h.CreatePlanned)))
+	mux.Handle("GET /api/v1/planned/{id}", authMw(http.HandlerFunc(h.GetPlanned)))
+	mux.Handle("PATCH /api/v1/planned/{id}", authMw(http.HandlerFunc(h.UpdatePlanned)))
+	mux.Handle("DELETE /api/v1/planned/{id}", authMw(http.HandlerFunc(h.DeletePlanned)))
+
+	mux.Handle("GET /api/v1/budgets", authMw(http.HandlerFunc(h.ListBudgets)))
+	mux.Handle("POST /api/v1/budgets", authMw(http.HandlerFunc(h.CreateBudget)))
+	mux.Handle("POST /api/v1/budgets/reorder", authMw(http.HandlerFunc(h.ReorderBudgets)))
+	mux.Handle("GET /api/v1/budgets/{id}", authMw(http.HandlerFunc(h.GetBudget)))
+	mux.Handle("PATCH /api/v1/budgets/{id}", authMw(http.HandlerFunc(h.UpdateBudget)))
+	mux.Handle("DELETE /api/v1/budgets/{id}", authMw(http.HandlerFunc(h.DeleteBudget)))
+
+	mux.Handle("GET /api/v1/loans", authMw(http.HandlerFunc(h.ListLoans)))
+	mux.Handle("POST /api/v1/loans", authMw(http.HandlerFunc(h.CreateLoan)))
+	mux.Handle("POST /api/v1/loans/reorder", authMw(http.HandlerFunc(h.ReorderLoans)))
+	mux.Handle("GET /api/v1/loans/{id}", authMw(http.HandlerFunc(h.GetLoan)))
+	mux.Handle("PATCH /api/v1/loans/{id}", authMw(http.HandlerFunc(h.UpdateLoan)))
+	mux.Handle("DELETE /api/v1/loans/{id}", authMw(http.HandlerFunc(h.DeleteLoan)))
+	mux.Handle("GET /api/v1/loans/{id}/records", authMw(http.HandlerFunc(h.ListLoanRecords)))
+	mux.Handle("POST /api/v1/loans/{id}/records", authMw(http.HandlerFunc(h.CreateLoanRecord)))
+	mux.Handle("PATCH /api/v1/loan-records/{id}", authMw(http.HandlerFunc(h.UpdateLoanRecord)))
+	mux.Handle("DELETE /api/v1/loan-records/{id}", authMw(http.HandlerFunc(h.DeleteLoanRecord)))
 
 	mux.Handle("GET /api/v1/tags", authMw(http.HandlerFunc(h.ListTags)))
 	mux.Handle("POST /api/v1/tags", authMw(http.HandlerFunc(h.CreateTag)))

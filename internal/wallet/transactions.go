@@ -328,6 +328,10 @@ func (h *Handler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
+	if cur.Source == "LOAN" {
+		loanManaged(w)
+		return
+	}
 	var req updateTxnReq
 	if !decode(w, r, &req) {
 		return
@@ -425,6 +429,10 @@ func (h *Handler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 			in.TagIDs = v
 		}
 	}
+	if cur.PlannedPaymentID.Valid && cur.OccurredAt.Valid && in.OccurredAt == nil {
+		validation(w, "a paid occurrence of a planned payment cannot be made unpaid again")
+		return
+	}
 	msg, err := h.validate(ctx, userID, &in)
 	if err != nil {
 		httpx.WriteError(w, r, err)
@@ -441,6 +449,11 @@ func (h *Handler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	qtx := h.q().WithTx(tx)
+	locked, err := qtx.LockTransaction(ctx, db.LockTransactionParams{ID: id, UserID: userID})
+	if err != nil {
+		httpx.WriteError(w, r, httpx.ErrNotFound)
+		return
+	}
 	t, err := qtx.UpdateTransaction(ctx, db.UpdateTransactionParams{
 		ID: id, UserID: userID, Type: in.Type, AccountID: pgUUID(in.AccountID), ToAccountID: pgUUID(in.ToAccountID),
 		Amount: in.Amount, Currency: in.Currency, ToAmount: pgInt8(in.ToAmount), CategoryID: pgUUID(in.CategoryID),
@@ -462,6 +475,13 @@ func (h *Handler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	// Setting occurred_at on a plan's pending occurrence pays it: generate the next.
+	if locked.PlannedPaymentID.Valid && !locked.OccurredAt.Valid && in.OccurredAt != nil {
+		if _, err := h.advancePlan(ctx, qtx, uuid.UUID(locked.PlannedPaymentID.Bytes), userID, locked.DueAt.Time, false); err != nil {
+			httpx.WriteError(w, r, err)
+			return
+		}
+	}
 	if err := tx.Commit(ctx); err != nil {
 		httpx.WriteError(w, r, err)
 		return
@@ -469,18 +489,43 @@ func (h *Handler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 	h.writeTransaction(w, r, http.StatusOK, t)
 }
 
+// DeleteTransaction soft-deletes a transaction. Deleting a plan's pending
+// occurrence skips it (the next occurrence is generated); loan bookings can only
+// be removed through the loan endpoints (409 LOAN_MANAGED).
 func (h *Handler) DeleteTransaction(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathID(w, r)
 	if !ok {
 		return
 	}
-	n, err := h.q().SoftDeleteTransaction(r.Context(), db.SoftDeleteTransactionParams{ID: id, UserID: currentUser(r)})
+	userID := currentUser(r)
+	ctx := r.Context()
+	tx, err := h.Pool.Begin(ctx)
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	if n == 0 {
+	defer func() { _ = tx.Rollback(ctx) }()
+	qtx := h.q().WithTx(tx)
+	cur, err := qtx.LockTransaction(ctx, db.LockTransactionParams{ID: id, UserID: userID})
+	if err != nil {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
+		return
+	}
+	if cur.Source == "LOAN" {
+		loanManaged(w)
+		return
+	}
+	if cur.OccurredAt.Valid {
+		err = qtx.SoftDeleteTransactionByID(ctx, id)
+	} else {
+		_, err = h.skipOne(ctx, qtx, cur, false)
+	}
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	if err := tx.Commit(ctx); err != nil {
+		httpx.WriteError(w, r, err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"message": "deleted"})
@@ -497,6 +542,10 @@ func (h *Handler) DuplicateTransaction(w http.ResponseWriter, r *http.Request) {
 	cur, err := h.q().GetTransaction(ctx, db.GetTransactionParams{ID: id, UserID: userID})
 	if err != nil {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
+		return
+	}
+	if cur.Source == "LOAN" {
+		loanManaged(w)
 		return
 	}
 	tags, err := h.tagsFor(ctx, []uuid.UUID{id})
