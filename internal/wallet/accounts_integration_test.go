@@ -68,12 +68,13 @@ func TestIntegration_AccountsBalancesTransfersAdjust(t *testing.T) {
 	}
 	e.status(422, "POST", "/api/v1/accounts/"+bankID+"/adjust", alice, map[string]any{})
 
-	// Overview: balance in base currency over included accounts; transfers are not flows.
+	// Overview: balance in base currency over included accounts; transfers and
+	// balance adjustments (starting balances, /adjust) are not flows.
 	ov := e.must(200, "GET", "/api/v1/overview?from=2000-01-01&to=2100-01-01", alice, nil)
 	if num(ov["balance"]) != 90000+5100*133+500 {
 		t.Fatalf("overview balance: %v", ov)
 	}
-	if num(ov["income"]) != 100000+5000*133+3800 || num(ov["expense"]) != 0 {
+	if num(ov["income"]) != 0 || num(ov["expense"]) != 0 {
 		t.Fatalf("overview income/expense: %v", ov)
 	}
 	if len(list(ov, "upcoming")) != 0 || len(list(ov, "overdue")) != 0 {
@@ -86,14 +87,15 @@ func TestIntegration_AccountsBalancesTransfersAdjust(t *testing.T) {
 		t.Fatalf("overview balance without cash: %v", ov["balance"])
 	}
 
-	// Account summary: transfers count as inflow, and as income only when the setting says so.
+	// Account summary: transfers count as inflow, and as income only when the setting
+	// says so; the starting balance moves the account (inflow) but is not income.
 	sum := e.must(200, "GET", "/api/v1/accounts/"+usdID+"/summary", alice, nil)
-	if num(sum["income"]) != 5000 || num(sum["inflow"]) != 5100 || num(sum["balance"]) != 5100 || len(list(sum, "entries")) != 2 {
+	if num(sum["income"]) != 0 || num(sum["inflow"]) != 5100 || num(sum["balance"]) != 5100 || len(list(sum, "entries")) != 2 {
 		t.Fatalf("usd summary: %v", sum)
 	}
 	e.must(200, "PATCH", "/api/v1/me/settings", alice, map[string]any{"treat_transfers_as_flow": true})
 	sum = e.must(200, "GET", "/api/v1/accounts/"+usdID+"/summary?from=2000-01-01", alice, nil)
-	if num(sum["income"]) != 5100 {
+	if num(sum["income"]) != 100 {
 		t.Fatalf("usd summary with transfers as flow: %v", sum)
 	}
 

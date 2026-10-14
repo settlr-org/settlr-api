@@ -568,12 +568,12 @@
           "income": {
             "type": "integer",
             "format": "int64",
-            "description": "minor units"
+            "description": "minor units; excludes ADJUSTMENT transactions"
           },
           "expense": {
             "type": "integer",
             "format": "int64",
-            "description": "minor units"
+            "description": "minor units; excludes ADJUSTMENT transactions"
           },
           "upcoming": {
             "type": "array",
@@ -629,12 +629,12 @@
           "income": {
             "type": "integer",
             "format": "int64",
-            "description": "INCOME transactions (+ transfers in when treat_transfers_as_flow)"
+            "description": "INCOME transactions (+ transfers in when treat_transfers_as_flow); excludes ADJUSTMENT transactions"
           },
           "expense": {
             "type": "integer",
             "format": "int64",
-            "description": "EXPENSE transactions (+ transfers out when treat_transfers_as_flow)"
+            "description": "EXPENSE transactions (+ transfers out when treat_transfers_as_flow); excludes ADJUSTMENT transactions"
           },
           "inflow": {
             "type": "integer",
@@ -690,12 +690,12 @@
           "income": {
             "type": "integer",
             "format": "int64",
-            "description": "minor units"
+            "description": "minor units; excludes ADJUSTMENT transactions"
           },
           "expense": {
             "type": "integer",
             "format": "int64",
-            "description": "minor units"
+            "description": "minor units; excludes ADJUSTMENT transactions"
           },
           "count": {
             "type": "integer"
@@ -3986,7 +3986,7 @@
             }
           }
         },
-        "description": "Posts the difference as an ADJUSTMENT income/expense (none when already at the target). Returns 422 RATES_UNAVAILABLE when the current balance is incomplete (see Account.missing_rates); set a rate override first.",
+        "description": "Posts the difference as an ADJUSTMENT transaction typed INCOME/EXPENSE by direction (none when already at the target); adjustments change the balance but are excluded from income/expense totals. Returns 422 RATES_UNAVAILABLE when the current balance is incomplete (see Account.missing_rates); set a rate override first.",
         "requestBody": {
           "required": true,
           "content": {
@@ -4934,7 +4934,7 @@
             }
           }
         },
-        "description": "Wallet transactions plus my group-expense shares (my share is my expense; if I paid from an account the full amount leaves it) and settlements booked to my accounts (account effect only). Group entries are read-only.",
+        "description": "Wallet transactions plus my group-expense shares (my share is my expense; if I paid from an account the full amount leaves it) and settlements booked to my accounts (account effect only). Group entries are read-only. Order: sort_at desc, id desc (the cursor encodes both). Group expenses created on their expense_date (UTC) sort at their creation time, otherwise at 00:00 UTC of expense_date, so a group expense added later in the day sorts above earlier wallet transactions; date filters still select by date.",
         "parameters": [
           {
             "name": "from",
@@ -5119,7 +5119,7 @@
             }
           }
         },
-        "description": "Balance (base currency, accounts with include_in_balance), income and expense in [from, to). Default range: the current period per month_start_day. Income/expense include ADJUSTMENT transactions (initial balances and balance adjustments), as in Ivy Wallet; transfers and settlements are never counted.",
+        "description": "Balance (base currency, accounts with include_in_balance), income and expense in [from, to). Default range: the current period per month_start_day. Income/expense exclude ADJUSTMENT transactions (initial balances and POST /accounts/{id}/adjust corrections): they move account balances and appear in the ledger, but are never income or expense. Transfers and settlements are never counted either.",
         "parameters": [
           {
             "name": "from",
