@@ -126,4 +126,29 @@ automatically because nothing is copied. Group entries are read-only in the wall
 5. **Android platform** — biometric lock, widgets (add-transaction, balance), daily
    reminder, AMOLED theme, hide balance/income, large-number formatting.
 
+### Phase 2 implementation notes (migration 0015)
+
+- **Planned payments.** One pending transaction per active plan (unique partial index).
+  `resolved_until` = due date of the latest paid/skipped occurrence; the next occurrence
+  is the first one after it, always computed from `start_at` on the UTC calendar
+  (month/year add clamps to month end: Jan 31 → Feb 28 → Mar 31; Feb 29 yearly → Feb 28,
+  Feb 29 again in leap years). Plan PATCH updates the pending item in place (same id).
+  DELETE of a pending plan item via `/transactions/{id}` acts like skip; PATCH setting its
+  `occurred_at` acts like pay; a paid plan occurrence can't be made unpaid (422).
+  `skip-overdue` moves recurring plans to their first occurrence ≥ now. Deleting an
+  account deletes its plans. Plans without account are allowed (pay needs `account_id`).
+- **Overview.** `overdue` = unpaid items due before now (any date); `upcoming` = due now or
+  later inside [from, to). `projected_balance` = balance + signed sum of all unpaid items
+  due before `to` on included accounts (account-less items count; transfers per side).
+- **Budgets.** EXPENSE ledger entries (my group shares included) in range, matching
+  categories (empty = all). `account_ids` empty → overview rule (non-balance accounts
+  excluded, every group share counts); set → only entries booked to those accounts (a group
+  share only when I paid it from one of them). Adjustments, loans, planned items never count.
+  Stale category/account ids stay in the arrays (they simply match nothing).
+- **Loans.** Bookings are transactions with `source = LOAN` (+ `loan_id`, `loan_record_id`):
+  they move balances, appear in the ledger as `read_only`, are excluded from income/expense
+  everywhere (overview, summaries, budgets, `/personal/*`), and PATCH/DELETE/duplicate/pay/
+  skip on them → 409 `LOAN_MANAGED`. Cross-currency bookings convert via rates or take
+  `account_amount`. Deleting an account unlinks loans/records and deletes their bookings.
+
 Non-goals: Ivy Cloud / GitHub backup (removed upstream), wishlist, in-app changelog/poll.
