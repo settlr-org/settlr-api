@@ -90,6 +90,55 @@ func lockTxnPlanFirst(ctx context.Context, q *db.Queries, id, userID uuid.UUID) 
 	return t, err
 }
 
+// adaptToAccount moves a planned item onto another account. When the account's
+// currency differs from the item's and no amount was sent, the amount is
+// converted (user overrides, then daily rates; 422 RATES_UNAVAILABLE without a
+// rate); a sent amount is taken as account-currency minor units. The currency
+// always becomes the account's. For a TRANSFER without an explicit to_amount, a
+// same-currency pair follows the amount and otherwise keeps the original
+// to_amount (it is in the unchanged destination currency).
+func (h *Handler) adaptToAccount(ctx context.Context, userID uuid.UUID, in *txnInput, oldCurrency string, origToAmount *int64, amountGiven, toAmountGiven bool) error {
+	if in.AccountID == nil {
+		return nil
+	}
+	a, err := h.q().GetAccount(ctx, db.GetAccountParams{ID: *in.AccountID, UserID: userID})
+	if isNoRows(err) {
+		return nil // validate reports it
+	}
+	if err != nil {
+		return err
+	}
+	ac, old := strings.TrimSpace(a.Currency), strings.TrimSpace(oldCurrency)
+	if ac != old && !amountGiven {
+		f, err := h.newFX(ctx, userID)
+		if err != nil {
+			return err
+		}
+		v, ok := f.convert(ctx, in.Amount, old, ac)
+		if !ok || v <= 0 {
+			return &httpx.AppError{Code: "RATES_UNAVAILABLE", Status: http.StatusUnprocessableEntity,
+				Message: "no exchange rate " + old + "/" + ac + "; send amount in the account currency or set a rate via PUT /me/rates/{base}/{quote}"}
+		}
+		in.Amount = v
+	}
+	in.Currency = ""
+	if in.Type == "TRANSFER" && !toAmountGiven && in.ToAccountID != nil {
+		to, err := h.q().GetAccount(ctx, db.GetAccountParams{ID: *in.ToAccountID, UserID: userID})
+		if isNoRows(err) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if strings.TrimSpace(to.Currency) == ac {
+			in.ToAmount = nil // validate sets it to amount
+		} else {
+			in.ToAmount = origToAmount
+		}
+	}
+	return nil
+}
+
 func loanManaged(w http.ResponseWriter) {
 	writeErr(w, http.StatusConflict, codeLoanManaged, "this transaction belongs to a loan; change it through the loan endpoints")
 }
@@ -790,12 +839,6 @@ func (h *Handler) PayTransaction(w http.ResponseWriter, r *http.Request) {
 		if in.AccountID == nil {
 			in.Currency = cur.Currency
 		}
-		if req.AccountID != nil {
-			in.AccountID, in.Currency = req.AccountID, ""
-			if req.ToAmount == nil && in.Type == "TRANSFER" {
-				in.ToAmount = nil
-			}
-		}
 		if req.Amount != nil {
 			if req.ToAmount == nil && in.ToAmount != nil && *in.ToAmount == in.Amount {
 				in.ToAmount = nil
@@ -804,6 +847,12 @@ func (h *Handler) PayTransaction(w http.ResponseWriter, r *http.Request) {
 		}
 		if req.ToAmount != nil {
 			in.ToAmount = req.ToAmount
+		}
+		if req.AccountID != nil {
+			in.AccountID = req.AccountID
+			if err := h.adaptToAccount(ctx, userID, &in, cur.Currency, int8Ptr(cur.ToAmount), req.Amount != nil, req.ToAmount != nil); err != nil {
+				return err
+			}
 		}
 		if in.AccountID == nil {
 			return vErr("account_id required to pay a planned item without account")
@@ -902,8 +951,9 @@ func (h *Handler) skipOne(ctx context.Context, q *db.Queries, t db.Transaction, 
 	return true, next, err
 }
 
-// SkipOverdue skips every overdue planned item of the user; recurring plans move
-// to their first occurrence due now or later. Each item is locked (plan first)
+// SkipOverdue skips every overdue planned item of the user (optionally only those
+// touching ?account= or in ?category=, comma lists as on /transactions);
+// recurring plans move to their first occurrence due now or later. Each item is locked (plan first)
 // and re-checked, so an occurrence paid concurrently is left alone.
 func (h *Handler) SkipOverdue(w http.ResponseWriter, r *http.Request) {
 	userID := currentUser(r)
@@ -914,6 +964,17 @@ func (h *Handler) SkipOverdue(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
+	accounts, err := queryUUIDs(r, "account")
+	if err != nil {
+		validation(w, err.Error())
+		return
+	}
+	categories, err := queryUUIDs(r, "category")
+	if err != nil {
+		validation(w, err.Error())
+		return
+	}
+	items = filterPlanned(items, accounts, categories)
 	// A stable lock order across requests: by plan, then by transaction.
 	sort.Slice(items, func(i, j int) bool {
 		pi, pj := uuid.UUID(items[i].PlannedPaymentID.Bytes).String(), uuid.UUID(items[j].PlannedPaymentID.Bytes).String()
@@ -1067,4 +1128,28 @@ func (h *Handler) plannedItems(ctx context.Context, userID uuid.UUID, f *fx, fro
 		}
 	}
 	return v, nil
+}
+
+// filterPlanned keeps items touching one of accounts (account or to_account)
+// and in one of categories; an empty list does not filter.
+func filterPlanned(items []db.Transaction, accounts, categories []uuid.UUID) []db.Transaction {
+	inAcc, inCat := map[uuid.UUID]bool{}, map[uuid.UUID]bool{}
+	for _, id := range accounts {
+		inAcc[id] = true
+	}
+	for _, id := range categories {
+		inCat[id] = true
+	}
+	out := items[:0]
+	for _, t := range items {
+		if len(inAcc) > 0 && !(t.AccountID.Valid && inAcc[uuid.UUID(t.AccountID.Bytes)]) &&
+			!(t.ToAccountID.Valid && inAcc[uuid.UUID(t.ToAccountID.Bytes)]) {
+			continue
+		}
+		if len(inCat) > 0 && !inCat[t.CategoryID] {
+			continue
+		}
+		out = append(out, t)
+	}
+	return out
 }

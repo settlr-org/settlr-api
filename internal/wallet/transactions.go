@@ -350,6 +350,13 @@ func (h *Handler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 		if msg != "" {
 			return vErr(msg)
 		}
+		// Moving a pending item to an account in another currency converts it,
+		// as pay does.
+		if !locked.OccurredAt.Valid && req.AccountID.Set && in.AccountID != nil {
+			if err := h.adaptToAccount(ctx, userID, &in, locked.Currency, int8Ptr(locked.ToAmount), req.Amount.Set, req.ToAmount.Set); err != nil {
+				return err
+			}
+		}
 		if locked.PlannedPaymentID.Valid && locked.OccurredAt.Valid && in.OccurredAt == nil {
 			return vErr("a paid occurrence of a planned payment cannot be made unpaid again")
 		}

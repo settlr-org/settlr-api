@@ -1204,7 +1204,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "override"
+            "description": "override, in minor units of the paying account's currency"
           },
           "to_amount": {
             "type": "integer",
@@ -1214,7 +1214,7 @@
           "account_id": {
             "type": "string",
             "format": "uuid",
-            "description": "override; required when the planned item has no account"
+            "description": "override; required when the planned item has no account. Another currency converts the amount (see description)"
           }
         }
       },
@@ -5221,7 +5221,7 @@
             }
           }
         },
-        "description": "Partial update: omitted fields keep their value; null clears nullable fields. Setting occurred_at on a plan's pending occurrence pays it (the next occurrence is generated); clearing occurred_at of a paid plan occurrence is rejected (422). LOAN transactions \u2192 409 LOAN_MANAGED.",
+        "description": "Partial update: omitted fields keep their value; null clears nullable fields. Setting occurred_at on a plan's pending occurrence pays it (the next occurrence is generated); clearing occurred_at of a paid plan occurrence is rejected (422). LOAN transactions \u2192 409 LOAN_MANAGED. Moving a planned (unpaid) item to an account in another currency converts it like POST /transactions/{id}/pay (RATES_UNAVAILABLE without a rate).",
         "requestBody": {
           "required": true,
           "content": {
@@ -6718,7 +6718,7 @@
             }
           },
           "422": {
-            "description": "Error",
+            "description": "VALIDATION_ERROR or RATES_UNAVAILABLE",
             "content": {
               "application/json": {
                 "schema": {
@@ -6728,7 +6728,7 @@
             }
           }
         },
-        "description": "Sets occurred_at (default now) so the item counts in balances, optionally overriding amount/to_amount/account_id. For a plan's occurrence the next one is generated (month arithmetic clamps to the month end from the plan's start_at: Jan 31 \u2192 Feb 28 \u2192 Mar 31); a one-time plan becomes inactive. 409 NOT_PLANNED if already paid, 409 LOAN_MANAGED for loan bookings.",
+        "description": "Sets occurred_at (default now) so the item counts in balances, optionally overriding amount/to_amount/account_id. For a plan's occurrence the next one is generated (month arithmetic clamps to the month end from the plan's start_at: Jan 31 \u2192 Feb 28 \u2192 Mar 31); a one-time plan becomes inactive. 409 NOT_PLANNED if already paid, 409 LOAN_MANAGED for loan bookings. When account_id names an account whose currency differs from the item's: a sent `amount` is taken as minor units of the account currency; otherwise the item's amount is converted with the user's rates (overrides first, then daily rates), and 422 RATES_UNAVAILABLE is returned when no rate exists. The booked currency is always the account's. For a TRANSFER without `to_amount`, a same-currency pair follows the amount, otherwise the original to_amount (destination currency) is kept.",
         "requestBody": {
           "required": false,
           "content": {
@@ -6846,10 +6846,38 @@
           },
           "401": {
             "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
-        "description": "Skips every unpaid planned item due before now; recurring plans move to their first occurrence due now or later, one-time plans become inactive.",
+        "description": "Skips every unpaid planned item due before now; recurring plans move to their first occurrence due now or later, one-time plans become inactive. Optional filters (query, comma lists as on GET /transactions): `account` (matches account_id or to_account_id) and `category`.",
         "parameters": [
+          {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of account ids (matches account or to_account)"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of category ids"
+          },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
           }
