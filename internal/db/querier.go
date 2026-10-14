@@ -325,6 +325,8 @@ type Querier interface {
 	ListGroupsFiltered(ctx context.Context, arg ListGroupsFilteredParams) ([]ListGroupsFilteredRow, error)
 	// ---------------------------------------------------------------- ledger
 	ListLedgerEntries(ctx context.Context, arg ListLedgerEntriesParams) ([]LedgerEntry, error)
+	// The bookings of the loans themselves (not of their records).
+	ListLoanBookings(ctx context.Context, loanIds []pgtype.UUID) ([]Transaction, error)
 	ListLoanRecords(ctx context.Context, loanID pgtype.UUID) ([]LoanRecord, error)
 	ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, error)
 	ListMyInvites(ctx context.Context, lower string) ([]ListMyInvitesRow, error)
@@ -361,6 +363,7 @@ type Querier interface {
 	LoanBookingUpdate(ctx context.Context, arg LoanBookingUpdateParams) (Transaction, error)
 	LoanRecordTotals(ctx context.Context, loanIds []pgtype.UUID) ([]LoanRecordTotalsRow, error)
 	LockLoan(ctx context.Context, arg LockLoanParams) (Loan, error)
+	LockLoanRecord(ctx context.Context, arg LockLoanRecordParams) (LoanRecord, error)
 	LockPlannedPayment(ctx context.Context, arg LockPlannedPaymentParams) (PlannedPayment, error)
 	LockTransaction(ctx context.Context, arg LockTransactionParams) (Transaction, error)
 	// Serialises account bootstrapping (default "Cash" / "Cash XXX") per user for the
@@ -410,6 +413,8 @@ type Querier interface {
 	SetLoanSortOrder(ctx context.Context, arg SetLoanSortOrderParams) (int64, error)
 	SetSettlementFromAccount(ctx context.Context, arg SetSettlementFromAccountParams) error
 	SetUserEmailVerifiedIfNull(ctx context.Context, id uuid.UUID) error
+	// Deletes an unpaid planned item; a row paid (or deleted) meanwhile is left alone.
+	SkipPendingTransaction(ctx context.Context, id uuid.UUID) (int64, error)
 	SoftDeleteAccount(ctx context.Context, arg SoftDeleteAccountParams) (int64, error)
 	SoftDeleteAccountPlannedPayments(ctx context.Context, arg SoftDeleteAccountPlannedPaymentsParams) error
 	SoftDeleteAccountTransactions(ctx context.Context, arg SoftDeleteAccountTransactionsParams) error

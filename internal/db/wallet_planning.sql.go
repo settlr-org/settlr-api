@@ -601,6 +601,54 @@ func (q *Queries) ListBudgets(ctx context.Context, userID uuid.UUID) ([]Budget, 
 	return items, nil
 }
 
+const listLoanBookings = `-- name: ListLoanBookings :many
+SELECT id, user_id, type, account_id, to_account_id, amount, currency, to_amount, category_id, title, description, occurred_at, due_at, planned_payment_id, loan_id, loan_record_id, source, import_ref, created_at, updated_at, deleted_at FROM transactions
+WHERE loan_id = ANY($1::uuid[]) AND loan_record_id IS NULL AND source = 'LOAN' AND deleted_at IS NULL
+`
+
+// The bookings of the loans themselves (not of their records).
+func (q *Queries) ListLoanBookings(ctx context.Context, loanIds []pgtype.UUID) ([]Transaction, error) {
+	rows, err := q.db.Query(ctx, listLoanBookings, loanIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Transaction
+	for rows.Next() {
+		var i Transaction
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Type,
+			&i.AccountID,
+			&i.ToAccountID,
+			&i.Amount,
+			&i.Currency,
+			&i.ToAmount,
+			&i.CategoryID,
+			&i.Title,
+			&i.Description,
+			&i.OccurredAt,
+			&i.DueAt,
+			&i.PlannedPaymentID,
+			&i.LoanID,
+			&i.LoanRecordID,
+			&i.Source,
+			&i.ImportRef,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listLoanRecords = `-- name: ListLoanRecords :many
 SELECT id, loan_id, user_id, type, amount, note, occurred_at, account_id, transaction_id, created_at, updated_at, deleted_at FROM loan_records WHERE loan_id = $1 AND deleted_at IS NULL ORDER BY occurred_at DESC, created_at DESC, id DESC
 `
@@ -1072,6 +1120,35 @@ func (q *Queries) LockLoan(ctx context.Context, arg LockLoanParams) (Loan, error
 	return i, err
 }
 
+const lockLoanRecord = `-- name: LockLoanRecord :one
+SELECT id, loan_id, user_id, type, amount, note, occurred_at, account_id, transaction_id, created_at, updated_at, deleted_at FROM loan_records WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL FOR UPDATE
+`
+
+type LockLoanRecordParams struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
+func (q *Queries) LockLoanRecord(ctx context.Context, arg LockLoanRecordParams) (LoanRecord, error) {
+	row := q.db.QueryRow(ctx, lockLoanRecord, arg.ID, arg.UserID)
+	var i LoanRecord
+	err := row.Scan(
+		&i.ID,
+		&i.LoanID,
+		&i.UserID,
+		&i.Type,
+		&i.Amount,
+		&i.Note,
+		&i.OccurredAt,
+		&i.AccountID,
+		&i.TransactionID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const lockPlannedPayment = `-- name: LockPlannedPayment :one
 SELECT id, user_id, type, account_id, to_account_id, amount, currency, to_amount, category_id, title, description, start_at, one_time, interval_n, interval_unit, active, resolved_until, created_at, updated_at, deleted_at FROM planned_payments WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL FOR UPDATE
 `
@@ -1213,6 +1290,20 @@ type SetLoanSortOrderParams struct {
 
 func (q *Queries) SetLoanSortOrder(ctx context.Context, arg SetLoanSortOrderParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setLoanSortOrder, arg.ID, arg.UserID, arg.SortOrder)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const skipPendingTransaction = `-- name: SkipPendingTransaction :execrows
+UPDATE transactions SET deleted_at = now(), updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL AND occurred_at IS NULL
+`
+
+// Deletes an unpaid planned item; a row paid (or deleted) meanwhile is left alone.
+func (q *Queries) SkipPendingTransaction(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, skipPendingTransaction, id)
 	if err != nil {
 		return 0, err
 	}

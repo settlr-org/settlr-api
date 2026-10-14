@@ -238,3 +238,16 @@ UPDATE transactions SET type = @type, account_id = sqlc.narg(account_id), amount
     title = @title, description = @description, occurred_at = @occurred_at, updated_at = now()
 WHERE id = @id AND source = 'LOAN' AND deleted_at IS NULL
 RETURNING *;
+
+-- name: SkipPendingTransaction :execrows
+-- Deletes an unpaid planned item; a row paid (or deleted) meanwhile is left alone.
+UPDATE transactions SET deleted_at = now(), updated_at = now()
+WHERE id = $1 AND deleted_at IS NULL AND occurred_at IS NULL;
+
+-- name: LockLoanRecord :one
+SELECT * FROM loan_records WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL FOR UPDATE;
+
+-- name: ListLoanBookings :many
+-- The bookings of the loans themselves (not of their records).
+SELECT * FROM transactions
+WHERE loan_id = ANY(@loan_ids::uuid[]) AND loan_record_id IS NULL AND source = 'LOAN' AND deleted_at IS NULL;

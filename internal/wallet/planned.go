@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	db "github.com/settlr-org/settlr-api/internal/db"
@@ -28,6 +29,66 @@ const (
 	codeLoanManaged = "LOAN_MANAGED"
 	codeNotPlanned  = "NOT_PLANNED"
 )
+
+var (
+	errLoanManaged = &httpx.AppError{Code: codeLoanManaged, Message: "this transaction belongs to a loan; change it through the loan endpoints", Status: http.StatusConflict}
+	errNotPlanned  = &httpx.AppError{Code: codeNotPlanned, Message: "transaction is already paid", Status: http.StatusConflict}
+)
+
+func vErr(msg string) error {
+	return &httpx.AppError{Code: "VALIDATION_ERROR", Message: msg, Status: http.StatusUnprocessableEntity}
+}
+
+func isRetryable(err error) bool {
+	var pe *pgconn.PgError
+	return errors.As(err, &pe) && (pe.Code == "40P01" || pe.Code == "40001")
+}
+
+// withTx runs fn in a database transaction and commits it. A deadlock or
+// serialization failure is retried once (fn must only assign its results).
+func (h *Handler) withTx(ctx context.Context, fn func(q *db.Queries) error) error {
+	for attempt := 0; ; attempt++ {
+		tx, err := h.Pool.Begin(ctx)
+		if err != nil {
+			return err
+		}
+		err = fn(h.q().WithTx(tx))
+		if err == nil {
+			err = tx.Commit(ctx)
+		}
+		if err == nil {
+			return nil
+		}
+		_ = tx.Rollback(ctx)
+		if attempt == 0 && isRetryable(err) {
+			continue
+		}
+		return err
+	}
+}
+
+// lockTxnPlanFirst locks a transaction for pay/skip/edit/delete. Every path takes
+// the plan's row lock before the transaction's (syncPending runs under the plan
+// lock and then touches the pending row), so the two orders can never deadlock.
+func lockTxnPlanFirst(ctx context.Context, q *db.Queries, id, userID uuid.UUID) (db.Transaction, error) {
+	t, err := q.GetTransaction(ctx, db.GetTransactionParams{ID: id, UserID: userID})
+	if isNoRows(err) {
+		return t, httpx.ErrNotFound
+	}
+	if err != nil {
+		return t, err
+	}
+	if t.PlannedPaymentID.Valid {
+		if _, err := q.LockPlannedPayment(ctx, db.LockPlannedPaymentParams{ID: uuid.UUID(t.PlannedPaymentID.Bytes), UserID: userID}); err != nil && !isNoRows(err) {
+			return t, err
+		}
+	}
+	t, err = q.LockTransaction(ctx, db.LockTransactionParams{ID: id, UserID: userID})
+	if isNoRows(err) {
+		return t, httpx.ErrNotFound
+	}
+	return t, err
+}
 
 func loanManaged(w http.ResponseWriter) {
 	writeErr(w, http.StatusConflict, codeLoanManaged, "this transaction belongs to a loan; change it through the loan endpoints")
@@ -557,7 +618,8 @@ func (h *Handler) CreatePlanned(w http.ResponseWriter, r *http.Request) {
 // UpdatePlanned applies a partial update and regenerates the pending occurrence:
 // it is updated in place (same id) to the new amount/fields and the next due date
 // per the (possibly new) schedule. Re-activating a completed one-time plan
-// re-opens it at start_at.
+// re-opens it at start_at. The update is merged onto the locked row, so a
+// concurrent pay/skip is never undone.
 func (h *Handler) UpdatePlanned(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathID(w, r)
 	if !ok {
@@ -565,8 +627,7 @@ func (h *Handler) UpdatePlanned(w http.ResponseWriter, r *http.Request) {
 	}
 	userID := currentUser(r)
 	ctx := r.Context()
-	cur, err := h.q().GetPlannedPayment(ctx, db.GetPlannedPaymentParams{ID: id, UserID: userID})
-	if err != nil {
+	if _, err := h.q().GetPlannedPayment(ctx, db.GetPlannedPaymentParams{ID: id, UserID: userID}); err != nil {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
@@ -574,75 +635,65 @@ func (h *Handler) UpdatePlanned(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &req) {
 		return
 	}
-	start := cur.StartAt.Time.UTC()
-	s := planState{
-		txn: txnInput{
-			Type: cur.Type, AccountID: uuidPtr(cur.AccountID), ToAccountID: uuidPtr(cur.ToAccountID), Amount: cur.Amount,
-			ToAmount: int8Ptr(cur.ToAmount), CategoryID: nilIfZero(cur.CategoryID), Title: cur.Title,
-			Description: cur.Description, DueAt: &start,
-		},
-		oneTime: cur.OneTime, intervalN: cur.IntervalN.Int32, intervalUnit: cur.IntervalUnit.String, active: cur.Active,
-	}
-	if s.txn.AccountID == nil {
-		s.txn.Currency = cur.Currency
-	}
-	if msg := s.apply(req); msg != "" {
-		validation(w, msg)
-		return
-	}
-	msg, err := h.validatePlan(ctx, userID, &s)
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	if msg != "" {
-		validation(w, msg)
-		return
-	}
-	resolved := cur.ResolvedUntil
-	if s.active && !cur.Active && s.oneTime {
-		resolved = pgtype.Timestamptz{} // re-open a completed one-time plan
-	}
-	tx, err := h.Pool.Begin(ctx)
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	qtx := h.q().WithTx(tx)
-	if _, err := qtx.LockPlannedPayment(ctx, db.LockPlannedPaymentParams{ID: id, UserID: userID}); err != nil {
-		httpx.WriteError(w, r, httpx.ErrNotFound)
-		return
-	}
-	in := s.txn
-	n, unit := s.interval()
-	p, err := qtx.UpdatePlannedPayment(ctx, db.UpdatePlannedPaymentParams{
-		ID: id, UserID: userID, Type: in.Type, AccountID: pgUUID(in.AccountID), ToAccountID: pgUUID(in.ToAccountID),
-		Amount: in.Amount, Currency: in.Currency, ToAmount: pgInt8(in.ToAmount), CategoryID: pgUUID(in.CategoryID),
-		Title: in.Title, Description: in.Description, StartAt: ts(in.DueAt), OneTime: s.oneTime,
-		IntervalN: n, IntervalUnit: unit, Active: s.active, ResolvedUntil: resolved,
-	})
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	if in.TagIDs != nil {
-		if err := qtx.DeletePlannedPaymentTags(ctx, pu(id)); err != nil {
-			httpx.WriteError(w, r, err)
-			return
+	var p db.PlannedPayment
+	err := h.withTx(ctx, func(qtx *db.Queries) error {
+		cur, err := qtx.LockPlannedPayment(ctx, db.LockPlannedPaymentParams{ID: id, UserID: userID})
+		if isNoRows(err) {
+			return httpx.ErrNotFound
 		}
-		if len(in.TagIDs) > 0 {
-			if err := qtx.AddPlannedPaymentTags(ctx, db.AddPlannedPaymentTagsParams{PlannedPaymentID: pu(id), TagIds: pgUUIDs(in.TagIDs)}); err != nil {
-				httpx.WriteError(w, r, err)
-				return
+		if err != nil {
+			return err
+		}
+		start := cur.StartAt.Time.UTC()
+		s := planState{
+			txn: txnInput{
+				Type: cur.Type, AccountID: uuidPtr(cur.AccountID), ToAccountID: uuidPtr(cur.ToAccountID), Amount: cur.Amount,
+				ToAmount: int8Ptr(cur.ToAmount), CategoryID: nilIfZero(cur.CategoryID), Title: cur.Title,
+				Description: cur.Description, DueAt: &start,
+			},
+			oneTime: cur.OneTime, intervalN: cur.IntervalN.Int32, intervalUnit: cur.IntervalUnit.String, active: cur.Active,
+		}
+		if s.txn.AccountID == nil {
+			s.txn.Currency = cur.Currency
+		}
+		if msg := s.apply(req); msg != "" {
+			return vErr(msg)
+		}
+		if msg, err := h.validatePlan(ctx, userID, &s); err != nil || msg != "" {
+			if err != nil {
+				return err
+			}
+			return vErr(msg)
+		}
+		resolved := cur.ResolvedUntil
+		if s.active && !cur.Active && s.oneTime {
+			resolved = pgtype.Timestamptz{} // re-open a completed one-time plan
+		}
+		in := s.txn
+		n, unit := s.interval()
+		p, err = qtx.UpdatePlannedPayment(ctx, db.UpdatePlannedPaymentParams{
+			ID: id, UserID: userID, Type: in.Type, AccountID: pgUUID(in.AccountID), ToAccountID: pgUUID(in.ToAccountID),
+			Amount: in.Amount, Currency: in.Currency, ToAmount: pgInt8(in.ToAmount), CategoryID: pgUUID(in.CategoryID),
+			Title: in.Title, Description: in.Description, StartAt: ts(in.DueAt), OneTime: s.oneTime,
+			IntervalN: n, IntervalUnit: unit, Active: s.active, ResolvedUntil: resolved,
+		})
+		if err != nil {
+			return err
+		}
+		if in.TagIDs != nil {
+			if err := qtx.DeletePlannedPaymentTags(ctx, pu(id)); err != nil {
+				return err
+			}
+			if len(in.TagIDs) > 0 {
+				if err := qtx.AddPlannedPaymentTags(ctx, db.AddPlannedPaymentTagsParams{PlannedPaymentID: pu(id), TagIds: pgUUIDs(in.TagIDs)}); err != nil {
+					return err
+				}
 			}
 		}
-	}
-	if _, err := h.syncPending(ctx, qtx, p); err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	if err := tx.Commit(ctx); err != nil {
+		_, err = h.syncPending(ctx, qtx, p)
+		return err
+	})
+	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
@@ -658,32 +709,26 @@ func (h *Handler) DeletePlanned(w http.ResponseWriter, r *http.Request) {
 	}
 	userID := currentUser(r)
 	ctx := r.Context()
-	tx, err := h.Pool.Begin(ctx)
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	qtx := h.q().WithTx(tx)
-	n, err := qtx.SoftDeletePlannedPayment(ctx, db.SoftDeletePlannedPaymentParams{ID: id, UserID: userID})
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	if n == 0 {
-		httpx.WriteError(w, r, httpx.ErrNotFound)
-		return
-	}
-	if pending, err := qtx.GetPendingForPlan(ctx, pu(id)); err == nil {
-		if err := qtx.SoftDeleteTransactionByID(ctx, pending.ID); err != nil {
-			httpx.WriteError(w, r, err)
-			return
+	err := h.withTx(ctx, func(qtx *db.Queries) error {
+		// Plan row first (the UPDATE locks it), then its pending occurrence.
+		n, err := qtx.SoftDeletePlannedPayment(ctx, db.SoftDeletePlannedPaymentParams{ID: id, UserID: userID})
+		if err != nil {
+			return err
 		}
-	} else if !isNoRows(err) {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	if err := tx.Commit(ctx); err != nil {
+		if n == 0 {
+			return httpx.ErrNotFound
+		}
+		pending, err := qtx.GetPendingForPlan(ctx, pu(id))
+		if isNoRows(err) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		_, err = qtx.SkipPendingTransaction(ctx, pending.ID)
+		return err
+	})
+	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
@@ -724,92 +769,70 @@ func (h *Handler) PayTransaction(w http.ResponseWriter, r *http.Request) {
 			occurred = *t
 		}
 	}
-	cur, err := h.q().GetTransaction(ctx, db.GetTransactionParams{ID: id, UserID: userID})
-	if err != nil {
-		httpx.WriteError(w, r, httpx.ErrNotFound)
-		return
-	}
-	if cur.Source == "LOAN" {
-		loanManaged(w)
-		return
-	}
-	if cur.OccurredAt.Valid {
-		writeErr(w, http.StatusConflict, codeNotPlanned, "transaction is already paid")
-		return
-	}
-	in := txnInput{
-		Type: cur.Type, AccountID: uuidPtr(cur.AccountID), ToAccountID: uuidPtr(cur.ToAccountID), Amount: cur.Amount,
-		ToAmount: int8Ptr(cur.ToAmount), CategoryID: nilIfZero(cur.CategoryID), Title: cur.Title,
-		Description: cur.Description, OccurredAt: &occurred, DueAt: tsPtr(cur.DueAt),
-	}
-	if in.AccountID == nil {
-		in.Currency = cur.Currency
-	}
-	if req.AccountID != nil {
-		in.AccountID, in.Currency = req.AccountID, ""
-		if req.ToAmount == nil && in.Type == "TRANSFER" {
-			in.ToAmount = nil
+	var paid db.Transaction
+	var next *db.Transaction
+	err := h.withTx(ctx, func(qtx *db.Queries) error {
+		cur, err := lockTxnPlanFirst(ctx, qtx, id, userID)
+		if err != nil {
+			return err
 		}
-	}
-	if req.Amount != nil {
-		if req.ToAmount == nil && in.ToAmount != nil && *in.ToAmount == in.Amount {
-			in.ToAmount = nil
+		if cur.Source == "LOAN" {
+			return errLoanManaged
 		}
-		in.Amount = *req.Amount
-	}
-	if req.ToAmount != nil {
-		in.ToAmount = req.ToAmount
-	}
-	if in.AccountID == nil {
-		validation(w, "account_id required to pay a planned item without account")
-		return
-	}
-	msg, err := h.validate(ctx, userID, &in)
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	if msg != "" {
-		validation(w, msg)
-		return
-	}
-	tx, err := h.Pool.Begin(ctx)
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	qtx := h.q().WithTx(tx)
-	locked, err := qtx.LockTransaction(ctx, db.LockTransactionParams{ID: id, UserID: userID})
-	if err != nil {
-		httpx.WriteError(w, r, httpx.ErrNotFound)
-		return
-	}
-	if locked.OccurredAt.Valid {
-		writeErr(w, http.StatusConflict, codeNotPlanned, "transaction is already paid")
-		return
-	}
-	t, err := qtx.UpdateTransaction(ctx, db.UpdateTransactionParams{
-		ID: id, UserID: userID, Type: in.Type, AccountID: pgUUID(in.AccountID), ToAccountID: pgUUID(in.ToAccountID),
-		Amount: in.Amount, Currency: in.Currency, ToAmount: pgInt8(in.ToAmount), CategoryID: pgUUID(in.CategoryID),
-		Title: in.Title, Description: in.Description, OccurredAt: ts(in.OccurredAt), DueAt: ts(in.DueAt),
+		if cur.OccurredAt.Valid {
+			return errNotPlanned
+		}
+		in := txnInput{
+			Type: cur.Type, AccountID: uuidPtr(cur.AccountID), ToAccountID: uuidPtr(cur.ToAccountID), Amount: cur.Amount,
+			ToAmount: int8Ptr(cur.ToAmount), CategoryID: nilIfZero(cur.CategoryID), Title: cur.Title,
+			Description: cur.Description, OccurredAt: &occurred, DueAt: tsPtr(cur.DueAt),
+		}
+		if in.AccountID == nil {
+			in.Currency = cur.Currency
+		}
+		if req.AccountID != nil {
+			in.AccountID, in.Currency = req.AccountID, ""
+			if req.ToAmount == nil && in.Type == "TRANSFER" {
+				in.ToAmount = nil
+			}
+		}
+		if req.Amount != nil {
+			if req.ToAmount == nil && in.ToAmount != nil && *in.ToAmount == in.Amount {
+				in.ToAmount = nil
+			}
+			in.Amount = *req.Amount
+		}
+		if req.ToAmount != nil {
+			in.ToAmount = req.ToAmount
+		}
+		if in.AccountID == nil {
+			return vErr("account_id required to pay a planned item without account")
+		}
+		if msg, err := h.validate(ctx, userID, &in); err != nil || msg != "" {
+			if err != nil {
+				return err
+			}
+			return vErr(msg)
+		}
+		paid, err = qtx.UpdateTransaction(ctx, db.UpdateTransactionParams{
+			ID: id, UserID: userID, Type: in.Type, AccountID: pgUUID(in.AccountID), ToAccountID: pgUUID(in.ToAccountID),
+			Amount: in.Amount, Currency: in.Currency, ToAmount: pgInt8(in.ToAmount), CategoryID: pgUUID(in.CategoryID),
+			Title: in.Title, Description: in.Description, OccurredAt: ts(in.OccurredAt), DueAt: ts(in.DueAt),
+		})
+		if err != nil {
+			return err
+		}
+		next = nil
+		if cur.PlannedPaymentID.Valid {
+			next, err = h.advancePlan(ctx, qtx, uuid.UUID(cur.PlannedPaymentID.Bytes), userID, cur.DueAt.Time, false)
+		}
+		return err
 	})
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	var next *db.Transaction
-	if locked.PlannedPaymentID.Valid {
-		if next, err = h.advancePlan(ctx, qtx, uuid.UUID(locked.PlannedPaymentID.Bytes), userID, locked.DueAt.Time, false); err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
-	}
-	if err := tx.Commit(ctx); err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	h.writePayResult(w, r, &t, next)
+	h.writePayResult(w, r, &paid, next)
 }
 
 func (h *Handler) writePayResult(w http.ResponseWriter, r *http.Request, paid, next *db.Transaction) {
@@ -843,78 +866,87 @@ func (h *Handler) SkipTransaction(w http.ResponseWriter, r *http.Request) {
 	}
 	userID := currentUser(r)
 	ctx := r.Context()
-	tx, err := h.Pool.Begin(ctx)
+	var next *db.Transaction
+	err := h.withTx(ctx, func(qtx *db.Queries) error {
+		cur, err := lockTxnPlanFirst(ctx, qtx, id, userID)
+		if err != nil {
+			return err
+		}
+		if cur.Source == "LOAN" {
+			return errLoanManaged
+		}
+		if cur.OccurredAt.Valid {
+			return errNotPlanned
+		}
+		_, next, err = h.skipOne(ctx, qtx, cur, false)
+		return err
+	})
 	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	qtx := h.q().WithTx(tx)
-	cur, err := qtx.LockTransaction(ctx, db.LockTransactionParams{ID: id, UserID: userID})
-	if err != nil {
-		httpx.WriteError(w, r, httpx.ErrNotFound)
-		return
-	}
-	if cur.Source == "LOAN" {
-		loanManaged(w)
-		return
-	}
-	if cur.OccurredAt.Valid {
-		writeErr(w, http.StatusConflict, codeNotPlanned, "transaction is already paid")
-		return
-	}
-	next, err := h.skipOne(ctx, qtx, cur, false)
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	if err := tx.Commit(ctx); err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
 	h.writePayResult(w, r, nil, next)
 }
 
-func (h *Handler) skipOne(ctx context.Context, q *db.Queries, t db.Transaction, skipOverdue bool) (*db.Transaction, error) {
-	if err := q.SoftDeleteTransactionByID(ctx, t.ID); err != nil {
-		return nil, err
+func (h *Handler) skipOne(ctx context.Context, q *db.Queries, t db.Transaction, skipOverdue bool) (bool, *db.Transaction, error) {
+	// The occurred_at guard is a backstop: callers hold the row lock and have
+	// re-checked that it is still unpaid.
+	n, err := q.SkipPendingTransaction(ctx, t.ID)
+	if err != nil || n == 0 {
+		return false, nil, err
 	}
 	if !t.PlannedPaymentID.Valid {
-		return nil, nil
+		return true, nil, nil
 	}
-	return h.advancePlan(ctx, q, uuid.UUID(t.PlannedPaymentID.Bytes), t.UserID, t.DueAt.Time, skipOverdue)
+	next, err := h.advancePlan(ctx, q, uuid.UUID(t.PlannedPaymentID.Bytes), t.UserID, t.DueAt.Time, skipOverdue)
+	return true, next, err
 }
 
 // SkipOverdue skips every overdue planned item of the user; recurring plans move
-// to their first occurrence due now or later.
+// to their first occurrence due now or later. Each item is locked (plan first)
+// and re-checked, so an occurrence paid concurrently is left alone.
 func (h *Handler) SkipOverdue(w http.ResponseWriter, r *http.Request) {
 	userID := currentUser(r)
 	ctx := r.Context()
-	tx, err := h.Pool.Begin(ctx)
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	qtx := h.q().WithTx(tx)
 	now := time.Now().UTC()
-	items, err := qtx.ListPlannedTransactions(ctx, db.ListPlannedTransactionsParams{UserID: userID, DueBefore: ts(&now)})
+	items, err := h.q().ListPlannedTransactions(ctx, db.ListPlannedTransactionsParams{UserID: userID, DueBefore: ts(&now)})
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
+	// A stable lock order across requests: by plan, then by transaction.
+	sort.Slice(items, func(i, j int) bool {
+		pi, pj := uuid.UUID(items[i].PlannedPaymentID.Bytes).String(), uuid.UUID(items[j].PlannedPaymentID.Bytes).String()
+		if pi != pj {
+			return pi < pj
+		}
+		return items[i].ID.String() < items[j].ID.String()
+	})
 	skipped := 0
-	for _, t := range items {
-		if t.Source == "LOAN" {
-			continue
+	err = h.withTx(ctx, func(qtx *db.Queries) error {
+		skipped = 0
+		for _, item := range items {
+			t, err := lockTxnPlanFirst(ctx, qtx, item.ID, userID)
+			if err == httpx.ErrNotFound {
+				continue // deleted meanwhile
+			}
+			if err != nil {
+				return err
+			}
+			if t.OccurredAt.Valid || t.Source == "LOAN" || !t.DueAt.Valid || !t.DueAt.Time.Before(now) {
+				continue // paid or moved meanwhile
+			}
+			ok, _, err := h.skipOne(ctx, qtx, t, true)
+			if err != nil {
+				return err
+			}
+			if ok {
+				skipped++
+			}
 		}
-		if _, err := h.skipOne(ctx, qtx, t, true); err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
-		skipped++
-	}
-	if err := tx.Commit(ctx); err != nil {
+		return nil
+	})
+	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}

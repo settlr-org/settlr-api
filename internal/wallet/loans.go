@@ -102,16 +102,20 @@ func (h *Handler) loansJSON(ctx context.Context, loans []db.Loan) ([]map[string]
 	for _, row := range rows {
 		totals[uuid.UUID(row.LoanID.Bytes)] = loanTotals{increased: row.Increased, decreased: row.Decreased, records: row.Records}
 	}
+	bookings, err := h.q().ListLoanBookings(ctx, pgUUIDs(ids))
+	if err != nil {
+		return nil, nil, err
+	}
+	bookingOf := map[uuid.UUID]uuid.UUID{}
+	for _, t := range bookings {
+		bookingOf[uuid.UUID(t.LoanID.Bytes)] = t.ID
+	}
 	out := make([]map[string]any, 0, len(loans))
 	tots := make([]loanTotals, 0, len(loans))
 	for _, l := range loans {
 		var booking *uuid.UUID
-		if l.AccountID.Valid {
-			if t, err := h.q().GetLoanTransaction(ctx, pu(l.ID)); err == nil {
-				booking = &t.ID
-			} else if !isNoRows(err) {
-				return nil, nil, err
-			}
+		if id, ok := bookingOf[l.ID]; ok && l.AccountID.Valid {
+			booking = &id
 		}
 		out = append(out, loanJSON(l, totals[l.ID], booking))
 		tots = append(tots, totals[l.ID])
@@ -436,8 +440,8 @@ func (h *Handler) CreateLoan(w http.ResponseWriter, r *http.Request) {
 	h.writeLoan(w, r, http.StatusCreated, l)
 }
 
-// UpdateLoan applies a partial update and keeps the loan's booking and its
-// records' bookings in sync (type, title, account, amount).
+// UpdateLoan applies a partial update (merged onto the locked row) and keeps the
+// loan's booking and its records' bookings in sync (type, title, account, amount).
 func (h *Handler) UpdateLoan(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathID(w, r)
 	if !ok {
@@ -445,8 +449,7 @@ func (h *Handler) UpdateLoan(w http.ResponseWriter, r *http.Request) {
 	}
 	userID := currentUser(r)
 	ctx := r.Context()
-	cur, err := h.q().GetLoan(ctx, db.GetLoanParams{ID: id, UserID: userID})
-	if err != nil {
+	if _, err := h.q().GetLoan(ctx, db.GetLoanParams{ID: id, UserID: userID}); err != nil {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
@@ -454,84 +457,73 @@ func (h *Handler) UpdateLoan(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &req) {
 		return
 	}
-	s := loanState{
-		name: cur.Name, typ: cur.Type, currency: strings.TrimSpace(cur.Currency), color: cur.Color, icon: cur.Icon,
-		note: cur.Note, amount: cur.Amount, accountID: uuidPtr(cur.AccountID), occurredAt: cur.OccurredAt.Time.UTC(),
-	}
-	if msg := s.apply(req); msg != "" {
-		validation(w, msg)
-		return
-	}
-	msg, err := h.validateLoan(ctx, userID, &s)
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	if msg != "" {
-		validation(w, msg)
-		return
-	}
-	tx, err := h.Pool.Begin(ctx)
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	qtx := h.q().WithTx(tx)
-	if _, err := qtx.LockLoan(ctx, db.LockLoanParams{ID: id, UserID: userID}); err != nil {
-		httpx.WriteError(w, r, httpx.ErrNotFound)
-		return
-	}
-	l, err := qtx.UpdateLoan(ctx, db.UpdateLoanParams{
-		ID: id, UserID: userID, Name: s.name, Type: s.typ, Amount: s.amount, Currency: s.currency, Color: s.color,
-		Icon: s.icon, Note: s.note, AccountID: pgUUID(s.accountID), OccurredAt: ts(&s.occurredAt),
-	})
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	var existing *db.Transaction
-	if t, err := qtx.GetLoanTransaction(ctx, pu(id)); err == nil {
-		existing = &t
-	} else if !isNoRows(err) {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	currencyChanged := s.currency != strings.TrimSpace(cur.Currency)
-	_, msg, err = h.syncBooking(ctx, qtx, booking{
-		userID: userID, loanID: id, accountID: s.accountID, typ: bookingType(s.typ, ""), amount: s.amount,
-		currency: s.currency, accountAmount: optInt64(req.AccountAmount), keepAmount: !currencyChanged && s.amount == cur.Amount,
-		title: loanBookingTitle(l), note: s.note, occurredAt: s.occurredAt,
-	}, existing)
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	if msg != "" {
-		validation(w, msg)
-		return
-	}
-	// Records' bookings follow the loan's type, name and currency.
-	records, err := qtx.ListLoanRecords(ctx, pu(id))
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	for _, rec := range records {
-		if !rec.AccountID.Valid {
-			continue
+	var l db.Loan
+	err := h.withTx(ctx, func(qtx *db.Queries) error {
+		cur, err := qtx.LockLoan(ctx, db.LockLoanParams{ID: id, UserID: userID})
+		if isNoRows(err) {
+			return httpx.ErrNotFound
 		}
-		_, msg, err := h.saveRecordBooking(ctx, qtx, l, rec, nil, !currencyChanged)
 		if err != nil {
-			httpx.WriteError(w, r, err)
-			return
+			return err
+		}
+		s := loanState{
+			name: cur.Name, typ: cur.Type, currency: strings.TrimSpace(cur.Currency), color: cur.Color, icon: cur.Icon,
+			note: cur.Note, amount: cur.Amount, accountID: uuidPtr(cur.AccountID), occurredAt: cur.OccurredAt.Time.UTC(),
+		}
+		if msg := s.apply(req); msg != "" {
+			return vErr(msg)
+		}
+		if msg, err := h.validateLoan(ctx, userID, &s); err != nil || msg != "" {
+			if err != nil {
+				return err
+			}
+			return vErr(msg)
+		}
+		l, err = qtx.UpdateLoan(ctx, db.UpdateLoanParams{
+			ID: id, UserID: userID, Name: s.name, Type: s.typ, Amount: s.amount, Currency: s.currency, Color: s.color,
+			Icon: s.icon, Note: s.note, AccountID: pgUUID(s.accountID), OccurredAt: ts(&s.occurredAt),
+		})
+		if err != nil {
+			return err
+		}
+		var existing *db.Transaction
+		if t, err := qtx.GetLoanTransaction(ctx, pu(id)); err == nil {
+			existing = &t
+		} else if !isNoRows(err) {
+			return err
+		}
+		currencyChanged := s.currency != strings.TrimSpace(cur.Currency)
+		_, msg, err := h.syncBooking(ctx, qtx, booking{
+			userID: userID, loanID: id, accountID: s.accountID, typ: bookingType(s.typ, ""), amount: s.amount,
+			currency: s.currency, accountAmount: optInt64(req.AccountAmount), keepAmount: !currencyChanged && s.amount == cur.Amount,
+			title: loanBookingTitle(l), note: s.note, occurredAt: s.occurredAt,
+		}, existing)
+		if err != nil {
+			return err
 		}
 		if msg != "" {
-			validation(w, "record "+rec.ID.String()+": "+msg)
-			return
+			return vErr(msg)
 		}
-	}
-	if err := tx.Commit(ctx); err != nil {
+		// Records' bookings follow the loan's type, name and currency.
+		records, err := qtx.ListLoanRecords(ctx, pu(id))
+		if err != nil {
+			return err
+		}
+		for _, rec := range records {
+			if !rec.AccountID.Valid {
+				continue
+			}
+			_, msg, err := h.saveRecordBooking(ctx, qtx, l, rec, nil, !currencyChanged)
+			if err != nil {
+				return err
+			}
+			if msg != "" {
+				return vErr("record " + rec.ID.String() + ": " + msg)
+			}
+		}
+		return nil
+	})
+	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
@@ -781,6 +773,8 @@ func (h *Handler) CreateLoanRecord(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, loanRecordJSON(rec))
 }
 
+// UpdateLoanRecord applies a partial update merged onto the locked record (loan
+// row locked first, as every loan write does) and keeps its booking in sync.
 func (h *Handler) UpdateLoanRecord(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathID(w, r)
 	if !ok {
@@ -788,7 +782,7 @@ func (h *Handler) UpdateLoanRecord(w http.ResponseWriter, r *http.Request) {
 	}
 	userID := currentUser(r)
 	ctx := r.Context()
-	cur, err := h.q().GetLoanRecord(ctx, db.GetLoanRecordParams{ID: id, UserID: userID})
+	first, err := h.q().GetLoanRecord(ctx, db.GetLoanRecordParams{ID: id, UserID: userID})
 	if err != nil {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
@@ -797,41 +791,44 @@ func (h *Handler) UpdateLoanRecord(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &req) {
 		return
 	}
-	s := recordState{typ: cur.Type, note: cur.Note, amount: cur.Amount, occurredAt: cur.OccurredAt.Time.UTC(), accountID: uuidPtr(cur.AccountID)}
-	if msg := s.apply(req); msg != "" {
-		validation(w, msg)
-		return
-	}
-	tx, err := h.Pool.Begin(ctx)
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	qtx := h.q().WithTx(tx)
-	l, err := qtx.LockLoan(ctx, db.LockLoanParams{ID: uuid.UUID(cur.LoanID.Bytes), UserID: userID})
-	if err != nil {
-		httpx.WriteError(w, r, httpx.ErrNotFound)
-		return
-	}
-	rec, err := qtx.UpdateLoanRecord(ctx, db.UpdateLoanRecordParams{
-		ID: id, UserID: userID, Type: s.typ, Amount: s.amount, Note: s.note,
-		OccurredAt: ts(&s.occurredAt), AccountID: pgUUID(s.accountID),
+	var rec db.LoanRecord
+	err = h.withTx(ctx, func(qtx *db.Queries) error {
+		l, err := qtx.LockLoan(ctx, db.LockLoanParams{ID: uuid.UUID(first.LoanID.Bytes), UserID: userID})
+		if isNoRows(err) {
+			return httpx.ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		cur, err := qtx.LockLoanRecord(ctx, db.LockLoanRecordParams{ID: id, UserID: userID})
+		if isNoRows(err) {
+			return httpx.ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		s := recordState{typ: cur.Type, note: cur.Note, amount: cur.Amount, occurredAt: cur.OccurredAt.Time.UTC(), accountID: uuidPtr(cur.AccountID)}
+		if msg := s.apply(req); msg != "" {
+			return vErr(msg)
+		}
+		rec, err = qtx.UpdateLoanRecord(ctx, db.UpdateLoanRecordParams{
+			ID: id, UserID: userID, Type: s.typ, Amount: s.amount, Note: s.note,
+			OccurredAt: ts(&s.occurredAt), AccountID: pgUUID(s.accountID),
+		})
+		if err != nil {
+			return err
+		}
+		var msg string
+		rec, msg, err = h.saveRecordBooking(ctx, qtx, l, rec, optInt64(req.AccountAmount), s.amount == cur.Amount)
+		if err != nil {
+			return err
+		}
+		if msg != "" {
+			return vErr(msg)
+		}
+		return nil
 	})
 	if err != nil {
-		httpx.WriteError(w, r, httpx.ErrNotFound)
-		return
-	}
-	rec, msg, err := h.saveRecordBooking(ctx, qtx, l, rec, optInt64(req.AccountAmount), s.amount == cur.Amount)
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	if msg != "" {
-		validation(w, msg)
-		return
-	}
-	if err := tx.Commit(ctx); err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}

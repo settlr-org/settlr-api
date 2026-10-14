@@ -214,7 +214,11 @@ func (s *budgetState) apply(req budgetReq) {
 	}
 }
 
-func (h *Handler) validateBudget(ctx context.Context, userID uuid.UUID, s *budgetState) (string, error) {
+// validateBudget checks the fields. Only category/account ids that are not
+// already stored on the budget are checked for visibility/ownership: ids of
+// categories or accounts deleted since stay (they match nothing) so the budget
+// remains editable; send the list without them to prune them.
+func (h *Handler) validateBudget(ctx context.Context, userID uuid.UUID, s *budgetState, stored budgetState) (string, error) {
 	s.name = strings.TrimSpace(s.name)
 	if s.name == "" || len(s.name) > 100 {
 		return "name required (max 100)", nil
@@ -234,22 +238,22 @@ func (h *Handler) validateBudget(ctx context.Context, userID uuid.UUID, s *budge
 		return "unsupported currency", nil
 	}
 	s.categories = uniqueUUIDs(s.categories)
-	if len(s.categories) > 0 {
-		n, err := h.q().CountVisibleCategories(ctx, db.CountVisibleCategoriesParams{Ids: pgUUIDs(s.categories), UserID: pu(userID)})
+	if added := newIDs(s.categories, stored.categories); len(added) > 0 {
+		n, err := h.q().CountVisibleCategories(ctx, db.CountVisibleCategoriesParams{Ids: pgUUIDs(added), UserID: pu(userID)})
 		if err != nil {
 			return "", err
 		}
-		if int(n) != len(s.categories) {
+		if int(n) != len(added) {
 			return "category_ids contains an unknown category", nil
 		}
 	}
 	s.accounts = uniqueUUIDs(s.accounts)
-	if len(s.accounts) > 0 {
-		n, err := h.q().CountOwnedAccounts(ctx, db.CountOwnedAccountsParams{UserID: userID, Ids: pgUUIDs(s.accounts)})
+	if added := newIDs(s.accounts, stored.accounts); len(added) > 0 {
+		n, err := h.q().CountOwnedAccounts(ctx, db.CountOwnedAccountsParams{UserID: userID, Ids: pgUUIDs(added)})
 		if err != nil {
 			return "", err
 		}
-		if int(n) != len(s.accounts) {
+		if int(n) != len(added) {
 			return "account_ids contains an unknown account", nil
 		}
 	}
@@ -265,7 +269,7 @@ func (h *Handler) CreateBudget(w http.ResponseWriter, r *http.Request) {
 	}
 	var s budgetState
 	s.apply(req)
-	msg, err := h.validateBudget(ctx, userID, &s)
+	msg, err := h.validateBudget(ctx, userID, &s, budgetState{})
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
@@ -310,8 +314,9 @@ func (h *Handler) UpdateBudget(w http.ResponseWriter, r *http.Request) {
 		name: cur.Name, amount: cur.Amount, currency: cur.Currency,
 		categories: uuidList(cur.CategoryIds), accounts: uuidList(cur.AccountIds),
 	}
+	stored := s
 	s.apply(req)
-	msg, err := h.validateBudget(ctx, userID, &s)
+	msg, err := h.validateBudget(ctx, userID, &s, stored)
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
@@ -384,4 +389,19 @@ func (h *Handler) ReorderBudgets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.ListBudgets(w, r)
+}
+
+// newIDs returns the ids in ids that are not in stored.
+func newIDs(ids, stored []uuid.UUID) []uuid.UUID {
+	have := make(map[uuid.UUID]bool, len(stored))
+	for _, id := range stored {
+		have[id] = true
+	}
+	out := []uuid.UUID{}
+	for _, id := range ids {
+		if !have[id] {
+			out = append(out, id)
+		}
+	}
+	return out
 }

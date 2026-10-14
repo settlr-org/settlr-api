@@ -468,6 +468,10 @@ DROP INDEX IF EXISTS idx_transactions_plan_pending;
 ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_loan_record_id_fkey;
 ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_loan_id_fkey;
 ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_planned_payment_id_fkey;
+-- Plan-generated pending occurrences would otherwise reappear as standalone due
+-- items in the previous release; paid occurrences stay.
+UPDATE transactions SET deleted_at = now(), updated_at = now()
+WHERE planned_payment_id IS NOT NULL AND occurred_at IS NULL AND deleted_at IS NULL;
 UPDATE transactions SET planned_payment_id = NULL, loan_id = NULL, loan_record_id = NULL
 WHERE planned_payment_id IS NOT NULL OR loan_id IS NOT NULL OR loan_record_id IS NOT NULL;
 DROP TABLE IF EXISTS loan_records;
