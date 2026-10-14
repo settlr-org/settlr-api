@@ -36,6 +36,19 @@ type ActivityEvent struct {
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 }
 
+type Budget struct {
+	ID          uuid.UUID          `json:"id"`
+	UserID      uuid.UUID          `json:"user_id"`
+	Name        string             `json:"name"`
+	Amount      int64              `json:"amount"`
+	Currency    string             `json:"currency"`
+	CategoryIds []pgtype.UUID      `json:"category_ids"`
+	AccountIds  []pgtype.UUID      `json:"account_ids"`
+	SortOrder   int32              `json:"sort_order"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Category struct {
 	ID        uuid.UUID          `json:"id"`
 	Name      string             `json:"name"`
@@ -196,32 +209,68 @@ type IdempotencyKey struct {
 }
 
 type LedgerEntry struct {
-	UserID          uuid.UUID          `json:"user_id"`
-	Kind            string             `json:"kind"`
-	ID              uuid.UUID          `json:"id"`
-	Type            string             `json:"type"`
-	AccountID       pgtype.UUID        `json:"account_id"`
-	ToAccountID     pgtype.UUID        `json:"to_account_id"`
-	Amount          int64              `json:"amount"`
-	Currency        string             `json:"currency"`
-	ToAmount        pgtype.Int8        `json:"to_amount"`
-	ToCurrency      pgtype.Text        `json:"to_currency"`
-	AccountAmount   pgtype.Int8        `json:"account_amount"`
-	ToAccountAmount pgtype.Int8        `json:"to_account_amount"`
-	FlowAmount      int64              `json:"flow_amount"`
-	CategoryID      uuid.UUID          `json:"category_id"`
-	Title           string             `json:"title"`
-	Description     string             `json:"description"`
-	OccurredAt      pgtype.Timestamptz `json:"occurred_at"`
-	DueAt           pgtype.Timestamptz `json:"due_at"`
-	Source          string             `json:"source"`
-	GroupID         uuid.UUID          `json:"group_id"`
-	GroupName       pgtype.Text        `json:"group_name"`
-	ExpenseID       uuid.UUID          `json:"expense_id"`
-	SettlementID    pgtype.UUID        `json:"settlement_id"`
-	TotalAmount     pgtype.Int8        `json:"total_amount"`
-	SortAt          pgtype.Timestamptz `json:"sort_at"`
-	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UserID           uuid.UUID          `json:"user_id"`
+	Kind             string             `json:"kind"`
+	ID               uuid.UUID          `json:"id"`
+	Type             string             `json:"type"`
+	AccountID        pgtype.UUID        `json:"account_id"`
+	ToAccountID      pgtype.UUID        `json:"to_account_id"`
+	Amount           int64              `json:"amount"`
+	Currency         string             `json:"currency"`
+	ToAmount         pgtype.Int8        `json:"to_amount"`
+	ToCurrency       pgtype.Text        `json:"to_currency"`
+	AccountAmount    pgtype.Int8        `json:"account_amount"`
+	ToAccountAmount  pgtype.Int8        `json:"to_account_amount"`
+	FlowAmount       int64              `json:"flow_amount"`
+	CategoryID       uuid.UUID          `json:"category_id"`
+	Title            string             `json:"title"`
+	Description      string             `json:"description"`
+	OccurredAt       pgtype.Timestamptz `json:"occurred_at"`
+	DueAt            pgtype.Timestamptz `json:"due_at"`
+	Source           string             `json:"source"`
+	GroupID          uuid.UUID          `json:"group_id"`
+	GroupName        pgtype.Text        `json:"group_name"`
+	ExpenseID        uuid.UUID          `json:"expense_id"`
+	SettlementID     pgtype.UUID        `json:"settlement_id"`
+	TotalAmount      pgtype.Int8        `json:"total_amount"`
+	SortAt           pgtype.Timestamptz `json:"sort_at"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	PlannedPaymentID pgtype.UUID        `json:"planned_payment_id"`
+	LoanID           pgtype.UUID        `json:"loan_id"`
+	LoanRecordID     pgtype.UUID        `json:"loan_record_id"`
+}
+
+type Loan struct {
+	ID         uuid.UUID          `json:"id"`
+	UserID     uuid.UUID          `json:"user_id"`
+	Name       string             `json:"name"`
+	Type       string             `json:"type"`
+	Amount     int64              `json:"amount"`
+	Currency   string             `json:"currency"`
+	Color      string             `json:"color"`
+	Icon       string             `json:"icon"`
+	Note       string             `json:"note"`
+	AccountID  pgtype.UUID        `json:"account_id"`
+	OccurredAt pgtype.Timestamptz `json:"occurred_at"`
+	SortOrder  int32              `json:"sort_order"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt  pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type LoanRecord struct {
+	ID            uuid.UUID          `json:"id"`
+	LoanID        pgtype.UUID        `json:"loan_id"`
+	UserID        uuid.UUID          `json:"user_id"`
+	Type          string             `json:"type"`
+	Amount        int64              `json:"amount"`
+	Note          string             `json:"note"`
+	OccurredAt    pgtype.Timestamptz `json:"occurred_at"`
+	AccountID     pgtype.UUID        `json:"account_id"`
+	TransactionID pgtype.UUID        `json:"transaction_id"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt     pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type Notification struct {
@@ -284,6 +333,34 @@ type PersonalExpense struct {
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type PlannedPayment struct {
+	ID            uuid.UUID          `json:"id"`
+	UserID        uuid.UUID          `json:"user_id"`
+	Type          string             `json:"type"`
+	AccountID     pgtype.UUID        `json:"account_id"`
+	ToAccountID   pgtype.UUID        `json:"to_account_id"`
+	Amount        int64              `json:"amount"`
+	Currency      string             `json:"currency"`
+	ToAmount      pgtype.Int8        `json:"to_amount"`
+	CategoryID    uuid.UUID          `json:"category_id"`
+	Title         string             `json:"title"`
+	Description   string             `json:"description"`
+	StartAt       pgtype.Timestamptz `json:"start_at"`
+	OneTime       bool               `json:"one_time"`
+	IntervalN     pgtype.Int4        `json:"interval_n"`
+	IntervalUnit  pgtype.Text        `json:"interval_unit"`
+	Active        bool               `json:"active"`
+	ResolvedUntil pgtype.Timestamptz `json:"resolved_until"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt     pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type PlannedPaymentTag struct {
+	PlannedPaymentID pgtype.UUID `json:"planned_payment_id"`
+	TagID            pgtype.UUID `json:"tag_id"`
 }
 
 type RecurringExpense struct {

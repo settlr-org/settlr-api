@@ -101,13 +101,13 @@ GROUP BY m.account_id, m.currency;
 -- name: AccountMovements :many
 -- In/out totals for one account within [from_at, to_at), per currency, plus the
 -- part that came from INCOME/EXPENSE transactions and from transfers. Balance
--- adjustments (starting balances, corrections) move the account but are neither
+-- adjustments (starting balances, corrections) and loan bookings move the account but are neither
 -- income nor expense.
 SELECT m.currency::text AS currency,
        COALESCE(SUM(m.delta) FILTER (WHERE m.delta > 0), 0)::bigint AS inflow,
        COALESCE(-SUM(m.delta) FILTER (WHERE m.delta < 0), 0)::bigint AS outflow,
-       COALESCE(SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'INCOME' AND m.source <> 'ADJUSTMENT'), 0)::bigint AS income,
-       COALESCE(-SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'EXPENSE' AND m.source <> 'ADJUSTMENT'), 0)::bigint AS expense,
+       COALESCE(SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'INCOME' AND m.source NOT IN ('ADJUSTMENT', 'LOAN')), 0)::bigint AS income,
+       COALESCE(-SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'EXPENSE' AND m.source NOT IN ('ADJUSTMENT', 'LOAN')), 0)::bigint AS expense,
        COALESCE(SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'TRANSFER' AND m.delta > 0), 0)::bigint AS transfer_in,
        COALESCE(-SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'TRANSFER' AND m.delta < 0), 0)::bigint AS transfer_out
 FROM (
@@ -250,7 +250,7 @@ LIMIT @lim::int;
 -- name: LedgerFlowTotals :many
 -- Income/expense flows within [from_at, to_at) per currency. Transactions on accounts
 -- excluded from the balance are left out; group shares always count. Balance
--- adjustments (starting balances, corrections) are not income or expense.
+-- adjustments (starting balances, corrections) and loan bookings are not income or expense.
 SELECT le.currency::text AS currency,
        COALESCE(SUM(le.flow_amount) FILTER (WHERE le.type = 'INCOME'), 0)::bigint AS income,
        COALESCE(SUM(le.flow_amount) FILTER (WHERE le.type = 'EXPENSE'), 0)::bigint AS expense,
@@ -260,7 +260,7 @@ LEFT JOIN accounts a ON a.id = le.account_id
 WHERE le.user_id = @user_id
   AND le.occurred_at IS NOT NULL
   AND le.type IN ('INCOME', 'EXPENSE')
-  AND le.source <> 'ADJUSTMENT'
+  AND le.source NOT IN ('ADJUSTMENT', 'LOAN')
   AND (le.kind <> 'TRANSACTION' OR a.include_in_balance)
   AND (sqlc.narg(from_at)::timestamptz IS NULL OR le.occurred_at >= sqlc.narg(from_at)::timestamptz)
   AND (sqlc.narg(to_at)::timestamptz IS NULL OR le.occurred_at < sqlc.narg(to_at)::timestamptz)

@@ -21,14 +21,23 @@ type Querier interface {
 	AccountHasActivity(ctx context.Context, accountID pgtype.UUID) (bool, error)
 	// In/out totals for one account within [from_at, to_at), per currency, plus the
 	// part that came from INCOME/EXPENSE transactions and from transfers. Balance
-	// adjustments (starting balances, corrections) move the account but are neither
+	// adjustments (starting balances, corrections) and loan bookings move the account but are neither
 	// income nor expense.
 	AccountMovements(ctx context.Context, arg AccountMovementsParams) ([]AccountMovementsRow, error)
 	AddDirectGroupMember(ctx context.Context, arg AddDirectGroupMemberParams) error
 	AddGroupMember(ctx context.Context, arg AddGroupMemberParams) error
+	AddPlannedPaymentTags(ctx context.Context, arg AddPlannedPaymentTagsParams) error
 	AddTransactionTags(ctx context.Context, arg AddTransactionTagsParams) error
 	ArchiveGroup(ctx context.Context, id uuid.UUID) error
 	BlockUser(ctx context.Context, arg BlockUserParams) error
+	// Expense flows per (budget, currency) within [from_at, to_at): wallet EXPENSE
+	// transactions and my group-expense shares whose category is in the budget's
+	// categories (all when empty). With account_ids set, only entries booked to one
+	// of those accounts count (a group share only when I paid it from such an
+	// account); with none, entries follow the overview rule (transactions on
+	// accounts excluded from the balance are left out, group shares always count).
+	// Balance adjustments and loan bookings are never spending.
+	BudgetSpent(ctx context.Context, arg BudgetSpentParams) ([]BudgetSpentRow, error)
 	// ---------------------------------------------------------------- categories & tags
 	CategoryVisible(ctx context.Context, arg CategoryVisibleParams) (bool, error)
 	CheckAlreadyMember(ctx context.Context, arg CheckAlreadyMemberParams) (bool, error)
@@ -51,16 +60,20 @@ type Querier interface {
 	// than back-filled. $1 lists schedules that already failed in this run so a broken row
 	// cannot be re-claimed in a hot loop.
 	ClaimDueRecurring(ctx context.Context, dollar_1 []pgtype.UUID) (ClaimDueRecurringRow, error)
+	ClearAccountFromLoanRecords(ctx context.Context, accountID pgtype.UUID) error
+	ClearAccountFromLoans(ctx context.Context, accountID pgtype.UUID) error
 	ClearDefaultAccount(ctx context.Context, userID uuid.UUID) error
 	ClearExpensePayerAccount(ctx context.Context, payerAccountID pgtype.UUID) error
 	ClearSettlementFromAccount(ctx context.Context, fromAccountID pgtype.UUID) error
 	CompleteIdempotencyKey(ctx context.Context, arg CompleteIdempotencyKeyParams) (int64, error)
 	CountExpensesByGroup(ctx context.Context, groupID uuid.UUID) (int64, error)
+	CountOwnedAccounts(ctx context.Context, arg CountOwnedAccountsParams) (int32, error)
 	CountOwnedTags(ctx context.Context, arg CountOwnedTagsParams) (int32, error)
 	CountUnreadNotifications(ctx context.Context, userID uuid.UUID) (int64, error)
 	CountVisibleCategories(ctx context.Context, arg CountVisibleCategoriesParams) (int32, error)
 	CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error)
 	CreateAttachment(ctx context.Context, arg CreateAttachmentParams) error
+	CreateBudget(ctx context.Context, arg CreateBudgetParams) (Budget, error)
 	CreateCategory(ctx context.Context, arg CreateCategoryParams) error
 	CreateComment(ctx context.Context, arg CreateCommentParams) error
 	CreateCommentActivity(ctx context.Context, arg CreateCommentActivityParams) error
@@ -73,11 +86,18 @@ type Querier interface {
 	CreateGroupInvite(ctx context.Context, arg CreateGroupInviteParams) error
 	CreateGroupInviteNotification(ctx context.Context, arg CreateGroupInviteNotificationParams) error
 	CreateGroupMember(ctx context.Context, arg CreateGroupMemberParams) error
+	// ---------------------------------------------------------------- loans
+	CreateLoan(ctx context.Context, arg CreateLoanParams) (Loan, error)
+	CreateLoanRecord(ctx context.Context, arg CreateLoanRecordParams) (LoanRecord, error)
 	CreateMentionNotification(ctx context.Context, arg CreateMentionNotificationParams) error
 	CreateNotificationExpenseAdded(ctx context.Context, arg CreateNotificationExpenseAddedParams) error
 	CreateOAuthIdentity(ctx context.Context, arg CreateOAuthIdentityParams) error
 	CreateOAuthUser(ctx context.Context, arg CreateOAuthUserParams) error
 	CreatePasswordResetToken(ctx context.Context, arg CreatePasswordResetTokenParams) error
+	// Wallet (phase 2) queries: planned payments, budgets, loans. Handlers live in
+	// internal/wallet (planned.go, budgets.go, loans.go).
+	// ---------------------------------------------------------------- planned payments
+	CreatePlannedPayment(ctx context.Context, arg CreatePlannedPaymentParams) (PlannedPayment, error)
 	CreateRecurringActivity(ctx context.Context, arg CreateRecurringActivityParams) error
 	CreateRecurringExpense(ctx context.Context, arg CreateRecurringExpenseParams) error
 	CreateRecurringExpenseInstance(ctx context.Context, arg CreateRecurringExpenseInstanceParams) error
@@ -95,6 +115,7 @@ type Querier interface {
 	// The invitee dismisses a pending invite from their inbox; the inviter can invite again later.
 	DeclineInviteForEmail(ctx context.Context, arg DeclineInviteForEmailParams) (int64, error)
 	DeleteAttachment(ctx context.Context, id uuid.UUID) error
+	DeleteBudget(ctx context.Context, arg DeleteBudgetParams) (int64, error)
 	// Transactions, personal and group expenses keep existing with category_id set to NULL (FK ON DELETE SET NULL).
 	DeleteCategory(ctx context.Context, arg DeleteCategoryParams) (int64, error)
 	DeleteExpenseSplits(ctx context.Context, expenseID uuid.UUID) error
@@ -106,6 +127,7 @@ type Querier interface {
 	DeleteGroupExpenses(ctx context.Context, groupID uuid.UUID) error
 	DeleteGroupRecurring(ctx context.Context, groupID uuid.UUID) error
 	DeleteGroupSettlements(ctx context.Context, groupID uuid.UUID) error
+	DeletePlannedPaymentTags(ctx context.Context, plannedPaymentID pgtype.UUID) error
 	DeleteRateOverride(ctx context.Context, arg DeleteRateOverrideParams) (int64, error)
 	DeleteRecurring(ctx context.Context, arg DeleteRecurringParams) (int64, error)
 	DeleteSettlementAccount(ctx context.Context, arg DeleteSettlementAccountParams) error
@@ -126,6 +148,7 @@ type Querier interface {
 	GetAccount(ctx context.Context, arg GetAccountParams) (Account, error)
 	GetAttachmentForServe(ctx context.Context, id uuid.UUID) (GetAttachmentForServeRow, error)
 	GetAttachmentOwner(ctx context.Context, id uuid.UUID) (GetAttachmentOwnerRow, error)
+	GetBudget(ctx context.Context, arg GetBudgetParams) (Budget, error)
 	GetCommentOwner(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetDefaultAccount(ctx context.Context, userID uuid.UUID) (Account, error)
 	GetDirectBalance(ctx context.Context, arg GetDirectBalanceParams) (GetDirectBalanceRow, error)
@@ -180,6 +203,10 @@ type Querier interface {
 	// Lets the invitee accept from their in-app inbox, where the raw token is unknown.
 	GetInviteByIDForUpdate(ctx context.Context, id uuid.UUID) (GetInviteByIDForUpdateRow, error)
 	GetInviteToken(ctx context.Context, id uuid.UUID) (pgtype.Text, error)
+	GetLoan(ctx context.Context, arg GetLoanParams) (Loan, error)
+	GetLoanRecord(ctx context.Context, arg GetLoanRecordParams) (LoanRecord, error)
+	// The transaction booking the loan itself (not one of its records).
+	GetLoanTransaction(ctx context.Context, loanID pgtype.UUID) (Transaction, error)
 	GetMe(ctx context.Context, id uuid.UUID) (GetMeRow, error)
 	GetMemberRole(ctx context.Context, arg GetMemberRoleParams) (string, error)
 	GetMyGroupBalances(ctx context.Context, userID uuid.UUID) ([]GetMyGroupBalancesRow, error)
@@ -189,14 +216,16 @@ type Querier interface {
 	GetNotificationPreferences(ctx context.Context, userID uuid.UUID) (GetNotificationPreferencesRow, error)
 	GetOAuthIdentityForUpdate(ctx context.Context, subject string) (GetOAuthIdentityForUpdateRow, error)
 	GetPasswordResetTokenUser(ctx context.Context, tokenHash string) (uuid.UUID, error)
+	GetPendingForPlan(ctx context.Context, plannedPaymentID pgtype.UUID) (Transaction, error)
 	// Personal domain queries for sqlc with pgx/v5.
 	// Since the wallet (migration 0013) personal expenses are EXPENSE transactions;
 	// /api/v1/personal/* is a compatibility layer over the transactions table
 	// (description <-> title, notes <-> description, expense_date <-> occurred_at UTC date).
-	// Balance adjustments are not personal expenses and are hidden here.
+	// Balance adjustments and loan bookings are not personal expenses and are hidden here.
 	GetPersonalBudget(ctx context.Context, arg GetPersonalBudgetParams) (GetPersonalBudgetRow, error)
 	GetPersonalExpense(ctx context.Context, arg GetPersonalExpenseParams) (GetPersonalExpenseRow, error)
 	GetPersonalExpenseTotal(ctx context.Context, userID uuid.UUID) (int64, error)
+	GetPlannedPayment(ctx context.Context, arg GetPlannedPaymentParams) (PlannedPayment, error)
 	GetRecurringSplitsSum(ctx context.Context, expenseID uuid.UUID) (int64, error)
 	GetSessionUserByHash(ctx context.Context, refreshTokenHash string) (uuid.UUID, error)
 	GetSettlementAccount(ctx context.Context, arg GetSettlementAccountParams) (pgtype.UUID, error)
@@ -259,13 +288,15 @@ type Querier interface {
 	LeaveGroup(ctx context.Context, arg LeaveGroupParams) error
 	// Income/expense flows within [from_at, to_at) per currency. Transactions on accounts
 	// excluded from the balance are left out; group shares always count. Balance
-	// adjustments (starting balances, corrections) are not income or expense.
+	// adjustments (starting balances, corrections) and loan bookings are not income or expense.
 	LedgerFlowTotals(ctx context.Context, arg LedgerFlowTotalsParams) ([]LedgerFlowTotalsRow, error)
 	// Wallet (phase 1) queries: accounts, transactions, tags, settings, rate overrides
 	// and the unified ledger view. Handlers live in internal/wallet.
 	// ---------------------------------------------------------------- accounts
 	ListAccounts(ctx context.Context, userID uuid.UUID) ([]Account, error)
 	ListAttachments(ctx context.Context, expenseID uuid.UUID) ([]ListAttachmentsRow, error)
+	// ---------------------------------------------------------------- budgets
+	ListBudgets(ctx context.Context, userID uuid.UUID) ([]Budget, error)
 	// Categories domain queries for sqlc with pgx/v5.
 	// These replace manual Pool.Query/Exec calls in internal/categories/handlers.go
 	// Handler usage: Handler{Pool *pgxpool.Pool, Queries *db.Queries} where Queries wraps the pool.
@@ -294,14 +325,23 @@ type Querier interface {
 	ListGroupsFiltered(ctx context.Context, arg ListGroupsFilteredParams) ([]ListGroupsFilteredRow, error)
 	// ---------------------------------------------------------------- ledger
 	ListLedgerEntries(ctx context.Context, arg ListLedgerEntriesParams) ([]LedgerEntry, error)
+	ListLoanRecords(ctx context.Context, loanID pgtype.UUID) ([]LoanRecord, error)
+	ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, error)
 	ListMyInvites(ctx context.Context, lower string) ([]ListMyInvitesRow, error)
 	ListNotifications(ctx context.Context, arg ListNotificationsParams) ([]ListNotificationsRow, error)
 	ListNotificationsWithCursor(ctx context.Context, arg ListNotificationsWithCursorParams) ([]ListNotificationsWithCursorRow, error)
 	ListOtherGroupMembers(ctx context.Context, arg ListOtherGroupMembersParams) ([]uuid.UUID, error)
+	ListPendingForPlans(ctx context.Context, ids []pgtype.UUID) ([]Transaction, error)
 	ListPersonalExpenseByCategory(ctx context.Context, userID uuid.UUID) ([]ListPersonalExpenseByCategoryRow, error)
 	ListPersonalExpenseByMonth(ctx context.Context, userID uuid.UUID) ([]ListPersonalExpenseByMonthRow, error)
 	ListPersonalExpenses(ctx context.Context, arg ListPersonalExpensesParams) ([]ListPersonalExpensesRow, error)
 	ListPersonalExpensesExport(ctx context.Context, userID uuid.UUID) ([]ListPersonalExpensesExportRow, error)
+	ListPlannedPaymentTags(ctx context.Context, ids []pgtype.UUID) ([]ListPlannedPaymentTagsRow, error)
+	ListPlannedPayments(ctx context.Context, arg ListPlannedPaymentsParams) ([]PlannedPayment, error)
+	ListPlannedPaymentsByIDs(ctx context.Context, ids []pgtype.UUID) ([]PlannedPayment, error)
+	// Unpaid planned items (due_at set, occurred_at NULL) due before due_before
+	// (all when NULL), optionally only those touching account_id or in category_id.
+	ListPlannedTransactions(ctx context.Context, arg ListPlannedTransactionsParams) ([]Transaction, error)
 	ListRateOverrides(ctx context.Context, userID uuid.UUID) ([]ListRateOverridesRow, error)
 	// Recurring domain queries for sqlc with pgx/v5.
 	// These replace manual Pool.Query/Exec calls in internal/recurring/handlers.go
@@ -317,6 +357,12 @@ type Querier interface {
 	ListTags(ctx context.Context, userID uuid.UUID) ([]Tag, error)
 	ListTagsForTransactions(ctx context.Context, transactionIds []pgtype.UUID) ([]ListTagsForTransactionsRow, error)
 	ListTransactions(ctx context.Context, arg ListTransactionsParams) ([]Transaction, error)
+	// Rewrites a loan-managed transaction (only loan endpoints call this).
+	LoanBookingUpdate(ctx context.Context, arg LoanBookingUpdateParams) (Transaction, error)
+	LoanRecordTotals(ctx context.Context, loanIds []pgtype.UUID) ([]LoanRecordTotalsRow, error)
+	LockLoan(ctx context.Context, arg LockLoanParams) (Loan, error)
+	LockPlannedPayment(ctx context.Context, arg LockPlannedPaymentParams) (PlannedPayment, error)
+	LockTransaction(ctx context.Context, arg LockTransactionParams) (Transaction, error)
 	// Serialises account bootstrapping (default "Cash" / "Cash XXX") per user for the
 	// rest of the current transaction.
 	LockUserWallet(ctx context.Context, userID string) error
@@ -327,6 +373,8 @@ type Querier interface {
 	MarkNotificationRead(ctx context.Context, arg MarkNotificationReadParams) (int64, error)
 	MarkPasswordResetUsed(ctx context.Context, tokenHash string) error
 	NextAccountSortOrder(ctx context.Context, userID uuid.UUID) (int32, error)
+	NextBudgetSortOrder(ctx context.Context, userID uuid.UUID) (int32, error)
+	NextLoanSortOrder(ctx context.Context, userID uuid.UUID) (int32, error)
 	NextTagSortOrder(ctx context.Context, userID uuid.UUID) (int32, error)
 	// After the default account is deleted, the first remaining account becomes the default.
 	PromoteDefaultAccount(ctx context.Context, userID uuid.UUID) error
@@ -353,24 +401,35 @@ type Querier interface {
 	SearchUsersByName(ctx context.Context, arg SearchUsersByNameParams) ([]SearchUsersByNameRow, error)
 	SendFriendRequest(ctx context.Context, arg SendFriendRequestParams) error
 	SetAccountSortOrder(ctx context.Context, arg SetAccountSortOrderParams) (int64, error)
+	SetBudgetSortOrder(ctx context.Context, arg SetBudgetSortOrderParams) (int64, error)
 	SetEmailVerified(ctx context.Context, id uuid.UUID) error
 	// ---------------------------------------------------------------- group links
 	SetExpensePayerAccount(ctx context.Context, arg SetExpensePayerAccountParams) error
 	SetInviteToken(ctx context.Context, arg SetInviteTokenParams) error
+	SetLoanRecordTransaction(ctx context.Context, arg SetLoanRecordTransactionParams) error
+	SetLoanSortOrder(ctx context.Context, arg SetLoanSortOrderParams) (int64, error)
 	SetSettlementFromAccount(ctx context.Context, arg SetSettlementFromAccountParams) error
 	SetUserEmailVerifiedIfNull(ctx context.Context, id uuid.UUID) error
 	SoftDeleteAccount(ctx context.Context, arg SoftDeleteAccountParams) (int64, error)
+	SoftDeleteAccountPlannedPayments(ctx context.Context, arg SoftDeleteAccountPlannedPaymentsParams) error
 	SoftDeleteAccountTransactions(ctx context.Context, arg SoftDeleteAccountTransactionsParams) error
 	SoftDeleteComment(ctx context.Context, id uuid.UUID) error
 	SoftDeleteExpense(ctx context.Context, id uuid.UUID) error
+	SoftDeleteLoan(ctx context.Context, arg SoftDeleteLoanParams) (int64, error)
+	SoftDeleteLoanRecord(ctx context.Context, arg SoftDeleteLoanRecordParams) (int64, error)
+	SoftDeleteLoanRecordsByLoan(ctx context.Context, loanID pgtype.UUID) error
+	SoftDeleteLoanTransactions(ctx context.Context, loanID pgtype.UUID) error
 	SoftDeletePersonalExpense(ctx context.Context, arg SoftDeletePersonalExpenseParams) error
+	SoftDeletePlannedPayment(ctx context.Context, arg SoftDeletePlannedPaymentParams) (int64, error)
 	SoftDeleteSettlement(ctx context.Context, id uuid.UUID) error
 	SoftDeleteTransaction(ctx context.Context, arg SoftDeleteTransactionParams) (int64, error)
+	SoftDeleteTransactionByID(ctx context.Context, id uuid.UUID) error
 	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) error
 	SumOwedByGroup(ctx context.Context, groupID uuid.UUID) ([]SumOwedByGroupRow, error)
 	SumPaidByGroup(ctx context.Context, groupID uuid.UUID) ([]SumPaidByGroupRow, error)
 	TopUpRecurringSplit(ctx context.Context, arg TopUpRecurringSplitParams) error
 	UpdateAccount(ctx context.Context, arg UpdateAccountParams) (Account, error)
+	UpdateBudget(ctx context.Context, arg UpdateBudgetParams) (Budget, error)
 	UpdateCategory(ctx context.Context, arg UpdateCategoryParams) (UpdateCategoryRow, error)
 	UpdateExpense(ctx context.Context, arg UpdateExpenseParams) error
 	UpdateFriendInviteAccepted(ctx context.Context, id uuid.UUID) error
@@ -381,7 +440,10 @@ type Querier interface {
 	UpdateGroupName(ctx context.Context, arg UpdateGroupNameParams) error
 	UpdateGroupSimplifyDebts(ctx context.Context, arg UpdateGroupSimplifyDebtsParams) error
 	UpdateGroupType(ctx context.Context, arg UpdateGroupTypeParams) error
+	UpdateLoan(ctx context.Context, arg UpdateLoanParams) (Loan, error)
+	UpdateLoanRecord(ctx context.Context, arg UpdateLoanRecordParams) (LoanRecord, error)
 	UpdateMemberRole(ctx context.Context, arg UpdateMemberRoleParams) error
+	UpdatePlannedPayment(ctx context.Context, arg UpdatePlannedPaymentParams) (PlannedPayment, error)
 	UpdateRecurringActive(ctx context.Context, arg UpdateRecurringActiveParams) (int64, error)
 	UpdateSettlementAmount(ctx context.Context, arg UpdateSettlementAmountParams) error
 	UpdateSettlementNote(ctx context.Context, arg UpdateSettlementNoteParams) error
