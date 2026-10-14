@@ -20,7 +20,9 @@ type Querier interface {
 	AccountBalances(ctx context.Context, arg AccountBalancesParams) ([]AccountBalancesRow, error)
 	AccountHasActivity(ctx context.Context, accountID pgtype.UUID) (bool, error)
 	// In/out totals for one account within [from_at, to_at), per currency, plus the
-	// part that came from INCOME/EXPENSE transactions and from transfers.
+	// part that came from INCOME/EXPENSE transactions and from transfers. Balance
+	// adjustments (starting balances, corrections) move the account but are neither
+	// income nor expense.
 	AccountMovements(ctx context.Context, arg AccountMovementsParams) ([]AccountMovementsRow, error)
 	AddDirectGroupMember(ctx context.Context, arg AddDirectGroupMemberParams) error
 	AddGroupMember(ctx context.Context, arg AddGroupMemberParams) error
@@ -256,7 +258,8 @@ type Querier interface {
 	IsMember(ctx context.Context, arg IsMemberParams) (string, error)
 	LeaveGroup(ctx context.Context, arg LeaveGroupParams) error
 	// Income/expense flows within [from_at, to_at) per currency. Transactions on accounts
-	// excluded from the balance are left out; group shares always count.
+	// excluded from the balance are left out; group shares always count. Balance
+	// adjustments (starting balances, corrections) are not income or expense.
 	LedgerFlowTotals(ctx context.Context, arg LedgerFlowTotalsParams) ([]LedgerFlowTotalsRow, error)
 	// Wallet (phase 1) queries: accounts, transactions, tags, settings, rate overrides
 	// and the unified ledger view. Handlers live in internal/wallet.

@@ -82,16 +82,16 @@ const accountMovements = `-- name: AccountMovements :many
 SELECT m.currency::text AS currency,
        COALESCE(SUM(m.delta) FILTER (WHERE m.delta > 0), 0)::bigint AS inflow,
        COALESCE(-SUM(m.delta) FILTER (WHERE m.delta < 0), 0)::bigint AS outflow,
-       COALESCE(SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'INCOME'), 0)::bigint AS income,
-       COALESCE(-SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'EXPENSE'), 0)::bigint AS expense,
+       COALESCE(SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'INCOME' AND m.source <> 'ADJUSTMENT'), 0)::bigint AS income,
+       COALESCE(-SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'EXPENSE' AND m.source <> 'ADJUSTMENT'), 0)::bigint AS expense,
        COALESCE(SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'TRANSFER' AND m.delta > 0), 0)::bigint AS transfer_in,
        COALESCE(-SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'TRANSFER' AND m.delta < 0), 0)::bigint AS transfer_out
 FROM (
-    SELECT le.kind, le.type, le.currency, le.account_amount AS delta, le.occurred_at
+    SELECT le.kind, le.type, le.source, le.currency, le.account_amount AS delta, le.occurred_at
     FROM ledger_entries le
     WHERE le.user_id = $1 AND le.account_id = $2::uuid AND le.account_amount IS NOT NULL
     UNION ALL
-    SELECT le.kind, le.type, le.to_currency, le.to_account_amount, le.occurred_at
+    SELECT le.kind, le.type, le.source, le.to_currency, le.to_account_amount, le.occurred_at
     FROM ledger_entries le
     WHERE le.user_id = $1 AND le.to_account_id = $2::uuid AND le.to_account_amount IS NOT NULL
 ) m
@@ -118,7 +118,9 @@ type AccountMovementsRow struct {
 }
 
 // In/out totals for one account within [from_at, to_at), per currency, plus the
-// part that came from INCOME/EXPENSE transactions and from transfers.
+// part that came from INCOME/EXPENSE transactions and from transfers. Balance
+// adjustments (starting balances, corrections) move the account but are neither
+// income nor expense.
 func (q *Queries) AccountMovements(ctx context.Context, arg AccountMovementsParams) ([]AccountMovementsRow, error) {
 	rows, err := q.db.Query(ctx, accountMovements,
 		arg.UserID,
@@ -705,6 +707,7 @@ LEFT JOIN accounts a ON a.id = le.account_id
 WHERE le.user_id = $1
   AND le.occurred_at IS NOT NULL
   AND le.type IN ('INCOME', 'EXPENSE')
+  AND le.source <> 'ADJUSTMENT'
   AND (le.kind <> 'TRANSACTION' OR a.include_in_balance)
   AND ($2::timestamptz IS NULL OR le.occurred_at >= $2::timestamptz)
   AND ($3::timestamptz IS NULL OR le.occurred_at < $3::timestamptz)
@@ -727,7 +730,8 @@ type LedgerFlowTotalsRow struct {
 }
 
 // Income/expense flows within [from_at, to_at) per currency. Transactions on accounts
-// excluded from the balance are left out; group shares always count.
+// excluded from the balance are left out; group shares always count. Balance
+// adjustments (starting balances, corrections) are not income or expense.
 func (q *Queries) LedgerFlowTotals(ctx context.Context, arg LedgerFlowTotalsParams) ([]LedgerFlowTotalsRow, error) {
 	rows, err := q.db.Query(ctx, ledgerFlowTotals,
 		arg.UserID,

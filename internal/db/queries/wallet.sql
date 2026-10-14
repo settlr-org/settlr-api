@@ -100,20 +100,22 @@ GROUP BY m.account_id, m.currency;
 
 -- name: AccountMovements :many
 -- In/out totals for one account within [from_at, to_at), per currency, plus the
--- part that came from INCOME/EXPENSE transactions and from transfers.
+-- part that came from INCOME/EXPENSE transactions and from transfers. Balance
+-- adjustments (starting balances, corrections) move the account but are neither
+-- income nor expense.
 SELECT m.currency::text AS currency,
        COALESCE(SUM(m.delta) FILTER (WHERE m.delta > 0), 0)::bigint AS inflow,
        COALESCE(-SUM(m.delta) FILTER (WHERE m.delta < 0), 0)::bigint AS outflow,
-       COALESCE(SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'INCOME'), 0)::bigint AS income,
-       COALESCE(-SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'EXPENSE'), 0)::bigint AS expense,
+       COALESCE(SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'INCOME' AND m.source <> 'ADJUSTMENT'), 0)::bigint AS income,
+       COALESCE(-SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'EXPENSE' AND m.source <> 'ADJUSTMENT'), 0)::bigint AS expense,
        COALESCE(SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'TRANSFER' AND m.delta > 0), 0)::bigint AS transfer_in,
        COALESCE(-SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'TRANSFER' AND m.delta < 0), 0)::bigint AS transfer_out
 FROM (
-    SELECT le.kind, le.type, le.currency, le.account_amount AS delta, le.occurred_at
+    SELECT le.kind, le.type, le.source, le.currency, le.account_amount AS delta, le.occurred_at
     FROM ledger_entries le
     WHERE le.user_id = @user_id AND le.account_id = @account_id::uuid AND le.account_amount IS NOT NULL
     UNION ALL
-    SELECT le.kind, le.type, le.to_currency, le.to_account_amount, le.occurred_at
+    SELECT le.kind, le.type, le.source, le.to_currency, le.to_account_amount, le.occurred_at
     FROM ledger_entries le
     WHERE le.user_id = @user_id AND le.to_account_id = @account_id::uuid AND le.to_account_amount IS NOT NULL
 ) m
@@ -247,7 +249,8 @@ LIMIT @lim::int;
 
 -- name: LedgerFlowTotals :many
 -- Income/expense flows within [from_at, to_at) per currency. Transactions on accounts
--- excluded from the balance are left out; group shares always count.
+-- excluded from the balance are left out; group shares always count. Balance
+-- adjustments (starting balances, corrections) are not income or expense.
 SELECT le.currency::text AS currency,
        COALESCE(SUM(le.flow_amount) FILTER (WHERE le.type = 'INCOME'), 0)::bigint AS income,
        COALESCE(SUM(le.flow_amount) FILTER (WHERE le.type = 'EXPENSE'), 0)::bigint AS expense,
@@ -257,6 +260,7 @@ LEFT JOIN accounts a ON a.id = le.account_id
 WHERE le.user_id = @user_id
   AND le.occurred_at IS NOT NULL
   AND le.type IN ('INCOME', 'EXPENSE')
+  AND le.source <> 'ADJUSTMENT'
   AND (le.kind <> 'TRANSACTION' OR a.include_in_balance)
   AND (sqlc.narg(from_at)::timestamptz IS NULL OR le.occurred_at >= sqlc.narg(from_at)::timestamptz)
   AND (sqlc.narg(to_at)::timestamptz IS NULL OR le.occurred_at < sqlc.narg(to_at)::timestamptz)
