@@ -144,7 +144,8 @@ automatically because nothing is copied. Group entries are read-only in the wall
   categories (empty = all). `account_ids` empty → overview rule (non-balance accounts
   excluded, every group share counts); set → only entries booked to those accounts (a group
   share only when I paid it from one of them). Adjustments, loans, planned items never count.
-  Stale category/account ids stay in the arrays (they simply match nothing).
+  Stale category/account ids stay in the arrays (they simply match nothing); PATCH only
+  validates newly added ids, so such budgets stay editable (send the list without them to prune).
 - **Loans.** Bookings are transactions with `source = LOAN` (+ `loan_id`, `loan_record_id`):
   they move balances, appear in the ledger as `read_only`, are excluded from income/expense
   everywhere (overview, summaries, budgets, `/personal/*`), and PATCH/DELETE/duplicate/pay/

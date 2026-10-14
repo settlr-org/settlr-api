@@ -7442,7 +7442,7 @@
             }
           }
         },
-        "description": "Partial update.",
+        "description": "Partial update. Only newly added category_ids/account_ids are validated; ids of categories/accounts deleted since stay (matching nothing) so the budget stays editable \u2014 send the list without them to prune.",
         "requestBody": {
           "required": true,
           "content": {
