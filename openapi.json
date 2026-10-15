@@ -5064,6 +5064,33 @@
               "type": "integer"
             },
             "description": "page size (default 50, max 200)"
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list (case-insensitive) of sources to include: MANUAL, ADJUSTMENT, LOAN, IMPORT, PERSONAL_LEGACY. Unknown value -> 422 VALIDATION_ERROR."
+          },
+          {
+            "name": "exclude_source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of sources to exclude (same values as source). Combined with source: included AND not excluded. Unknown value -> 422."
+          },
+          {
+            "name": "hide_adjustments",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "true|false (default false). Alias for exclude_source=ADJUSTMENT (hides \"Initial balance\"/\"Balance adjustment\" rows). Anything else -> 422."
           }
         ]
       },
@@ -5881,6 +5908,33 @@
               "type": "string"
             },
             "description": "comma list of group ids"
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list (case-insensitive) of sources to include: MANUAL, ADJUSTMENT, LOAN, IMPORT, PERSONAL_LEGACY. The ledger additionally knows GROUP (group expense shares and settlements). Unknown value -> 422 VALIDATION_ERROR."
+          },
+          {
+            "name": "exclude_source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of sources to exclude (same values as source). Combined with source: included AND not excluded. Unknown value -> 422."
+          },
+          {
+            "name": "hide_adjustments",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "true|false (default false). Alias for exclude_source=ADJUSTMENT (hides \"Initial balance\"/\"Balance adjustment\" rows). Anything else -> 422."
           }
         ]
       }

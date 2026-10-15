@@ -62,7 +62,7 @@ func ledgerJSON(e db.LedgerEntry, tags []tagRef) map[string]any {
 // ledgerPage runs a ledger query (p.Lim should be limit+1 to detect a next page)
 // and renders the entries with their tags.
 func (h *Handler) ledgerPage(ctx context.Context, userID uuid.UUID, p db.ListLedgerEntriesParams, limit int) ([]map[string]any, *string, error) {
-	for _, s := range []*[]string{&p.Kinds, &p.Types} {
+	for _, s := range []*[]string{&p.Kinds, &p.Types, &p.Sources, &p.ExclSources} {
 		if *s == nil {
 			*s = []string{}
 		}
@@ -111,14 +111,14 @@ func (h *Handler) ledgerPage(ctx context.Context, userID uuid.UUID, p db.ListLed
 // settlements booked to accounts (read-only), newest first.
 func (h *Handler) Ledger(w http.ResponseWriter, r *http.Request) {
 	userID := currentUser(r)
-	f, msg := parseFilters(r)
+	f, msg := parseFilters(r, true)
 	if msg != "" {
 		validation(w, msg)
 		return
 	}
 	limit := queryLimit(r, 50, 200)
 	out, next, err := h.ledgerPage(r.Context(), userID, db.ListLedgerEntriesParams{
-		UserID: userID, Planned: f.planned, FromAt: f.from, ToAt: f.to, Kinds: f.kinds, Types: f.types,
+		UserID: userID, Planned: f.planned, FromAt: f.from, ToAt: f.to, Kinds: f.kinds, Types: f.types, Sources: f.sources, ExclSources: f.exclSources,
 		AccountIds: f.accounts, CategoryIds: f.categories, GroupIds: f.groups, TagIds: f.tags, ExclTagIds: f.exclTags,
 		Q: f.q, ExclQ: f.exclQ, MinAmount: f.min, MaxAmount: f.max, CursorAt: f.cursorAt, CursorID: f.cursorID,
 		Lim: int32(limit + 1),

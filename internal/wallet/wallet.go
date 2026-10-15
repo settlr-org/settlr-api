@@ -446,3 +446,12 @@ func (h *Handler) balances(ctx context.Context, userID uuid.UUID, accounts []db.
 }
 
 func pu(id uuid.UUID) pgtype.UUID { return pgtype.UUID{Bytes: id, Valid: true} }
+
+// nonNil turns a nil slice into an empty one (sqlc binds nil as SQL NULL, which
+// breaks cardinality() checks).
+func nonNil(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
+}
