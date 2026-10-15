@@ -137,14 +137,36 @@ type Querier interface {
 	DeleteTag(ctx context.Context, arg DeleteTagParams) (int64, error)
 	DeleteTransactionTags(ctx context.Context, transactionID pgtype.UUID) error
 	EnsureFriendship(ctx context.Context, arg EnsureFriendshipParams) error
+	ExportAccounts(ctx context.Context, userID uuid.UUID) ([]Account, error)
+	ExportBudgets(ctx context.Context, userID uuid.UUID) ([]Budget, error)
+	ExportCategoryNames(ctx context.Context, ids []pgtype.UUID) ([]ExportCategoryNamesRow, error)
+	ExportCategoryOrder(ctx context.Context, userID uuid.UUID) ([]ExportCategoryOrderRow, error)
 	ExportGroupCSV(ctx context.Context, groupID uuid.UUID) ([]ExportGroupCSVRow, error)
 	ExportGroupJSON(ctx context.Context, groupID uuid.UUID) ([]ExportGroupJSONRow, error)
 	ExportGroupSettlements(ctx context.Context, groupID uuid.UUID) ([]ExportGroupSettlementsRow, error)
+	ExportLoanRecords(ctx context.Context, userID uuid.UUID) ([]LoanRecord, error)
+	ExportLoans(ctx context.Context, userID uuid.UUID) ([]Loan, error)
 	// Export domain queries for sqlc with pgx/v5.
 	// These replace manual Pool.Query/Exec calls in internal/export/handlers.go
 	// Handler usage: Handler{Pool *pgxpool.Pool, Queries *db.Queries} where Queries wraps the pool.
 	ExportMyCSV(ctx context.Context, userID uuid.UUID) ([]ExportMyCSVRow, error)
+	// paid_by_id/payer_account_id and my_share describe the caller's side; payer_account_id is
+	// only set when the caller paid.
+	ExportMyGroupExpenses(ctx context.Context, userID uuid.UUID) ([]ExportMyGroupExpensesRow, error)
+	ExportMyGroupSettlements(ctx context.Context, userID uuid.UUID) ([]ExportMyGroupSettlementsRow, error)
+	ExportMyGroups(ctx context.Context, userID uuid.UUID) ([]ExportMyGroupsRow, error)
 	ExportMyJSON(ctx context.Context, userID uuid.UUID) ([]ExportMyJSONRow, error)
+	ExportOwnedCategories(ctx context.Context, ownerID uuid.UUID) ([]ExportOwnedCategoriesRow, error)
+	ExportPlannedPayments(ctx context.Context, userID uuid.UUID) ([]ExportPlannedPaymentsRow, error)
+	ExportTags(ctx context.Context, userID uuid.UUID) ([]Tag, error)
+	// Newest first (same order as the ledger), keyset-paginated by (sort time, id).
+	ExportTransactionsCSVPage(ctx context.Context, arg ExportTransactionsCSVPageParams) ([]ExportTransactionsCSVPageRow, error)
+	// Keyset-paginated by id so large histories stream in bounded memory.
+	ExportTransactionsPage(ctx context.Context, arg ExportTransactionsPageParams) ([]ExportTransactionsPageRow, error)
+	// ---------------------------------------------------------------- wallet export
+	// Backup (GET /me/export.json, version 2) and CSV exports. Only live (not soft-deleted)
+	// rows of the caller are exported; ids are kept as stored.
+	ExportUserProfile(ctx context.Context, id uuid.UUID) (ExportUserProfileRow, error)
 	GetAccount(ctx context.Context, arg GetAccountParams) (Account, error)
 	GetAttachmentForServe(ctx context.Context, id uuid.UUID) (GetAttachmentForServeRow, error)
 	GetAttachmentOwner(ctx context.Context, id uuid.UUID) (GetAttachmentOwnerRow, error)
