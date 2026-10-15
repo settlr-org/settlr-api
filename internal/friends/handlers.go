@@ -1,7 +1,6 @@
 package friends
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -300,7 +299,7 @@ func (h *Handler) SendRequest(w http.ResponseWriter, r *http.Request) {
 		UserID: targetID,
 		Title:  "Friend request",
 		Body:   requesterName + " sent you a friend request",
-		Data:   json.RawMessage(`{"from_user":"` + uid.String() + `"}`),
+		Data:   httpx.Payload(map[string]any{"from_user": uid, "from_name": requesterName}),
 	})
 	httpx.WriteJSON(w, 201, map[string]any{"friendship_id": fid, "status": "PENDING"})
 }

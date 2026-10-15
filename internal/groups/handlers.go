@@ -678,7 +678,12 @@ func (h *Handler) CreateInvite(w http.ResponseWriter, r *http.Request) {
 	}
 	// If email belongs to existing user, create notification
 	if targetID, err := h.queries().GetGroupInviteeIDByEmail(r.Context(), email); err == nil {
-		_ = h.queries().CreateGroupInviteNotification(r.Context(), db.CreateGroupInviteNotificationParams{UserID: targetID, Title: "Group invitation", Body: "You've been invited to join a group", Data: json.RawMessage(`{"group_id":"` + groupID.String() + `","token":"` + raw + `"}`)})
+		groupName, _ := h.queries().GetGroupName(r.Context(), groupID)
+		inviterName, _ := h.queries().GetUserNameByID(r.Context(), invitedBy)
+		_ = h.queries().CreateGroupInviteNotification(r.Context(), db.CreateGroupInviteNotificationParams{
+			UserID: targetID, Title: "Invitation to " + groupName, Body: inviterName + " invited you to join " + groupName,
+			Data: httpx.Payload(map[string]any{"group_id": groupID, "token": raw, "group_name": groupName, "inviter_name": inviterName}),
+		})
 	}
 	// Email the invite link to the selected accepted friend.
 	if h.Mailer != nil {

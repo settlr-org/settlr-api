@@ -2,7 +2,6 @@ package comments
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -124,8 +123,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	_ = q.CreateCommentActivity(r.Context(), db.CreateCommentActivityParams{GroupID: groupID, ActorID: userID, EntityID: id, Payload: httpx.Payload(map[string]any{"expense_id": expenseID})})
 	// Notify other participants
 	nids, _ := q.ListCommentNotifyUsers(r.Context(), db.ListCommentNotifyUsersParams{ExpenseID: expenseID, UserID: userID})
+	commenter, _ := q.GetUserNameByID(r.Context(), userID)
 	for _, nid := range nids {
-		_ = q.CreateMentionNotification(r.Context(), db.CreateMentionNotificationParams{UserID: nid, Title: "New comment", Body: req.Body, Data: json.RawMessage(`{"expense_id":"` + expenseID.String() + `"}`)})
+		_ = q.CreateMentionNotification(r.Context(), db.CreateMentionNotificationParams{UserID: nid, Title: commenter + " commented", Body: req.Body,
+			Data: httpx.Payload(map[string]any{"expense_id": expenseID, "group_id": groupID, "commenter_name": commenter})})
 	}
 	httpx.WriteJSON(w, 201, map[string]any{"id": id, "body": req.Body})
 }

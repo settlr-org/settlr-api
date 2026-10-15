@@ -2,7 +2,6 @@ package expenses
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
@@ -510,12 +509,15 @@ func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 	_ = tx.Commit(r.Context())
 	// Create notifications outside tx - use sqlc when available
 	h.ensureQueries()
+	groupName, _ := h.Queries.GetGroupName(r.Context(), groupID)
+	adderName, _ := h.Queries.GetUserNameByID(r.Context(), createdBy)
 	for _, nid := range notifyIDs {
 		_ = h.Queries.CreateNotificationExpenseAdded(r.Context(), db.CreateNotificationExpenseAddedParams{
 			UserID: nid,
-			Title:  req.Description + " added",
-			Body:   req.Description,
-			Data:   json.RawMessage(`{"group_id":"` + groupID.String() + `","expense_id":"` + expenseID.String() + `"}`),
+			Title:  "New expense in " + groupName,
+			Body:   fmt.Sprintf("%s added \"%s\" (%d.%02d %s)", adderName, req.Description, req.Amount/100, req.Amount%100, currency),
+			Data: httpx.Payload(map[string]any{"group_id": groupID, "expense_id": expenseID, "group_name": groupName,
+				"description": req.Description, "amount": req.Amount, "currency": currency, "added_by_name": adderName}),
 		})
 	}
 

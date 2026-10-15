@@ -2,7 +2,7 @@ package settlements
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -198,15 +198,20 @@ func (h *Handler) CreateSettlement(w http.ResponseWriter, r *http.Request) {
 		Payload:  httpx.Payload(map[string]any{"amount": req.Amount, "currency": currency, "from_user": from, "to_user": to}),
 	})
 	// Notify participants
+	payerName, _ := h.Queries.GetUserNameByID(r.Context(), from)
+	payeeName, _ := h.Queries.GetUserNameByID(r.Context(), to)
+	groupName, _ := h.Queries.GetGroupName(r.Context(), groupID)
+	body := fmt.Sprintf("%s paid %s %d.%02d %s", payerName, payeeName, req.Amount/100, req.Amount%100, currency)
 	for _, nid := range []uuid.UUID{from, to} {
 		if nid == createdBy {
 			continue
 		}
 		_ = h.Queries.CreateSettlementNotification(r.Context(), db.CreateSettlementNotificationParams{
 			UserID: nid,
-			Title:  "Settlement recorded",
-			Body:   note,
-			Data:   json.RawMessage(`{"group_id":"` + groupID.String() + `"}`),
+			Title:  "Settlement recorded in " + groupName,
+			Body:   body,
+			Data: httpx.Payload(map[string]any{"group_id": groupID, "group_name": groupName, "from_user": from, "to_user": to,
+				"payer_name": payerName, "payee_name": payeeName, "amount": req.Amount, "currency": currency}),
 		})
 	}
 	httpx.WriteJSON(w, 201, map[string]any{"id": id, "group_id": groupID, "from_user": from, "to_user": to, "amount": req.Amount, "currency": currency, "from_account_id": req.FromAccountID})
