@@ -52,6 +52,10 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) h
 	mux.Handle("POST /api/v1/accounts/{id}/adjust", authMw(http.HandlerFunc(h.AdjustAccount)))
 	mux.Handle("GET /api/v1/accounts/{id}/summary", authMw(http.HandlerFunc(h.AccountSummary)))
 
+	mux.Handle("GET /api/v1/reports", authMw(http.HandlerFunc(h.Report)))
+	mux.Handle("GET /api/v1/reports/trend", authMw(http.HandlerFunc(h.Trend)))
+	mux.Handle("GET /api/v1/reports/export.csv", authMw(http.HandlerFunc(h.ReportCSV)))
+
 	mux.Handle("GET /api/v1/transactions", authMw(http.HandlerFunc(h.ListTransactions)))
 	mux.Handle("POST /api/v1/transactions", authMw(http.HandlerFunc(h.CreateTransaction)))
 	mux.Handle("GET /api/v1/transactions/{id}", authMw(http.HandlerFunc(h.GetTransaction)))
@@ -274,8 +278,12 @@ func uniqueUUIDs(ids []uuid.UUID) []uuid.UUID {
 
 // queryUUIDs parses a comma-separated (or repeated) uuid list query parameter.
 func queryUUIDs(r *http.Request, name string) ([]uuid.UUID, error) {
+	return parseUUIDs(r.URL.Query()[name], name)
+}
+
+func parseUUIDs(values []string, name string) ([]uuid.UUID, error) {
 	out := []uuid.UUID{}
-	for _, raw := range r.URL.Query()[name] {
+	for _, raw := range values {
 		for _, s := range strings.Split(raw, ",") {
 			s = strings.TrimSpace(s)
 			if s == "" {

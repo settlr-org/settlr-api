@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"slices"
 	"strings"
@@ -573,7 +574,7 @@ func (h *Handler) ListTransactions(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.q().ListTransactions(ctx, db.ListTransactionsParams{
 		UserID: userID, Planned: f.planned, FromAt: f.from, ToAt: f.to, Types: f.types,
 		Sources: nonNil(f.sources), ExclSources: nonNil(f.exclSources), AccountIds: f.accounts, CategoryIds: f.categories, TagIds: f.tags, ExclTagIds: f.exclTags,
-		Q: f.q, ExclQ: f.exclQ, MinAmount: f.min, MaxAmount: f.max, CursorAt: f.cursorAt, CursorID: f.cursorID,
+		QTerms: f.qTerms, ExclQTerms: f.exclQTerms, CategoryNone: f.catNone, MinAmount: f.min, MaxAmount: f.max, CursorAt: f.cursorAt, CursorID: f.cursorID,
 		Lim: int32(limit + 1),
 	})
 	if err != nil {
@@ -619,7 +620,8 @@ type filters struct {
 	sources, exclSources               []string
 	accounts, categories, groups, tags []pgtype.UUID
 	exclTags                           []pgtype.UUID
-	q, exclQ                           string
+	catNone                            bool
+	qTerms, exclQTerms                 []string
 	min, max                           pgtype.Int8
 	cursorAt                           pgtype.Timestamptz
 	cursorID                           pgtype.UUID
@@ -671,7 +673,33 @@ func parseFilters(r *http.Request, ledger bool) (filters, string) {
 	f.from, f.to = ts(from), ts(to)
 	f.planned = plannedMode(r)
 	f.types = queryList(r, "type")
+	allowedTypes := []string{"INCOME", "EXPENSE", "TRANSFER"}
+	if ledger {
+		allowedTypes = append(allowedTypes, "SETTLEMENT")
+	}
+	for _, t := range f.types {
+		if !slices.Contains(allowedTypes, t) {
+			return f, "type must be a comma list of " + strings.Join(allowedTypes, ", ")
+		}
+	}
 	f.kinds = queryList(r, "kind")
+	if ledger {
+		switch strings.ToLower(strings.TrimSpace(r.URL.Query().Get("include_group_shares"))) {
+		case "", "true", "1":
+		case "false", "0":
+			// Drop group expense shares: allow every other kind.
+			if len(f.kinds) == 0 {
+				f.kinds = []string{"TRANSACTION", "SETTLEMENT"}
+			} else {
+				f.kinds = slices.DeleteFunc(f.kinds, func(k string) bool { return k == "GROUP_EXPENSE" })
+				if len(f.kinds) == 0 {
+					f.kinds = []string{"NONE"} // only GROUP_EXPENSE was requested: nothing matches
+				}
+			}
+		default:
+			return f, "include_group_shares must be true or false"
+		}
+	}
 	lists := []struct {
 		name string
 		dst  *[]pgtype.UUID
@@ -680,22 +708,76 @@ func parseFilters(r *http.Request, ledger bool) (filters, string) {
 		{"tag", &f.tags}, {"excl_tag", &f.exclTags},
 	}
 	for _, l := range lists {
-		ids, err := queryUUIDs(r, l.name)
+		raw := r.URL.Query()[l.name]
+		if l.name == "category" {
+			// "none" selects uncategorized entries (alone or next to ids).
+			var kept []string
+			for _, v := range raw {
+				for _, part := range strings.Split(v, ",") {
+					if strings.EqualFold(strings.TrimSpace(part), "none") {
+						f.catNone = true
+					} else {
+						kept = append(kept, part)
+					}
+				}
+			}
+			raw = kept
+		}
+		ids, err := parseUUIDs(raw, l.name)
 		if err != nil {
 			return f, err.Error()
 		}
+		if len(ids) > maxFilterIDs {
+			return f, fmt.Sprintf("%s accepts at most %d ids", l.name, maxFilterIDs)
+		}
 		*l.dst = pgUUIDs(ids)
 	}
-	f.q = strings.TrimSpace(r.URL.Query().Get("q"))
-	f.exclQ = strings.TrimSpace(r.URL.Query().Get("excl_q"))
+	f.qTerms = searchTerms(r.URL.Query().Get("q"))
+	f.exclQTerms = searchTerms(r.URL.Query().Get("excl_q"))
 	if f.min, err = queryInt64(r, "min"); err != nil {
 		return f, err.Error()
 	}
 	if f.max, err = queryInt64(r, "max"); err != nil {
 		return f, err.Error()
 	}
+	if f.min.Valid && f.max.Valid && f.min.Int64 > f.max.Int64 {
+		return f, "min must not be greater than max"
+	}
 	if f.cursorAt, f.cursorID, err = decodeCursor(r.URL.Query().Get("cursor")); err != nil {
 		return f, err.Error()
 	}
 	return f, ""
+}
+
+// maxFilterIDs bounds every id list filter.
+const maxFilterIDs = 100
+
+// Keyword filters: at most maxSearchTerms whitespace-separated terms of at most
+// maxSearchTermLen characters each. Longer input is truncated, never rejected, so one raw
+// search-box value works on every endpoint that shares the filter parser.
+const (
+	maxSearchTerms   = 10
+	maxSearchTermLen = 100
+)
+
+// likeEscape makes s a literal inside a LIKE pattern (backslash is Postgres' default escape).
+func likeEscape(s string) string {
+	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(s)
+}
+
+// searchTerms splits a keyword filter into LIKE patterns ("%term%", wildcards escaped):
+// the first maxSearchTerms terms, each cut to maxSearchTermLen characters.
+func searchTerms(raw string) []string {
+	fields := strings.Fields(raw)
+	if len(fields) > maxSearchTerms {
+		fields = fields[:maxSearchTerms]
+	}
+	out := make([]string, 0, len(fields))
+	for _, t := range fields {
+		if r := []rune(t); len(r) > maxSearchTermLen {
+			t = string(r[:maxSearchTermLen])
+		}
+		out = append(out, "%"+likeEscape(t)+"%")
+	}
+	return out
 }

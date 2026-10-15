@@ -812,50 +812,63 @@ const listLedgerEntries = `-- name: ListLedgerEntries :many
 SELECT le.user_id, le.kind, le.id, le.type, le.account_id, le.to_account_id, le.amount, le.currency, le.to_amount, le.to_currency, le.account_amount, le.to_account_amount, le.flow_amount, le.category_id, le.title, le.description, le.occurred_at, le.due_at, le.source, le.group_id, le.group_name, le.expense_id, le.settlement_id, le.total_amount, le.sort_at, le.created_at, le.planned_payment_id, le.loan_id, le.loan_record_id FROM ledger_entries le
 WHERE le.user_id = $1
   AND (CASE $2::text WHEN 'only' THEN le.occurred_at IS NULL WHEN 'all' THEN true ELSE le.occurred_at IS NOT NULL END)
-  AND ($3::timestamptz IS NULL OR le.sort_at >= $3::timestamptz)
-  AND ($4::timestamptz IS NULL OR le.sort_at < $4::timestamptz)
+  AND ($3::timestamptz IS NULL OR COALESCE(le.occurred_at, le.due_at) >= $3::timestamptz)
+  AND ($4::timestamptz IS NULL OR COALESCE(le.occurred_at, le.due_at) < $4::timestamptz)
   AND (cardinality($5::text[]) = 0 OR le.kind = ANY($5::text[]))
   AND (cardinality($6::text[]) = 0 OR le.type = ANY($6::text[]))
   AND (cardinality($7::text[]) = 0 OR le.source = ANY($7::text[]))
   AND (cardinality($8::text[]) = 0 OR NOT (le.source = ANY($8::text[])))
   AND (cardinality($9::uuid[]) = 0 OR le.account_id = ANY($9::uuid[]) OR le.to_account_id = ANY($9::uuid[]))
-  AND (cardinality($10::uuid[]) = 0 OR le.category_id = ANY($10::uuid[]))
-  AND (cardinality($11::uuid[]) = 0 OR le.group_id = ANY($11::uuid[]))
-  AND (cardinality($12::uuid[]) = 0 OR (le.kind = 'TRANSACTION' AND EXISTS (
-        SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY($12::uuid[]))))
-  AND (cardinality($13::uuid[]) = 0 OR le.kind <> 'TRANSACTION' OR NOT EXISTS (
-        SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY($13::uuid[])))
-  AND ($14::text = '' OR le.title ILIKE '%' || $14::text || '%' OR le.description ILIKE '%' || $14::text || '%')
-  AND ($15::text = '' OR NOT (le.title ILIKE '%' || $15::text || '%' OR le.description ILIKE '%' || $15::text || '%'))
-  AND ($16::bigint IS NULL OR le.amount >= $16::bigint)
-  AND ($17::bigint IS NULL OR le.amount <= $17::bigint)
-  AND ($18::timestamptz IS NULL
-       OR (le.sort_at, le.id) < ($18::timestamptz, $19::uuid))
+  AND ((cardinality($10::uuid[]) = 0 AND NOT $11::bool)
+       OR le.category_id = ANY($10::uuid[])
+       OR ($11::bool AND le.category_id IS NULL))
+  AND (cardinality($12::uuid[]) = 0 OR le.group_id = ANY($12::uuid[]))
+  AND (cardinality($13::uuid[]) = 0 OR (le.kind = 'TRANSACTION' AND EXISTS (
+        SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY($13::uuid[]))))
+  AND (cardinality($14::uuid[]) = 0 OR le.kind <> 'TRANSACTION' OR NOT EXISTS (
+        SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY($14::uuid[])))
+  AND (cardinality($15::text[]) < 1 OR le.title ILIKE ($15::text[])[1] OR le.description ILIKE ($15::text[])[1] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[1])))
+  AND (cardinality($15::text[]) < 2 OR le.title ILIKE ($15::text[])[2] OR le.description ILIKE ($15::text[])[2] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[2])))
+  AND (cardinality($15::text[]) < 3 OR le.title ILIKE ($15::text[])[3] OR le.description ILIKE ($15::text[])[3] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[3])))
+  AND (cardinality($15::text[]) < 4 OR le.title ILIKE ($15::text[])[4] OR le.description ILIKE ($15::text[])[4] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[4])))
+  AND (cardinality($15::text[]) < 5 OR le.title ILIKE ($15::text[])[5] OR le.description ILIKE ($15::text[])[5] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[5])))
+  AND (cardinality($15::text[]) < 6 OR le.title ILIKE ($15::text[])[6] OR le.description ILIKE ($15::text[])[6] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[6])))
+  AND (cardinality($15::text[]) < 7 OR le.title ILIKE ($15::text[])[7] OR le.description ILIKE ($15::text[])[7] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[7])))
+  AND (cardinality($15::text[]) < 8 OR le.title ILIKE ($15::text[])[8] OR le.description ILIKE ($15::text[])[8] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[8])))
+  AND (cardinality($15::text[]) < 9 OR le.title ILIKE ($15::text[])[9] OR le.description ILIKE ($15::text[])[9] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[9])))
+  AND (cardinality($15::text[]) < 10 OR le.title ILIKE ($15::text[])[10] OR le.description ILIKE ($15::text[])[10] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[10])))
+  AND (cardinality($16::text[]) = 0 OR NOT (le.title ILIKE ANY($16::text[]) OR le.description ILIKE ANY($16::text[])
+       OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ANY($16::text[])))))
+  AND ($17::bigint IS NULL OR le.amount >= $17::bigint)
+  AND ($18::bigint IS NULL OR le.amount <= $18::bigint)
+  AND ($19::timestamptz IS NULL
+       OR (le.sort_at, le.id) < ($19::timestamptz, $20::uuid))
 ORDER BY le.sort_at DESC, le.id DESC
-LIMIT $20::int
+LIMIT $21::int
 `
 
 type ListLedgerEntriesParams struct {
-	UserID      uuid.UUID          `json:"user_id"`
-	Planned     string             `json:"planned"`
-	FromAt      pgtype.Timestamptz `json:"from_at"`
-	ToAt        pgtype.Timestamptz `json:"to_at"`
-	Kinds       []string           `json:"kinds"`
-	Types       []string           `json:"types"`
-	Sources     []string           `json:"sources"`
-	ExclSources []string           `json:"excl_sources"`
-	AccountIds  []pgtype.UUID      `json:"account_ids"`
-	CategoryIds []pgtype.UUID      `json:"category_ids"`
-	GroupIds    []pgtype.UUID      `json:"group_ids"`
-	TagIds      []pgtype.UUID      `json:"tag_ids"`
-	ExclTagIds  []pgtype.UUID      `json:"excl_tag_ids"`
-	Q           string             `json:"q"`
-	ExclQ       string             `json:"excl_q"`
-	MinAmount   pgtype.Int8        `json:"min_amount"`
-	MaxAmount   pgtype.Int8        `json:"max_amount"`
-	CursorAt    pgtype.Timestamptz `json:"cursor_at"`
-	CursorID    pgtype.UUID        `json:"cursor_id"`
-	Lim         int32              `json:"lim"`
+	UserID       uuid.UUID          `json:"user_id"`
+	Planned      string             `json:"planned"`
+	FromAt       pgtype.Timestamptz `json:"from_at"`
+	ToAt         pgtype.Timestamptz `json:"to_at"`
+	Kinds        []string           `json:"kinds"`
+	Types        []string           `json:"types"`
+	Sources      []string           `json:"sources"`
+	ExclSources  []string           `json:"excl_sources"`
+	AccountIds   []pgtype.UUID      `json:"account_ids"`
+	CategoryIds  []pgtype.UUID      `json:"category_ids"`
+	CategoryNone bool               `json:"category_none"`
+	GroupIds     []pgtype.UUID      `json:"group_ids"`
+	TagIds       []pgtype.UUID      `json:"tag_ids"`
+	ExclTagIds   []pgtype.UUID      `json:"excl_tag_ids"`
+	QTerms       []string           `json:"q_terms"`
+	ExclQTerms   []string           `json:"excl_q_terms"`
+	MinAmount    pgtype.Int8        `json:"min_amount"`
+	MaxAmount    pgtype.Int8        `json:"max_amount"`
+	CursorAt     pgtype.Timestamptz `json:"cursor_at"`
+	CursorID     pgtype.UUID        `json:"cursor_id"`
+	Lim          int32              `json:"lim"`
 }
 
 // ---------------------------------------------------------------- ledger
@@ -871,11 +884,12 @@ func (q *Queries) ListLedgerEntries(ctx context.Context, arg ListLedgerEntriesPa
 		arg.ExclSources,
 		arg.AccountIds,
 		arg.CategoryIds,
+		arg.CategoryNone,
 		arg.GroupIds,
 		arg.TagIds,
 		arg.ExclTagIds,
-		arg.Q,
-		arg.ExclQ,
+		arg.QTerms,
+		arg.ExclQTerms,
 		arg.MinAmount,
 		arg.MaxAmount,
 		arg.CursorAt,
@@ -1052,40 +1066,53 @@ WHERE t.user_id = $1 AND t.deleted_at IS NULL
   AND (cardinality($6::text[]) = 0 OR t.source = ANY($6::text[]))
   AND (cardinality($7::text[]) = 0 OR NOT (t.source = ANY($7::text[])))
   AND (cardinality($8::uuid[]) = 0 OR t.account_id = ANY($8::uuid[]) OR t.to_account_id = ANY($8::uuid[]))
-  AND (cardinality($9::uuid[]) = 0 OR t.category_id = ANY($9::uuid[]))
-  AND (cardinality($10::uuid[]) = 0 OR EXISTS (
-        SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = t.id AND tt.tag_id = ANY($10::uuid[])))
-  AND (cardinality($11::uuid[]) = 0 OR NOT EXISTS (
+  AND ((cardinality($9::uuid[]) = 0 AND NOT $10::bool)
+       OR t.category_id = ANY($9::uuid[])
+       OR ($10::bool AND t.category_id IS NULL))
+  AND (cardinality($11::uuid[]) = 0 OR EXISTS (
         SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = t.id AND tt.tag_id = ANY($11::uuid[])))
-  AND ($12::text = '' OR t.title ILIKE '%' || $12::text || '%' OR t.description ILIKE '%' || $12::text || '%')
-  AND ($13::text = '' OR NOT (t.title ILIKE '%' || $13::text || '%' OR t.description ILIKE '%' || $13::text || '%'))
-  AND ($14::bigint IS NULL OR t.amount >= $14::bigint)
-  AND ($15::bigint IS NULL OR t.amount <= $15::bigint)
-  AND ($16::timestamptz IS NULL
-       OR (COALESCE(t.occurred_at, t.due_at), t.id) < ($16::timestamptz, $17::uuid))
+  AND (cardinality($12::uuid[]) = 0 OR NOT EXISTS (
+        SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = t.id AND tt.tag_id = ANY($12::uuid[])))
+  AND (cardinality($13::text[]) < 1 OR t.title ILIKE ($13::text[])[1] OR t.description ILIKE ($13::text[])[1] OR t.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($13::text[])[1])))
+  AND (cardinality($13::text[]) < 2 OR t.title ILIKE ($13::text[])[2] OR t.description ILIKE ($13::text[])[2] OR t.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($13::text[])[2])))
+  AND (cardinality($13::text[]) < 3 OR t.title ILIKE ($13::text[])[3] OR t.description ILIKE ($13::text[])[3] OR t.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($13::text[])[3])))
+  AND (cardinality($13::text[]) < 4 OR t.title ILIKE ($13::text[])[4] OR t.description ILIKE ($13::text[])[4] OR t.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($13::text[])[4])))
+  AND (cardinality($13::text[]) < 5 OR t.title ILIKE ($13::text[])[5] OR t.description ILIKE ($13::text[])[5] OR t.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($13::text[])[5])))
+  AND (cardinality($13::text[]) < 6 OR t.title ILIKE ($13::text[])[6] OR t.description ILIKE ($13::text[])[6] OR t.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($13::text[])[6])))
+  AND (cardinality($13::text[]) < 7 OR t.title ILIKE ($13::text[])[7] OR t.description ILIKE ($13::text[])[7] OR t.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($13::text[])[7])))
+  AND (cardinality($13::text[]) < 8 OR t.title ILIKE ($13::text[])[8] OR t.description ILIKE ($13::text[])[8] OR t.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($13::text[])[8])))
+  AND (cardinality($13::text[]) < 9 OR t.title ILIKE ($13::text[])[9] OR t.description ILIKE ($13::text[])[9] OR t.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($13::text[])[9])))
+  AND (cardinality($13::text[]) < 10 OR t.title ILIKE ($13::text[])[10] OR t.description ILIKE ($13::text[])[10] OR t.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($13::text[])[10])))
+  AND (cardinality($14::text[]) = 0 OR NOT (t.title ILIKE ANY($14::text[]) OR t.description ILIKE ANY($14::text[])
+       OR t.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ANY($14::text[])))))
+  AND ($15::bigint IS NULL OR t.amount >= $15::bigint)
+  AND ($16::bigint IS NULL OR t.amount <= $16::bigint)
+  AND ($17::timestamptz IS NULL
+       OR (COALESCE(t.occurred_at, t.due_at), t.id) < ($17::timestamptz, $18::uuid))
 ORDER BY COALESCE(t.occurred_at, t.due_at) DESC, t.id DESC
-LIMIT $18::int
+LIMIT $19::int
 `
 
 type ListTransactionsParams struct {
-	UserID      uuid.UUID          `json:"user_id"`
-	Planned     string             `json:"planned"`
-	FromAt      pgtype.Timestamptz `json:"from_at"`
-	ToAt        pgtype.Timestamptz `json:"to_at"`
-	Types       []string           `json:"types"`
-	Sources     []string           `json:"sources"`
-	ExclSources []string           `json:"excl_sources"`
-	AccountIds  []pgtype.UUID      `json:"account_ids"`
-	CategoryIds []pgtype.UUID      `json:"category_ids"`
-	TagIds      []pgtype.UUID      `json:"tag_ids"`
-	ExclTagIds  []pgtype.UUID      `json:"excl_tag_ids"`
-	Q           string             `json:"q"`
-	ExclQ       string             `json:"excl_q"`
-	MinAmount   pgtype.Int8        `json:"min_amount"`
-	MaxAmount   pgtype.Int8        `json:"max_amount"`
-	CursorAt    pgtype.Timestamptz `json:"cursor_at"`
-	CursorID    pgtype.UUID        `json:"cursor_id"`
-	Lim         int32              `json:"lim"`
+	UserID       uuid.UUID          `json:"user_id"`
+	Planned      string             `json:"planned"`
+	FromAt       pgtype.Timestamptz `json:"from_at"`
+	ToAt         pgtype.Timestamptz `json:"to_at"`
+	Types        []string           `json:"types"`
+	Sources      []string           `json:"sources"`
+	ExclSources  []string           `json:"excl_sources"`
+	AccountIds   []pgtype.UUID      `json:"account_ids"`
+	CategoryIds  []pgtype.UUID      `json:"category_ids"`
+	CategoryNone bool               `json:"category_none"`
+	TagIds       []pgtype.UUID      `json:"tag_ids"`
+	ExclTagIds   []pgtype.UUID      `json:"excl_tag_ids"`
+	QTerms       []string           `json:"q_terms"`
+	ExclQTerms   []string           `json:"excl_q_terms"`
+	MinAmount    pgtype.Int8        `json:"min_amount"`
+	MaxAmount    pgtype.Int8        `json:"max_amount"`
+	CursorAt     pgtype.Timestamptz `json:"cursor_at"`
+	CursorID     pgtype.UUID        `json:"cursor_id"`
+	Lim          int32              `json:"lim"`
 }
 
 func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsParams) ([]Transaction, error) {
@@ -1099,10 +1126,11 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 		arg.ExclSources,
 		arg.AccountIds,
 		arg.CategoryIds,
+		arg.CategoryNone,
 		arg.TagIds,
 		arg.ExclTagIds,
-		arg.Q,
-		arg.ExclQ,
+		arg.QTerms,
+		arg.ExclQTerms,
 		arg.MinAmount,
 		arg.MaxAmount,
 		arg.CursorAt,

@@ -104,7 +104,7 @@ automatically because nothing is copied. Group entries are read-only in the wall
 - Budgets: `GET/POST /budgets?from&to` (with spent), `PATCH/DELETE /budgets/{id}`, `POST /budgets/reorder`.
 - Loans: `GET/POST /loans`, `GET/PATCH/DELETE /loans/{id}`, `GET/POST /loans/{id}/records`,
   `PATCH/DELETE /loan-records/{id}`, `POST /loans/reorder`.
-- Reports: `GET /reports?…filters…` (totals + by-category for pie + entries), `GET /reports/export.csv`.
+- Reports: `GET /reports?…filters…` (totals, category breakdown for the pie, per-account totals), `GET /reports/trend`, `GET /reports/export.csv` (see Phase 3 notes).
 - Rates: existing `GET /rates` + `GET/PUT/DELETE /me/rates/{base}/{quote}`.
 - Settings: `GET/PATCH /me/settings`.
 - Backup: `GET /me/backup` (zip of JSON), `POST /me/restore` (replace or merge).
@@ -204,5 +204,103 @@ automatically because nothing is copied. Group entries are read-only in the wall
   registered/active (an unlisted sender on a domain-authenticated Brevo domain, checked via `GET /v3/senders/domains`, is fine); it also WARNs for log-only mode (empty/unknown `MAIL_PROVIDER` without
   credentials), a missing Brevo key and placeholder `@example.com` senders. `/readyz` is
   deliberately unchanged (it is unauthenticated; mail state is not worth exposing there).
+
+### Phase 3 implementation notes: reports (migrations 0018, 0019)
+
+Everything below shares the `/ledger` filter set, parsed by one function (`parseFilters`) and
+written once as a SQL block that `ListLedgerEntries`, `ListTransactions` and the four report
+queries (`wallet_reports.sql`, which says to keep the blocks in sync) all carry, so a report
+and the entries list behind it can never disagree (a consistency test pages `/ledger` for ~30
+filter combinations and compares count/income/expense with `/reports`).
+
+- **Filters** (identical on `/ledger`, `/transactions`, `/reports`, `/reports/trend`,
+  `/reports/export.csv`): `from`, `to`, `type` (INCOME,EXPENSE,TRANSFER; ledger also
+  SETTLEMENT; unknown -> 422), `account` (either side of a transfer), `category` (ids; the value
+  `none` = uncategorized, alone or mixed with ids), `tag`, `excl_tag`, `q`, `excl_q`, `min`, `max`
+  (the entry's own amount in its own currency; min > max -> 422), `source`, `exclude_source`,
+  `hide_adjustments`, `group`, `kind`, `planned`, and (ledger and reports)
+  `include_group_shares=true|false`. Id lists hold at most 100 ids.
+  **Keywords.** `q` is split on whitespace; every term must occur (case-insensitive) in the
+  title, the description or a tag name; `excl_q` drops an entry when any term occurs. Terms are
+  LIKE-escaped (`%`, `_`, `\` are literal). Only the first 10 terms are used and each is cut to 100
+  characters: silently, never a 422, so the web search box can send its raw value to every endpoint.
+  SQL: `title ILIKE ALL(p) OR description ILIKE ALL(p)`, then for one term a short-circuiting tag-name
+  EXISTS, for several terms the concatenation `title || ' ' || description || ' ' || tag names`
+  (terms split across fields; a term has no whitespace so it can never straddle the separators).
+  `excl_q` is `title ILIKE ANY OR description ILIKE ANY OR tag EXISTS`. Group entries have no tags.
+  This replaced the earlier single unescaped substring on title/description.
+- **Date basis.** Range filters (`from`/`to`) compare `COALESCE(occurred_at, due_at)` everywhere
+  (`/ledger`, `/transactions`, reports, trend, CSV; overview/summaries use `occurred_at`, the same
+  value for paid entries), so a group share dated D counts at 00:00 UTC of D whatever time it was
+  created and every view agrees for windows that do not start at UTC midnight (e.g. +05:45).
+  `sort_at` is used only for ordering and the cursor.
+- **What counts.** Income and expense are the paid INCOME/EXPENSE wallet transactions and my
+  share of group expenses (a group expense I only fronted has share 0: it is not an entry and
+  not counted). Never counted: `ADJUSTMENT` and `LOAN` sources (whatever `source` says),
+  settlements, planned items unless `planned=true|all` is passed (the opt-in is the one
+  deliberate departure from "planned never counts": it lets a client show a forecast), and
+  transactions on accounts with `include_in_balance = false` (same rule as `/overview`, so the
+  report for a period equals the overview; an explicit `account` filter lifts the rule, so
+  the user can report on such an account). **Transfers** are reported as `transfers_out`
+  (source leg, source currency) and `transfers_in` (target leg, `to_amount` in the target
+  currency), each converted separately; with an `account` filter only legs on the selected
+  accounts count. With the user setting `treat_transfers_as_flow` they are also added to
+  `income`/`expense`/`net`, `by_account` and the trend (and to `count`), never to `by_category`
+  (transfers have no category).
+- **Currency.** SQL groups by (currency, category | account | bucket); Go converts each group
+  with the overview converter (user overrides, daily rates, cross rates) and sums. Pairs
+  without a rate are left out and listed in `missing_rates`. Nothing is converted per row except
+  the CSV `base_amount`, which is the row's own amount.
+- **`GET /reports`**: `currency, from, to, income, expense, net, transfers_in, transfers_out,
+  count, breakdown, by_category[], by_account[], treat_transfers_as_flow, hide_adjustments,
+  missing_rates`. `breakdown=expense|income` (default expense) picks the side of `by_category`
+  (`category_id|null, name, icon, color, amount, count, percent`), sorted by amount desc then
+  name, uncategorized as `category_id: null, name "Uncategorized"` (categories the caller cannot
+  see count as uncategorized). **Percent rule:** one decimal; tenths of a percent are allotted
+  by the largest-remainder method (floor each share of 1000, hand the leftover tenths to the
+  largest fractional parts, earlier = larger amount wins ties), so the list always sums to exactly
+  100.0. `by_account` rows (`account_id|null, name, currency, income, expense, net, base_income,
+  base_expense, base_net`): amounts in the account's own currency, `base_*` in the base currency;
+  `account_id: null, name "No account"` collects group shares someone else paid (base currency).
+- **`GET /reports/trend`**: `from` and `to` required, `bucket=day|week|month` (default month).
+  Response `currency, from, to, bucket, buckets[{start,end,income,expense,net}], missing_rates`,
+  zero-filled from the bucket containing `from` to the last bucket starting before `to`. Buckets
+  are UTC (nothing here depends on DST): days at 00:00; weeks are ISO weeks starting **Monday**;
+  months start on the user's `month_start_day` (default 1 = calendar months, so the trend lines
+  up with the home period). Buckets are whole (`end` exclusive) while only entries inside
+  [from, to) are counted. More than 400 buckets -> 422 ("use a larger bucket or a shorter
+  range"). Ranges over 10 years and `to <= from` -> 422 on all report endpoints.
+- **`GET /reports/export.csv`**: the ledger entries behind the numbers, newest first, streamed
+  in keyset pages (1000 rows, doubling up to 20 000: every page rescans the ledger view, so big
+  exports use few pages; 100k rows export in ~2.5 s). It is the `/ledger` result set, so
+  ADJUSTMENT/LOAN rows appear unless filtered out. Columns `date, kind, type, title, description,
+  account, to_account, category, tags, amount_minor, amount, currency,
+  to_amount_minor, to_amount, to_currency (transfers: what arrived), base_amount, base_currency,
+  group, source` (`kind` = TRANSACTION | GROUP_EXPENSE | SETTLEMENT; amount = the entry's own
+  amount, my share for group expenses). Cell quoting, formula protection (`csvSafe`), the 5-minute
+  write deadline, flushing and abort-on-failure (`http.ErrAbortHandler`) are the helpers of
+  `internal/export` (exported for reuse). Filename `settlr-report-<from>-<to>.csv`.
+- **Former group members (migration 0019).** Group expense shares and settlements stay in the ledger
+  of a user who left or was removed (it is their own financial history and their account balances
+  depend on it: money they paid from an account keeps its effect), but the free text other people
+  wrote is redacted once `group_members` no longer has the user: `description` of group entries
+  (expense notes, settlement notes) becomes `''` in `/ledger`, the entries inside category/account
+  summaries and `/reports/export.csv`. Title (the expense description), amount, category and group name
+  stay. There is no removal timestamp, so expenses created or edited after the user left are not told
+  apart. Search (`/search` expenses), the group export and the v2 backup's `groups` section already
+  require current membership. Reports contain no free text.
+- **Performance** (100k transactions + 6k group shares for one user, Postgres 18): all-time
+  report ~0.6 s end to end (three ~130-220 ms aggregates, sequential scans: the user owns the
+  whole table), a month ~60 ms after migration 0018, which adds
+  `transactions (user_id, COALESCE(occurred_at, due_at)) WHERE deleted_at IS NULL`: the ledger
+  view's sort time, so date ranges become index range scans (a month: 213 ms -> 9-20 ms per
+  aggregate). Keyword filters are written term by term (`title ILIKE t OR description ILIKE t OR id = ANY(ids of
+  tags whose name matches t)`, AND-ed over up to 10 terms) so each arm can use the 0016 trigram indexes and
+  the tag index: on 500k transactions of one user, `/ledger` page with `q`: rare term 5.6 s -> 49 ms, tag
+  name 6.5 s -> 120 ms, two terms 5.4 s -> 85 ms, no match 6.0 s -> 0.6 ms, very common term 2.6 s -> 0.8 s
+  (before: one `ILIKE ALL` over the concatenated title/description/tag names, a scan with a per-row tag
+  aggregate). An index on the same expression in
+  descending order did not help `/ledger` paging (the planner keeps Sort over Append for the
+  UNION view), so none was added.
 
 Non-goals: Ivy Cloud / GitHub backup (removed upstream), wishlist, in-app changelog/poll.

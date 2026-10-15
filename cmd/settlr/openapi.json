@@ -2756,6 +2756,232 @@
           }
         },
         "description": "Complete, versioned backup of the caller's data (version 2). Only live rows (not deleted) are included. Ids are stable (the stored ids). `data` is the version 1 flat group-expense list, kept for existing readers; personal_expenses are not exported separately because migration 0013 moved them into transactions (source PERSONAL_LEGACY)."
+      },
+      "ReportCategory": {
+        "type": "object",
+        "properties": {
+          "category_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "null = Uncategorized"
+          },
+          "name": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "minor units, base currency"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "percent": {
+            "type": "number",
+            "description": "share of the breakdown total, one decimal; the list sums to exactly 100.0 (largest remainder)",
+            "example": 80.9
+          }
+        }
+      },
+      "ReportAccount": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "null = no account (group shares someone else paid)"
+          },
+          "name": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string",
+            "description": "the account's currency; income/expense/net use it (base currency for the no-account row)"
+          },
+          "income": {
+            "type": "integer",
+            "format": "int64",
+            "description": "minor units, account currency"
+          },
+          "expense": {
+            "type": "integer",
+            "format": "int64",
+            "description": "minor units, account currency"
+          },
+          "net": {
+            "type": "integer",
+            "format": "int64",
+            "description": "minor units, account currency"
+          },
+          "base_income": {
+            "type": "integer",
+            "format": "int64",
+            "description": "minor units, base currency"
+          },
+          "base_expense": {
+            "type": "integer",
+            "format": "int64",
+            "description": "minor units, base currency"
+          },
+          "base_net": {
+            "type": "integer",
+            "format": "int64",
+            "description": "minor units, base currency"
+          }
+        }
+      },
+      "Report": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "description": "base currency of all amounts except ReportAccount.income/expense/net"
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "income": {
+            "type": "integer",
+            "format": "int64",
+            "description": "minor units"
+          },
+          "expense": {
+            "type": "integer",
+            "format": "int64",
+            "description": "minor units"
+          },
+          "net": {
+            "type": "integer",
+            "format": "int64",
+            "description": "income - expense"
+          },
+          "transfers_in": {
+            "type": "integer",
+            "format": "int64",
+            "description": "minor units; to-side legs of matching transfers"
+          },
+          "transfers_out": {
+            "type": "integer",
+            "format": "int64",
+            "description": "minor units; from-side legs"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "breakdown": {
+            "type": "string",
+            "enum": [
+              "expense",
+              "income"
+            ]
+          },
+          "by_category": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportCategory"
+            }
+          },
+          "by_account": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportAccount"
+            }
+          },
+          "treat_transfers_as_flow": {
+            "type": "boolean"
+          },
+          "hide_adjustments": {
+            "type": "boolean"
+          },
+          "missing_rates": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "example": "EUR/JPY"
+            },
+            "description": "currency pairs without a rate; their amounts are not in the sums"
+          }
+        }
+      },
+      "TrendBucket": {
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "description": "exclusive"
+          },
+          "income": {
+            "type": "integer",
+            "format": "int64",
+            "description": "minor units, base currency"
+          },
+          "expense": {
+            "type": "integer",
+            "format": "int64",
+            "description": "minor units, base currency"
+          },
+          "net": {
+            "type": "integer",
+            "format": "int64",
+            "description": "minor units, base currency"
+          }
+        }
+      },
+      "Trend": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "bucket": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month"
+            ]
+          },
+          "buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrendBucket"
+            }
+          },
+          "missing_rates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
       }
     },
     "parameters": {
@@ -6092,7 +6318,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "RFC 3339 or YYYY-MM-DD (inclusive)"
+            "description": "RFC 3339 (any offset, URL-encode +) or YYYY-MM-DD (inclusive). Range filters compare COALESCE(occurred_at, due_at) on every endpoint (a group expense counts at 00:00 UTC of its expense_date); results are ordered by sort_at"
           },
           {
             "name": "to",
@@ -6110,7 +6336,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "comma list: INCOME,EXPENSE,TRANSFER (ledger also SETTLEMENT)"
+            "description": "comma list: INCOME,EXPENSE,TRANSFER; anything else -> 422"
           },
           {
             "name": "account",
@@ -6119,7 +6345,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "comma list of account ids (matches account or to_account)"
+            "description": "comma list of account ids (matches account or to_account) (max 100 ids)"
           },
           {
             "name": "category",
@@ -6128,7 +6354,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "comma list of category ids"
+            "description": "comma list of category ids (max 100); the value none selects uncategorized entries, alone or next to ids (category=none,<id>)"
           },
           {
             "name": "tag",
@@ -6137,7 +6363,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "comma list of tag ids (any)"
+            "description": "comma list of tag ids (any) (max 100 ids)"
           },
           {
             "name": "excl_tag",
@@ -6146,7 +6372,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "comma list of tag ids to exclude"
+            "description": "comma list of tag ids to exclude (max 100 ids)"
           },
           {
             "name": "q",
@@ -6155,7 +6381,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "search title/description"
+            "description": "keywords (include): whitespace-separated terms, ALL must match (case-insensitive substring) in the title, the description or a tag name (group entries: title/description). % _ and \\ are matched literally. Only the first 10 terms are used and each is cut to 100 characters (never an error), so one raw search-box value works on every endpoint."
           },
           {
             "name": "excl_q",
@@ -6164,7 +6390,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "exclude title/description matches"
+            "description": "keywords (exclude): whitespace-separated terms, an entry containing ANY term (title, description or tag name) is dropped. Same escaping and truncation as q."
           },
           {
             "name": "min",
@@ -6173,7 +6399,7 @@
             "schema": {
               "type": "integer"
             },
-            "description": "minimum amount (minor units)"
+            "description": "minimum amount (minor units, applied to the entry's own amount; min > max -> 422)"
           },
           {
             "name": "max",
@@ -6182,7 +6408,7 @@
             "schema": {
               "type": "integer"
             },
-            "description": "maximum amount (minor units)"
+            "description": "maximum amount (minor units, applied to the entry's own amount; min > max -> 422)"
           },
           {
             "name": "planned",
@@ -6909,7 +7135,7 @@
             }
           }
         },
-        "description": "Wallet transactions plus my group-expense shares (my share is my expense; if I paid from an account the full amount leaves it) and settlements booked to my accounts (account effect only). Group entries are read-only. Order: sort_at desc, id desc (the cursor encodes both). Group expenses created on their expense_date (UTC) sort at their creation time, otherwise at 00:00 UTC of expense_date, so a group expense added later in the day sorts above earlier wallet transactions; date filters still select by date.",
+        "description": "Wallet transactions plus my group-expense shares (my share is my expense; if I paid from an account the full amount leaves it) and settlements booked to my accounts (account effect only). Group entries are read-only. Order: sort_at desc, id desc (the cursor encodes both). Group expenses created on their expense_date (UTC) sort at their creation time, otherwise at 00:00 UTC of expense_date, so a group expense added later in the day sorts above earlier wallet transactions; date filters still select by date. Group entries of a group the user has left stay (amounts, title, group name, balances) but the free text others wrote is redacted: description is '' for them.",
         "parameters": [
           {
             "name": "from",
@@ -6918,7 +7144,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "RFC 3339 or YYYY-MM-DD (inclusive)"
+            "description": "RFC 3339 (any offset, URL-encode +) or YYYY-MM-DD (inclusive). Range filters compare COALESCE(occurred_at, due_at) on every endpoint (a group expense counts at 00:00 UTC of its expense_date); results are ordered by sort_at"
           },
           {
             "name": "to",
@@ -6936,7 +7162,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "comma list: INCOME,EXPENSE,TRANSFER (ledger also SETTLEMENT)"
+            "description": "comma list: INCOME,EXPENSE,TRANSFER (ledger also SETTLEMENT); anything else -> 422"
           },
           {
             "name": "account",
@@ -6945,7 +7171,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "comma list of account ids (matches account or to_account)"
+            "description": "comma list of account ids (matches account or to_account) (max 100 ids)"
           },
           {
             "name": "category",
@@ -6954,7 +7180,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "comma list of category ids"
+            "description": "comma list of category ids (max 100); the value none selects uncategorized entries, alone or next to ids (category=none,<id>)"
           },
           {
             "name": "tag",
@@ -6963,7 +7189,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "comma list of tag ids (any)"
+            "description": "comma list of tag ids (any) (max 100 ids)"
           },
           {
             "name": "excl_tag",
@@ -6972,7 +7198,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "comma list of tag ids to exclude"
+            "description": "comma list of tag ids to exclude (max 100 ids)"
           },
           {
             "name": "q",
@@ -6981,7 +7207,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "search title/description"
+            "description": "keywords (include): whitespace-separated terms, ALL must match (case-insensitive substring) in the title, the description or a tag name (group entries: title/description). % _ and \\ are matched literally. Only the first 10 terms are used and each is cut to 100 characters (never an error), so one raw search-box value works on every endpoint."
           },
           {
             "name": "excl_q",
@@ -6990,7 +7216,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "exclude title/description matches"
+            "description": "keywords (exclude): whitespace-separated terms, an entry containing ANY term (title, description or tag name) is dropped. Same escaping and truncation as q."
           },
           {
             "name": "min",
@@ -6999,7 +7225,7 @@
             "schema": {
               "type": "integer"
             },
-            "description": "minimum amount (minor units)"
+            "description": "minimum amount (minor units, applied to the entry's own amount; min > max -> 422)"
           },
           {
             "name": "max",
@@ -7008,7 +7234,7 @@
             "schema": {
               "type": "integer"
             },
-            "description": "maximum amount (minor units)"
+            "description": "maximum amount (minor units, applied to the entry's own amount; min > max -> 422)"
           },
           {
             "name": "planned",
@@ -7053,7 +7279,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "comma list of group ids"
+            "description": "comma list of group ids (max 100 ids)"
           },
           {
             "name": "source",
@@ -7081,6 +7307,15 @@
               "type": "boolean"
             },
             "description": "true|false (default false). Alias for exclude_source=ADJUSTMENT (hides \"Initial balance\"/\"Balance adjustment\" rows). Anything else -> 422."
+          },
+          {
+            "name": "include_group_shares",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "true (default) | false: false drops group expense shares (kind GROUP_EXPENSE); anything else -> 422"
           }
         ]
       }
@@ -9482,6 +9717,666 @@
             "bearerAuth": []
           }
         ]
+      }
+    },
+    "/api/v1/reports": {
+      "get": {
+        "summary": "Report: totals, category breakdown, per-account totals",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Aggregates of the ledger entries matching the filters, in the user's base currency (like /overview, converted per currency pair with rate overrides and cross rates; pairs that cannot be converted are left out of the sums and listed in missing_rates). Income/expense: paid INCOME/EXPENSE wallet transactions plus my share of group expenses, on accounts included in the balance (explicit `account` filter overrides). ADJUSTMENT and LOAN bookings, settlements and (by default) planned items never count; transfers count only as transfers_in/transfers_out unless the user setting treat_transfers_as_flow is on, in which case they are added to income/expense/net, by_account and the trend (not to by_category). A group expense you only fronted (your share is 0) is not an entry. count = number of entries that make up income and expense (plus transfers when they count as flow). by_category: the `breakdown` (expense default | income) per category (uncategorized as category_id null / name Uncategorized), sorted by amount desc (ties by name). percent has one decimal and always sums to exactly 100.0: tenths of a percent are allotted by the largest-remainder method (ties favour the larger amount). by_account: per account (null = group shares someone else paid, name 'No account'), income/expense/net in the account's own currency (`currency`) and base_income/base_expense/base_net in the base currency. Filters have the same names and semantics as GET /ledger, so a client can reuse one filter state.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "RFC 3339 (any offset, URL-encode +) or YYYY-MM-DD (inclusive). Range filters compare COALESCE(occurred_at, due_at) on every endpoint (a group expense counts at 00:00 UTC of its expense_date); results are ordered by sort_at"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "RFC 3339 (exclusive) or YYYY-MM-DD (inclusive day); must be after `from`"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list: INCOME,EXPENSE,TRANSFER (SETTLEMENT is accepted but never counts); anything else -> 422"
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of account ids (max 100); matches either side of a transfer. With an account filter, accounts excluded from the balance are counted too, and transfers_in/transfers_out only count the legs on the selected accounts"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of category ids (max 100); the value none selects uncategorized entries, alone or next to ids (category=none,<id>)"
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of tag ids (any; max 100)"
+          },
+          {
+            "name": "excl_tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of tag ids to exclude (max 100)"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "keywords (include): whitespace-separated terms, ALL must match (case-insensitive substring) in the title, the description or a tag name (group entries: title/description). % _ and \\ are matched literally. Only the first 10 terms are used and each is cut to 100 characters (never an error), so one raw search-box value works on every endpoint."
+          },
+          {
+            "name": "excl_q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "keywords (exclude): whitespace-separated terms, an entry containing ANY term (title, description or tag name) is dropped. Same escaping and truncation as q."
+          },
+          {
+            "name": "min",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "minimum entry amount (minor units, the entry's own amount in its own currency)"
+          },
+          {
+            "name": "max",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "maximum entry amount (minor units)"
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of sources to include: MANUAL, ADJUSTMENT, LOAN, IMPORT, PERSONAL_LEGACY, GROUP. ADJUSTMENT and LOAN rows never count as income/expense in /reports whatever the filter says (the CSV lists them when matched). Unknown value -> 422"
+          },
+          {
+            "name": "exclude_source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of sources to exclude (same values as source)"
+          },
+          {
+            "name": "hide_adjustments",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "true|false (default false). Alias for exclude_source=ADJUSTMENT; echoed in the Report"
+          },
+          {
+            "name": "include_group_shares",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "true (default) | false: false leaves group expense shares out"
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of group ids (max 100)"
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list: TRANSACTION,GROUP_EXPENSE,SETTLEMENT"
+          },
+          {
+            "name": "planned",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "false",
+                "true",
+                "only",
+                "all"
+              ]
+            },
+            "description": "false (default): only paid entries; true: only planned (unpaid, dated by due_at); all. Reports count planned entries only when you ask for them here"
+          },
+          {
+            "name": "breakdown",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "expense",
+                "income"
+              ]
+            },
+            "description": "expense (default) | income: which side by_category breaks down; anything else -> 422"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/trend": {
+      "get": {
+        "summary": "Report trend: income/expense per day, week or month",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "Income, expense and net per bucket in the base currency, zero-filled from the bucket containing `from` to the last bucket starting before `to`. Buckets are UTC (no DST): day = 00:00 UTC; week = ISO week starting Monday 00:00 UTC; month = starts on the user's month_start_day (default 1, so calendar months) at 00:00 UTC. start/end are whole-bucket boundaries (end exclusive); only entries inside [from, to) are counted, so the first and last buckets can be partial. More than 400 buckets (or a range over 10 years) -> 422 with a message to use a larger bucket. Same totals rules as GET /reports. Filters have the same names and semantics as GET /ledger, so a client can reuse one filter state.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "RFC 3339 (any offset, URL-encode +) or YYYY-MM-DD (inclusive). Range filters compare COALESCE(occurred_at, due_at) on every endpoint (a group expense counts at 00:00 UTC of its expense_date); results are ordered by sort_at"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "RFC 3339 (exclusive) or YYYY-MM-DD (inclusive day); required, after `from`"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list: INCOME,EXPENSE,TRANSFER (SETTLEMENT is accepted but never counts); anything else -> 422"
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of account ids (max 100); matches either side of a transfer. With an account filter, accounts excluded from the balance are counted too, and transfers_in/transfers_out only count the legs on the selected accounts"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of category ids (max 100); the value none selects uncategorized entries, alone or next to ids (category=none,<id>)"
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of tag ids (any; max 100)"
+          },
+          {
+            "name": "excl_tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of tag ids to exclude (max 100)"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "keywords (include): whitespace-separated terms, ALL must match (case-insensitive substring) in the title, the description or a tag name (group entries: title/description). % _ and \\ are matched literally. Only the first 10 terms are used and each is cut to 100 characters (never an error), so one raw search-box value works on every endpoint."
+          },
+          {
+            "name": "excl_q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "keywords (exclude): whitespace-separated terms, an entry containing ANY term (title, description or tag name) is dropped. Same escaping and truncation as q."
+          },
+          {
+            "name": "min",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "minimum entry amount (minor units, the entry's own amount in its own currency)"
+          },
+          {
+            "name": "max",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "maximum entry amount (minor units)"
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of sources to include: MANUAL, ADJUSTMENT, LOAN, IMPORT, PERSONAL_LEGACY, GROUP. ADJUSTMENT and LOAN rows never count as income/expense in /reports whatever the filter says (the CSV lists them when matched). Unknown value -> 422"
+          },
+          {
+            "name": "exclude_source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of sources to exclude (same values as source)"
+          },
+          {
+            "name": "hide_adjustments",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "true|false (default false). Alias for exclude_source=ADJUSTMENT; echoed in the Report"
+          },
+          {
+            "name": "include_group_shares",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "true (default) | false: false leaves group expense shares out"
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of group ids (max 100)"
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list: TRANSACTION,GROUP_EXPENSE,SETTLEMENT"
+          },
+          {
+            "name": "planned",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "false",
+                "true",
+                "only",
+                "all"
+              ]
+            },
+            "description": "false (default): only paid entries; true: only planned (unpaid, dated by due_at); all. Reports count planned entries only when you ask for them here"
+          },
+          {
+            "name": "bucket",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month"
+              ]
+            },
+            "description": "day | week | month (default month); anything else -> 422"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trend"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/export.csv": {
+      "get": {
+        "summary": "Export the filtered ledger entries as CSV",
+        "tags": [
+          "Export"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "description": "The ledger entries matching the filters (what GET /ledger would page through, ADJUSTMENT/LOAN rows included unless filtered out), wallet transactions and group shares/settlements, newest first, streamed; the kind column (TRANSACTION, GROUP_EXPENSE, SETTLEMENT) tells them apart. Header: date,kind,type,title,description,account,to_account,category,tags,amount_minor,amount,currency,to_amount_minor,to_amount,to_currency,base_amount,base_currency,group,source (to_* only for transfers: the amount that arrived, in the destination currency). amount is the entry's own amount (my share for group expenses) in its currency; base_amount is that converted to the base currency (empty when no rate exists). Text cells that start with = + - @ (or a tab/CR) are prefixed with ' (formula injection protection); RFC 4180 quoting. Content-Disposition: settlr-report-<from>-<to>.csv ('all' for an open end). Validation errors are JSON 422 before any CSV is written; a failure mid-stream aborts the connection. Filters have the same names and semantics as GET /ledger, so a client can reuse one filter state.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "RFC 3339 (any offset, URL-encode +) or YYYY-MM-DD (inclusive). Range filters compare COALESCE(occurred_at, due_at) on every endpoint (a group expense counts at 00:00 UTC of its expense_date); results are ordered by sort_at"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "RFC 3339 (exclusive) or YYYY-MM-DD (inclusive day); must be after `from`"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list: INCOME,EXPENSE,TRANSFER (SETTLEMENT is accepted but never counts); anything else -> 422"
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of account ids (max 100); matches either side of a transfer. With an account filter, accounts excluded from the balance are counted too, and transfers_in/transfers_out only count the legs on the selected accounts"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of category ids (max 100); the value none selects uncategorized entries, alone or next to ids (category=none,<id>)"
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of tag ids (any; max 100)"
+          },
+          {
+            "name": "excl_tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of tag ids to exclude (max 100)"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "keywords (include): whitespace-separated terms, ALL must match (case-insensitive substring) in the title, the description or a tag name (group entries: title/description). % _ and \\ are matched literally. Only the first 10 terms are used and each is cut to 100 characters (never an error), so one raw search-box value works on every endpoint."
+          },
+          {
+            "name": "excl_q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "keywords (exclude): whitespace-separated terms, an entry containing ANY term (title, description or tag name) is dropped. Same escaping and truncation as q."
+          },
+          {
+            "name": "min",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "minimum entry amount (minor units, the entry's own amount in its own currency)"
+          },
+          {
+            "name": "max",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "maximum entry amount (minor units)"
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of sources to include: MANUAL, ADJUSTMENT, LOAN, IMPORT, PERSONAL_LEGACY, GROUP. ADJUSTMENT and LOAN rows never count as income/expense in /reports whatever the filter says (the CSV lists them when matched). Unknown value -> 422"
+          },
+          {
+            "name": "exclude_source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of sources to exclude (same values as source)"
+          },
+          {
+            "name": "hide_adjustments",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "true|false (default false). Alias for exclude_source=ADJUSTMENT; echoed in the Report"
+          },
+          {
+            "name": "include_group_shares",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "true (default) | false: false leaves group expense shares out"
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of group ids (max 100)"
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list: TRANSACTION,GROUP_EXPENSE,SETTLEMENT"
+          },
+          {
+            "name": "planned",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "false",
+                "true",
+                "only",
+                "all"
+              ]
+            },
+            "description": "false (default): only paid entries; true: only planned (unpaid, dated by due_at); all. Reports count planned entries only when you ask for them here"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV file",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
