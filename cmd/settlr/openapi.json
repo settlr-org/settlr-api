@@ -3134,14 +3134,65 @@
         "summary": "List sessions",
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "user_agent": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "ip": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "last_used_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "expires_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "revoked_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "current": {
+                            "type": "boolean",
+                            "description": "this is the caller's own session"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
           {
             "bearerAuth": []
           }
-        ]
+        ],
+        "description": "Live sessions of the caller (id, user_agent, ip, created_at, last_used_at, expires_at, revoked_at, current). `current` is true for the session the access token was issued for: the token carries a `sid` claim (the sessions row of its refresh token, re-issued on every refresh). Tokens minted before this change have no `sid`, so `current` is false everywhere until their next refresh. The claim is only a marker; revocation is always by path id and scoped to the caller."
       },
       "delete": {
         "summary": "Revoke all",
@@ -3179,7 +3230,8 @@
               "type": "string"
             }
           }
-        ]
+        ],
+        "description": "Revokes one of the caller's sessions, including the current one."
       }
     },
     "/api/v1/auth/verify-email": {
@@ -4843,7 +4895,8 @@
           {
             "bearerAuth": []
           }
-        ]
+        ],
+        "description": "Notification text names who and what. Types and `data` keys: GROUP_INVITATION (title 'Invitation to {group}', body '{inviter} invited you to join {group}'; data group_id, token, group_name, inviter_name), FRIEND_REQUEST (data from_user, from_name), EXPENSE_ADDED (title 'New expense in {group}', body '{name} added \"{description}\" ({amount} {currency})'; data group_id, expense_id, group_name, description, amount, currency, added_by_name), SETTLEMENT_RECORDED (title 'Settlement recorded in {group}', body '{payer} paid {payee} {amount} {currency}'; data group_id, group_name, from_user, to_user, payer_name, payee_name, amount, currency), COMMENT_ADDED/mention (title '{name} commented'; data expense_id, group_id, commenter_name). Notifications stored before this change keep their old generic text and data."
       }
     },
     "/api/v1/notifications/read-all": {

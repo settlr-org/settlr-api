@@ -1,0 +1,85 @@
+-- +goose Up
+-- The 0005 seed gave several built-in categories the same icon and colour (Plane/Travel, Taxi/Transport,
+-- Rent/Mortgage, Movies/Entertainment, Food/Dining Out, Utilities/Electricity, Pets/Health). Every built-in
+-- category now has its own icon + colour pair. Icons are keys both clients map; colours are the light chart1..8
+-- values of settlr-web/theme/theme.json. Only system categories are touched, matched by name; re-running is harmless.
+UPDATE categories c SET icon = v.icon, color = v.color
+FROM (VALUES
+  ('Entertainment', 'sparkles', '#C2678F'),
+  ('Games', 'gamepad', '#6C8EBF'),
+  ('Movies', 'film', '#FF8A65'),
+  ('Music', 'music', '#E0B04A'),
+  ('Sports', 'activity', '#0E7C7B'),
+  ('Dining Out', 'utensils', '#FF8A65'),
+  ('Drinks', 'cup', '#9FC3BF'),
+  ('Food', 'utensils', '#E0B04A'),
+  ('Groceries', 'shopping-cart', '#0E7C7B'),
+  ('Liquor', 'wine', '#C2678F'),
+  ('Electronics', 'smartphone', '#6C8EBF'),
+  ('Furniture', 'sofa', '#0F3D3C'),
+  ('Mortgage', 'bank', '#0F3D3C'),
+  ('Pets', 'heart', '#C2678F'),
+  ('Rent', 'home', '#0E7C7B'),
+  ('Childcare', 'baby', '#E0B04A'),
+  ('Clothing', 'shirt', '#6C8EBF'),
+  ('Education', 'education', '#0E7C7B'),
+  ('Gifts', 'gift', '#C2678F'),
+  ('Health', 'health', '#FF8A65'),
+  ('Shopping', 'bag', '#9FC3BF'),
+  ('Bicycle', 'bike', '#0E7C7B'),
+  ('Bus/Train', 'bus', '#6C8EBF'),
+  ('Gas/Fuel', 'fuel', '#E0B04A'),
+  ('Hotel', 'building', '#9FC3BF'),
+  ('Parking', 'square-parking', '#B8CFCB'),
+  ('Plane', 'plane', '#9FC3BF'),
+  ('Taxi', 'car', '#E0B04A'),
+  ('Transport', 'car', '#6C8EBF'),
+  ('Travel', 'travel', '#0F3D3C'),
+  ('Other', 'tag', '#B8CFCB'),
+  ('Cleaning', 'sparkles', '#9FC3BF'),
+  ('Electricity', 'zap', '#E0B04A'),
+  ('Utilities', 'wifi', '#0E7C7B'),
+  ('Water', 'droplets', '#6C8EBF')
+) AS v(name, icon, color)
+WHERE c.is_system AND c.name = v.name;
+
+-- +goose Down
+UPDATE categories c SET icon = v.icon, color = v.color
+FROM (VALUES
+  ('Bicycle', 'bike', '#6366F1'),
+  ('Bus/Train', 'bus', '#8B5CF6'),
+  ('Childcare', 'baby', '#F59E0B'),
+  ('Cleaning', 'sparkles', '#14B8A6'),
+  ('Clothing', 'shirt', '#3B82F6'),
+  ('Dining Out', 'utensils', '#F59E0B'),
+  ('Drinks', 'cup', '#06B6D4'),
+  ('Education', 'book', '#3B82F6'),
+  ('Electricity', 'zap', '#EAB308'),
+  ('Electronics', 'smartphone', '#6366F1'),
+  ('Entertainment', 'film', '#EC4899'),
+  ('Food', 'utensils', '#F59E0B'),
+  ('Furniture', 'sofa', '#8B5CF6'),
+  ('Games', 'gamepad', '#8B5CF6'),
+  ('Gas/Fuel', 'fuel', '#F43F5E'),
+  ('Gifts', 'gift', '#EC4899'),
+  ('Groceries', 'shopping-cart', '#10B981'),
+  ('Health', 'heart', '#EF4444'),
+  ('Hotel', 'building', '#14B8A6'),
+  ('Liquor', 'wine', '#06B6D4'),
+  ('Mortgage', 'home', '#14B8A6'),
+  ('Movies', 'film', '#EC4899'),
+  ('Music', 'music', '#F59E0B'),
+  ('Other', 'tag', '#6B7280'),
+  ('Parking', 'square-parking', '#EAB308'),
+  ('Pets', 'heart', '#EF4444'),
+  ('Plane', 'plane', '#8B5CF6'),
+  ('Rent', 'home', '#14B8A6'),
+  ('Shopping', 'bag', '#F43F5E'),
+  ('Sports', 'activity', '#10B981'),
+  ('Taxi', 'car', '#6366F1'),
+  ('Transport', 'car', '#6366F1'),
+  ('Travel', 'plane', '#8B5CF6'),
+  ('Utilities', 'zap', '#EAB308'),
+  ('Water', 'droplets', '#06B6D4')
+) AS v(name, icon, color)
+WHERE c.is_system AND c.name = v.name;
