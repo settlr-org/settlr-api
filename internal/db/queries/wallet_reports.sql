@@ -172,3 +172,9 @@ WHERE le.user_id = @user_id
   AND (le.type = 'TRANSFER' OR le.kind <> 'TRANSACTION' OR le.account_id IS NULL OR a.include_in_balance OR cardinality(@account_ids::uuid[]) > 0)
   AND (leg.n = 0 OR le.type = 'TRANSFER')
 GROUP BY 1, 2;
+
+-- name: ReportAccountNames :many
+SELECT id, name FROM accounts WHERE user_id = @user_id AND id = ANY(@ids::uuid[]);
+
+-- name: ReportCategoryNames :many
+SELECT id, name FROM categories WHERE id = ANY(@ids::uuid[]) AND (is_system OR owner_id = @user_id);

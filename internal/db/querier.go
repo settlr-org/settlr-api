@@ -406,10 +406,12 @@ type Querier interface {
 	RejectFriendRequest(ctx context.Context, arg RejectFriendRequestParams) (int64, error)
 	ReleaseIdempotencyKey(ctx context.Context, arg ReleaseIdempotencyKeyParams) error
 	RemoveGroupMember(ctx context.Context, arg RemoveGroupMemberParams) error
+	ReportAccountNames(ctx context.Context, arg ReportAccountNamesParams) ([]ReportAccountNamesRow, error)
 	// Per account (NULL = no account: group shares someone else paid) and entry currency.
 	ReportByAccount(ctx context.Context, arg ReportByAccountParams) ([]ReportByAccountRow, error)
 	// Spending (or income) per category and currency; categories the caller cannot see count as uncategorized.
 	ReportByCategory(ctx context.Context, arg ReportByCategoryParams) ([]ReportByCategoryRow, error)
+	ReportCategoryNames(ctx context.Context, arg ReportCategoryNamesParams) ([]ReportCategoryNamesRow, error)
 	// NOTE: the filter block below is identical to ListLedgerEntries
 	// (wallet.sql); keep them in sync (the ledger/report consistency tests catch drift).
 	// Reports aggregate in SQL per currency; Go converts per currency pair.

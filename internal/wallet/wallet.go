@@ -52,6 +52,10 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) h
 	mux.Handle("POST /api/v1/accounts/{id}/adjust", authMw(http.HandlerFunc(h.AdjustAccount)))
 	mux.Handle("GET /api/v1/accounts/{id}/summary", authMw(http.HandlerFunc(h.AccountSummary)))
 
+	mux.Handle("GET /api/v1/reports", authMw(http.HandlerFunc(h.Report)))
+	mux.Handle("GET /api/v1/reports/trend", authMw(http.HandlerFunc(h.Trend)))
+	mux.Handle("GET /api/v1/reports/export.csv", authMw(http.HandlerFunc(h.ReportCSV)))
+
 	mux.Handle("GET /api/v1/transactions", authMw(http.HandlerFunc(h.ListTransactions)))
 	mux.Handle("POST /api/v1/transactions", authMw(http.HandlerFunc(h.CreateTransaction)))
 	mux.Handle("GET /api/v1/transactions/{id}", authMw(http.HandlerFunc(h.GetTransaction)))

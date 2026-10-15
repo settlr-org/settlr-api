@@ -12,6 +12,40 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const reportAccountNames = `-- name: ReportAccountNames :many
+SELECT id, name FROM accounts WHERE user_id = $1 AND id = ANY($2::uuid[])
+`
+
+type ReportAccountNamesParams struct {
+	UserID uuid.UUID     `json:"user_id"`
+	Ids    []pgtype.UUID `json:"ids"`
+}
+
+type ReportAccountNamesRow struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+func (q *Queries) ReportAccountNames(ctx context.Context, arg ReportAccountNamesParams) ([]ReportAccountNamesRow, error) {
+	rows, err := q.db.Query(ctx, reportAccountNames, arg.UserID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportAccountNamesRow
+	for rows.Next() {
+		var i ReportAccountNamesRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const reportByAccount = `-- name: ReportByAccount :many
 SELECT acc.id AS account_id,
        COALESCE(acc.name, '')::text AS name,
@@ -248,6 +282,40 @@ func (q *Queries) ReportByCategory(ctx context.Context, arg ReportByCategoryPara
 			&i.Amount,
 			&i.Entries,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reportCategoryNames = `-- name: ReportCategoryNames :many
+SELECT id, name FROM categories WHERE id = ANY($1::uuid[]) AND (is_system OR owner_id = $2)
+`
+
+type ReportCategoryNamesParams struct {
+	Ids    []pgtype.UUID `json:"ids"`
+	UserID uuid.UUID     `json:"user_id"`
+}
+
+type ReportCategoryNamesRow struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+func (q *Queries) ReportCategoryNames(ctx context.Context, arg ReportCategoryNamesParams) ([]ReportCategoryNamesRow, error) {
+	rows, err := q.db.Query(ctx, reportCategoryNames, arg.Ids, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportCategoryNamesRow
+	for rows.Next() {
+		var i ReportCategoryNamesRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
