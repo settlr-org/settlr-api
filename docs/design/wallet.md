@@ -294,8 +294,12 @@ filter combinations and compares count/income/expense with `/reports`).
   whole table), a month ~60 ms after migration 0018, which adds
   `transactions (user_id, COALESCE(occurred_at, due_at)) WHERE deleted_at IS NULL`: the ledger
   view's sort time, so date ranges become index range scans (a month: 213 ms -> 9-20 ms per
-  aggregate). Keyword filters scan the user's entries (`ILIKE` over the concatenated text): ~1.5 s
-  for two terms over all 100k rows, instant for a month. An index on the same expression in
+  aggregate). Keyword filters are written term by term (`title ILIKE t OR description ILIKE t OR id = ANY(ids of
+  tags whose name matches t)`, AND-ed over up to 10 terms) so each arm can use the 0016 trigram indexes and
+  the tag index: on 500k transactions of one user, `/ledger` page with `q`: rare term 5.6 s -> 49 ms, tag
+  name 6.5 s -> 120 ms, two terms 5.4 s -> 85 ms, no match 6.0 s -> 0.6 ms, very common term 2.6 s -> 0.8 s
+  (before: one `ILIKE ALL` over the concatenated title/description/tag names, a scan with a per-row tag
+  aggregate). An index on the same expression in
   descending order did not help `/ledger` paging (the planner keeps Sort over Append for the
   UNION view), so none was added.
 
