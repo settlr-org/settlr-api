@@ -325,8 +325,9 @@ func (h *Handler) UpdateAccount(w http.ResponseWriter, r *http.Request) {
 	h.writeAccount(w, r, http.StatusOK, updated)
 }
 
-// DeleteAccount soft-deletes the account and its transactions and unlinks it from
-// group expenses and settlements. If it was the default, the next account takes over.
+// DeleteAccount soft-deletes the account, its transactions (loan bookings included)
+// and its planned payments, and unlinks it from group expenses, settlements and
+// loans. If it was the default, the next account takes over.
 func (h *Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathID(w, r)
 	if !ok {
@@ -357,6 +358,11 @@ func (h *Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 		func() error { return qtx.ClearExpensePayerAccount(ctx, pgUUID(&id)) },
 		func() error { return qtx.ClearSettlementFromAccount(ctx, pgUUID(&id)) },
 		func() error { return qtx.DeleteSettlementAccountsByAccount(ctx, pu(id)) },
+		func() error {
+			return qtx.SoftDeleteAccountPlannedPayments(ctx, db.SoftDeleteAccountPlannedPaymentsParams{UserID: userID, AccountID: pu(id)})
+		},
+		func() error { return qtx.ClearAccountFromLoans(ctx, pu(id)) },
+		func() error { return qtx.ClearAccountFromLoanRecords(ctx, pu(id)) },
 		func() error { return qtx.PromoteDefaultAccount(ctx, userID) },
 	}
 	for _, step := range steps {
@@ -544,10 +550,15 @@ func (h *Handler) AccountSummary(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
+	pv, err := h.plannedItems(ctx, userID, f, from, to, &a.ID, nil, nil)
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
 	resp := map[string]any{
 		"account_id": a.ID, "currency": cur, "from": from, "to": to,
 		"balance": bals[a.ID], "income": income, "expense": expense, "inflow": inflow, "outflow": outflow,
-		"entries": entries, "missing_rates": f.missingList(),
+		"entries": entries, "upcoming": pv.upcoming, "overdue": pv.overdue, "missing_rates": f.missingList(),
 	}
 	if next != nil {
 		resp["next_cursor"] = *next

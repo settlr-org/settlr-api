@@ -27,31 +27,35 @@ func ledgerJSON(e db.LedgerEntry, tags []tagRef) map[string]any {
 		groupName = &e.GroupName.String
 	}
 	return map[string]any{
-		"id":                e.ID,
-		"kind":              e.Kind,
-		"type":              e.Type,
-		"account_id":        uuidPtr(e.AccountID),
-		"to_account_id":     uuidPtr(e.ToAccountID),
-		"amount":            e.Amount,
-		"currency":          strings.TrimSpace(e.Currency),
-		"to_amount":         int8Ptr(e.ToAmount),
-		"to_currency":       toCurrency,
-		"account_amount":    int8Ptr(e.AccountAmount),
-		"to_account_amount": int8Ptr(e.ToAccountAmount),
-		"category_id":       nilIfZero(e.CategoryID),
-		"title":             e.Title,
-		"description":       e.Description,
-		"occurred_at":       tsPtr(e.OccurredAt),
-		"due_at":            tsPtr(e.DueAt),
-		"source":            e.Source,
-		"group_id":          nilIfZero(e.GroupID),
-		"group_name":        groupName,
-		"expense_id":        nilIfZero(e.ExpenseID),
-		"settlement_id":     uuidPtr(e.SettlementID),
-		"total_amount":      int8Ptr(e.TotalAmount),
-		"read_only":         e.Kind != "TRANSACTION",
-		"tags":              tags,
-		"created_at":        e.CreatedAt.Time.UTC(),
+		"id":                 e.ID,
+		"kind":               e.Kind,
+		"type":               e.Type,
+		"account_id":         uuidPtr(e.AccountID),
+		"to_account_id":      uuidPtr(e.ToAccountID),
+		"amount":             e.Amount,
+		"currency":           strings.TrimSpace(e.Currency),
+		"to_amount":          int8Ptr(e.ToAmount),
+		"to_currency":        toCurrency,
+		"account_amount":     int8Ptr(e.AccountAmount),
+		"to_account_amount":  int8Ptr(e.ToAccountAmount),
+		"category_id":        nilIfZero(e.CategoryID),
+		"title":              e.Title,
+		"description":        e.Description,
+		"occurred_at":        tsPtr(e.OccurredAt),
+		"due_at":             tsPtr(e.DueAt),
+		"source":             e.Source,
+		"group_id":           nilIfZero(e.GroupID),
+		"group_name":         groupName,
+		"expense_id":         nilIfZero(e.ExpenseID),
+		"settlement_id":      uuidPtr(e.SettlementID),
+		"total_amount":       int8Ptr(e.TotalAmount),
+		"planned_payment_id": uuidPtr(e.PlannedPaymentID),
+		"loan_id":            uuidPtr(e.LoanID),
+		"loan_record_id":     uuidPtr(e.LoanRecordID),
+		// Group entries are edited in the group, loan bookings through the loan.
+		"read_only":  e.Kind != "TRANSACTION" || e.Source == "LOAN",
+		"tags":       tags,
+		"created_at": e.CreatedAt.Time.UTC(),
 	}
 }
 
@@ -162,7 +166,9 @@ func (h *Handler) flowTotals(ctx context.Context, userID uuid.UUID, f *fx, from,
 
 // Overview returns the total balance (base currency, accounts included in the
 // balance), income and expense for [from, to) — default: the current period per
-// month_start_day — and the upcoming/overdue planned items (filled in phase 2).
+// month_start_day — the unpaid planned items (overdue: due before now; upcoming:
+// due now or later within the range) and the projected balance at the end of the
+// range (balance plus every unpaid planned item due before `to`).
 func (h *Handler) Overview(w http.ResponseWriter, r *http.Request) {
 	userID := currentUser(r)
 	ctx := r.Context()
@@ -209,11 +215,19 @@ func (h *Handler) Overview(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
+	pv, err := h.plannedItems(ctx, userID, f, from, to, nil, nil, accounts)
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"currency": f.base, "from": from, "to": to,
 		"balance": total, "income": income, "expense": expense,
-		"upcoming": []any{}, "overdue": []any{},
-		"missing_rates": f.missingList(),
+		"upcoming": pv.upcoming, "overdue": pv.overdue,
+		"upcoming_income": pv.upIncome, "upcoming_expense": pv.upExpense,
+		"overdue_income": pv.overdueIncome, "overdue_expense": pv.overdueExpense,
+		"projected_balance": total + pv.projectedDelta,
+		"missing_rates":     f.missingList(),
 	})
 }
 
@@ -264,9 +278,15 @@ func (h *Handler) CategorySummary(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
+	pv, err := h.plannedItems(ctx, userID, f, from, to, nil, &id, nil)
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
 	resp := map[string]any{
 		"category_id": id, "currency": f.base, "from": from, "to": to,
 		"income": income, "expense": expense, "count": count, "entries": entries,
+		"upcoming": pv.upcoming, "overdue": pv.overdue,
 		"missing_rates": f.missingList(),
 	}
 	if next != nil {

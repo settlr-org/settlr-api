@@ -31,7 +31,7 @@ type GetPersonalBudgetRow struct {
 // Since the wallet (migration 0013) personal expenses are EXPENSE transactions;
 // /api/v1/personal/* is a compatibility layer over the transactions table
 // (description <-> title, notes <-> description, expense_date <-> occurred_at UTC date).
-// Balance adjustments are not personal expenses and are hidden here.
+// Balance adjustments and loan bookings are not personal expenses and are hidden here.
 func (q *Queries) GetPersonalBudget(ctx context.Context, arg GetPersonalBudgetParams) (GetPersonalBudgetRow, error) {
 	row := q.db.QueryRow(ctx, getPersonalBudget, arg.UserID, arg.Month)
 	var i GetPersonalBudgetRow
@@ -44,7 +44,7 @@ SELECT id, title AS description, amount, currency::text AS currency, category_id
        (occurred_at AT TIME ZONE 'UTC')::date AS expense_date, created_at
 FROM transactions
 WHERE id = $1 AND user_id = $2
-  AND deleted_at IS NULL AND type = 'EXPENSE' AND occurred_at IS NOT NULL AND source <> 'ADJUSTMENT'
+  AND deleted_at IS NULL AND type = 'EXPENSE' AND occurred_at IS NOT NULL AND source NOT IN ('ADJUSTMENT', 'LOAN')
 `
 
 type GetPersonalExpenseParams struct {
@@ -81,7 +81,7 @@ func (q *Queries) GetPersonalExpense(ctx context.Context, arg GetPersonalExpense
 
 const getPersonalExpenseTotal = `-- name: GetPersonalExpenseTotal :one
 SELECT COALESCE(SUM(amount), 0)::bigint AS total FROM transactions
-WHERE user_id = $1 AND deleted_at IS NULL AND type = 'EXPENSE' AND occurred_at IS NOT NULL AND source <> 'ADJUSTMENT'
+WHERE user_id = $1 AND deleted_at IS NULL AND type = 'EXPENSE' AND occurred_at IS NOT NULL AND source NOT IN ('ADJUSTMENT', 'LOAN')
 `
 
 func (q *Queries) GetPersonalExpenseTotal(ctx context.Context, userID uuid.UUID) (int64, error) {
@@ -94,7 +94,7 @@ func (q *Queries) GetPersonalExpenseTotal(ctx context.Context, userID uuid.UUID)
 const listPersonalExpenseByCategory = `-- name: ListPersonalExpenseByCategory :many
 SELECT COALESCE(c.name, 'Uncategorized')::text AS category, SUM(t.amount)::bigint AS total
 FROM transactions t LEFT JOIN categories c ON c.id = t.category_id
-WHERE t.user_id = $1 AND t.deleted_at IS NULL AND t.type = 'EXPENSE' AND t.occurred_at IS NOT NULL AND t.source <> 'ADJUSTMENT'
+WHERE t.user_id = $1 AND t.deleted_at IS NULL AND t.type = 'EXPENSE' AND t.occurred_at IS NOT NULL AND t.source NOT IN ('ADJUSTMENT', 'LOAN')
 GROUP BY c.name
 ORDER BY SUM(t.amount) DESC
 `
@@ -127,7 +127,7 @@ func (q *Queries) ListPersonalExpenseByCategory(ctx context.Context, userID uuid
 const listPersonalExpenseByMonth = `-- name: ListPersonalExpenseByMonth :many
 SELECT to_char(occurred_at AT TIME ZONE 'UTC', 'YYYY-MM') AS month, SUM(amount)::bigint AS total
 FROM transactions
-WHERE user_id = $1 AND deleted_at IS NULL AND type = 'EXPENSE' AND source <> 'ADJUSTMENT'
+WHERE user_id = $1 AND deleted_at IS NULL AND type = 'EXPENSE' AND source NOT IN ('ADJUSTMENT', 'LOAN')
   AND occurred_at >= (CURRENT_DATE - INTERVAL '6 months')
 GROUP BY month
 ORDER BY month
@@ -163,7 +163,7 @@ SELECT id, title AS description, amount, currency::text AS currency, category_id
        (occurred_at AT TIME ZONE 'UTC')::date AS expense_date, created_at
 FROM transactions
 WHERE user_id = $1
-  AND deleted_at IS NULL AND type = 'EXPENSE' AND occurred_at IS NOT NULL AND source <> 'ADJUSTMENT'
+  AND deleted_at IS NULL AND type = 'EXPENSE' AND occurred_at IS NOT NULL AND source NOT IN ('ADJUSTMENT', 'LOAN')
   AND ($2::text = '' OR title ILIKE '%' || $2::text || '%' OR description ILIKE '%' || $2::text || '%')
 ORDER BY occurred_at DESC, created_at DESC
 LIMIT $3::int
@@ -218,7 +218,7 @@ func (q *Queries) ListPersonalExpenses(ctx context.Context, arg ListPersonalExpe
 const listPersonalExpensesExport = `-- name: ListPersonalExpensesExport :many
 SELECT title AS description, amount, currency::text AS currency, (occurred_at AT TIME ZONE 'UTC')::date AS expense_date, description AS notes
 FROM transactions
-WHERE user_id = $1 AND deleted_at IS NULL AND type = 'EXPENSE' AND occurred_at IS NOT NULL AND source <> 'ADJUSTMENT'
+WHERE user_id = $1 AND deleted_at IS NULL AND type = 'EXPENSE' AND occurred_at IS NOT NULL AND source NOT IN ('ADJUSTMENT', 'LOAN')
 ORDER BY occurred_at DESC
 `
 
@@ -258,7 +258,7 @@ func (q *Queries) ListPersonalExpensesExport(ctx context.Context, userID uuid.UU
 
 const softDeletePersonalExpense = `-- name: SoftDeletePersonalExpense :exec
 UPDATE transactions SET deleted_at = now(), updated_at = now()
-WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL AND type = 'EXPENSE' AND occurred_at IS NOT NULL AND source <> 'ADJUSTMENT'
+WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL AND type = 'EXPENSE' AND occurred_at IS NOT NULL AND source NOT IN ('ADJUSTMENT', 'LOAN')
 `
 
 type SoftDeletePersonalExpenseParams struct {

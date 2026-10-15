@@ -464,7 +464,7 @@
           },
           "read_only": {
             "type": "boolean",
-            "description": "true for group entries (edit them in the group)"
+            "description": "group entries (edit in the group) and LOAN bookings (edit through the loan)"
           },
           "tags": {
             "type": "array",
@@ -475,6 +475,21 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "planned_payment_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "loan_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "loan_record_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         }
       },
@@ -568,26 +583,26 @@
           "income": {
             "type": "integer",
             "format": "int64",
-            "description": "minor units; excludes ADJUSTMENT transactions"
+            "description": "minor units; excludes ADJUSTMENT and LOAN transactions"
           },
           "expense": {
             "type": "integer",
             "format": "int64",
-            "description": "minor units; excludes ADJUSTMENT transactions"
+            "description": "minor units; excludes ADJUSTMENT and LOAN transactions"
           },
           "upcoming": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Transaction"
+              "$ref": "#/components/schemas/PlannedItem"
             },
-            "description": "phase 2 (always empty for now)"
+            "description": "unpaid planned items due now or later within [from, to), by due_at"
           },
           "overdue": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Transaction"
+              "$ref": "#/components/schemas/PlannedItem"
             },
-            "description": "phase 2 (always empty for now)"
+            "description": "unpaid planned items due before now (any date), by due_at"
           },
           "missing_rates": {
             "type": "array",
@@ -595,6 +610,31 @@
               "type": "string"
             },
             "description": "currency pairs (FROM/TO) that could not be converted and were left out"
+          },
+          "upcoming_income": {
+            "type": "integer",
+            "format": "int64",
+            "description": "sum of upcoming INCOME (base currency)"
+          },
+          "upcoming_expense": {
+            "type": "integer",
+            "format": "int64",
+            "description": "sum of upcoming EXPENSE (base currency)"
+          },
+          "overdue_income": {
+            "type": "integer",
+            "format": "int64",
+            "description": "sum of overdue INCOME (base currency)"
+          },
+          "overdue_expense": {
+            "type": "integer",
+            "format": "int64",
+            "description": "sum of overdue EXPENSE (base currency)"
+          },
+          "projected_balance": {
+            "type": "integer",
+            "format": "int64",
+            "description": "balance + signed sum of every unpaid planned item due before `to` (overdue included) on accounts included in the balance (items without account count too; transfers count per side)"
           }
         }
       },
@@ -629,12 +669,12 @@
           "income": {
             "type": "integer",
             "format": "int64",
-            "description": "INCOME transactions (+ transfers in when treat_transfers_as_flow); excludes ADJUSTMENT transactions"
+            "description": "INCOME transactions (+ transfers in when treat_transfers_as_flow); excludes ADJUSTMENT and LOAN transactions"
           },
           "expense": {
             "type": "integer",
             "format": "int64",
-            "description": "EXPENSE transactions (+ transfers out when treat_transfers_as_flow); excludes ADJUSTMENT transactions"
+            "description": "EXPENSE transactions (+ transfers out when treat_transfers_as_flow); excludes ADJUSTMENT and LOAN transactions"
           },
           "inflow": {
             "type": "integer",
@@ -661,6 +701,20 @@
               "type": "string"
             },
             "description": "currency pairs (FROM/TO) that could not be converted and were left out"
+          },
+          "upcoming": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlannedItem"
+            },
+            "description": "unpaid planned items (touching this account / in this category) due now or later within the range"
+          },
+          "overdue": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlannedItem"
+            },
+            "description": "unpaid planned items due before now"
           }
         }
       },
@@ -715,6 +769,20 @@
               "type": "string"
             },
             "description": "currency pairs (FROM/TO) that could not be converted and were left out"
+          },
+          "upcoming": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlannedItem"
+            },
+            "description": "unpaid planned items (touching this account / in this category) due now or later within the range"
+          },
+          "overdue": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlannedItem"
+            },
+            "description": "unpaid planned items due before now"
           }
         }
       },
@@ -864,6 +932,709 @@
             "type": "string",
             "format": "uuid",
             "nullable": true
+          }
+        }
+      },
+      "PlanRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "one_time": {
+            "type": "boolean"
+          },
+          "interval_n": {
+            "type": "integer",
+            "nullable": true
+          },
+          "interval_unit": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "DAY",
+              "WEEK",
+              "MONTH",
+              "YEAR"
+            ]
+          },
+          "start_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "description": "Summary of the plan a planned item belongs to"
+      },
+      "PlannedItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Transaction"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "plan": {
+                "$ref": "#/components/schemas/PlanRef",
+                "nullable": true
+              }
+            }
+          }
+        ],
+        "description": "An unpaid planned transaction (occurred_at null) with its plan (null for standalone planned items)"
+      },
+      "PlannedPayment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "INCOME",
+              "EXPENSE",
+              "TRANSFER"
+            ]
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "to_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "> 0, minor units of currency"
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "example": "NPR"
+          },
+          "to_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "TRANSFER only",
+            "nullable": true
+          },
+          "category_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "start_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "first occurrence (anchor of the schedule)"
+          },
+          "one_time": {
+            "type": "boolean"
+          },
+          "interval_n": {
+            "type": "integer",
+            "nullable": true,
+            "description": "every N units (null when one_time)"
+          },
+          "interval_unit": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "DAY",
+              "WEEK",
+              "MONTH",
+              "YEAR"
+            ]
+          },
+          "active": {
+            "type": "boolean",
+            "description": "false when paused or when a one-time plan was paid/skipped"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagRef"
+            }
+          },
+          "next": {
+            "$ref": "#/components/schemas/Transaction",
+            "nullable": true,
+            "description": "the pending occurrence (exactly one per active plan)"
+          },
+          "next_due_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PlannedPaymentInput": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "INCOME",
+              "EXPENSE",
+              "TRANSFER"
+            ]
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "to_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "to_amount": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "example": "NPR",
+            "description": "required when account_id is null; must match the account currency otherwise"
+          },
+          "category_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "start_at": {
+            "type": "string",
+            "description": "RFC 3339 or YYYY-MM-DD (UTC midnight); required on create"
+          },
+          "one_time": {
+            "type": "boolean",
+            "default": false
+          },
+          "interval_n": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 1
+          },
+          "interval_unit": {
+            "type": "string",
+            "enum": [
+              "DAY",
+              "WEEK",
+              "MONTH",
+              "YEAR"
+            ],
+            "description": "required unless one_time"
+          },
+          "active": {
+            "type": "boolean",
+            "default": true
+          },
+          "tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "PayResult": {
+        "type": "object",
+        "properties": {
+          "transaction": {
+            "$ref": "#/components/schemas/Transaction",
+            "description": "the paid transaction (absent for skip)"
+          },
+          "next": {
+            "$ref": "#/components/schemas/Transaction",
+            "nullable": true,
+            "description": "the plan's next pending occurrence, null for standalone items and completed one-time plans"
+          }
+        }
+      },
+      "PayInput": {
+        "type": "object",
+        "properties": {
+          "occurred_at": {
+            "type": "string",
+            "description": "default now"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "override, in minor units of the paying account's currency"
+          },
+          "to_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "override (cross-currency TRANSFER)"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "override; required when the planned item has no account. Another currency converts the amount (see description)"
+          }
+        }
+      },
+      "Budget": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "limit in currency (minor units)"
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "example": "NPR"
+          },
+          "category_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "empty = all categories"
+          },
+          "account_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "empty = all accounts"
+          },
+          "sort_order": {
+            "type": "integer"
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "spent": {
+            "type": "integer",
+            "format": "int64",
+            "description": "expense in [from, to) converted to the budget currency"
+          },
+          "remaining": {
+            "type": "integer",
+            "format": "int64",
+            "description": "amount - spent (negative when over)"
+          },
+          "percent": {
+            "type": "number",
+            "description": "spent / amount * 100, 2 decimals"
+          },
+          "missing_rates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "currency pairs (FROM/TO) that could not be converted and were left out"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "spent counts EXPENSE ledger entries in [from, to) whose category is in category_ids (any when empty): wallet transactions and my shares of group expenses. With account_ids empty, transactions on accounts excluded from the balance are left out and every group share counts; with account_ids set, only entries booked to those accounts count (a group share only when I paid the expense from one of them). Income, transfers, planned items, ADJUSTMENT and LOAN transactions never count."
+      },
+      "BudgetInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "> 0"
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "example": "NPR",
+            "description": "default: base currency"
+          },
+          "category_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "account_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "BudgetList": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Budget"
+            }
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "example": "NPR",
+            "description": "base currency of the totals"
+          },
+          "total_amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total_spent": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total_remaining": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "missing_rates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "currency pairs (FROM/TO) that could not be converted and were left out"
+          }
+        }
+      },
+      "Loan": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "LEND",
+              "BORROW"
+            ]
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "initial amount in currency"
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "example": "NPR"
+          },
+          "color": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "transaction_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "the LOAN booking transaction when account_id is set"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sort_order": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "description": "amount + INCREASE records"
+          },
+          "paid": {
+            "type": "integer",
+            "format": "int64",
+            "description": "DECREASE records"
+          },
+          "remaining": {
+            "type": "integer",
+            "format": "int64",
+            "description": "max(total - paid, 0)"
+          },
+          "percent": {
+            "type": "number",
+            "description": "paid / total * 100"
+          },
+          "paid_off": {
+            "type": "boolean"
+          },
+          "records_count": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "LoanInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "LEND",
+              "BORROW"
+            ]
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "> 0"
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "example": "NPR",
+            "description": "default: the account's currency, else the base currency"
+          },
+          "color": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "account_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "booking amount in the account currency when it differs from the loan currency (default: converted)"
+          },
+          "occurred_at": {
+            "type": "string",
+            "description": "default now"
+          }
+        }
+      },
+      "LoanList": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Loan"
+            }
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "example": "NPR",
+            "description": "base currency"
+          },
+          "lend_remaining": {
+            "type": "integer",
+            "format": "int64",
+            "description": "still owed to me (base currency)"
+          },
+          "borrow_remaining": {
+            "type": "integer",
+            "format": "int64",
+            "description": "still owed by me (base currency)"
+          },
+          "missing_rates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "currency pairs (FROM/TO) that could not be converted and were left out"
+          }
+        }
+      },
+      "LoanRecord": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "loan_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "INCREASE",
+              "DECREASE"
+            ]
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "loan currency"
+          },
+          "note": {
+            "type": "string"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "transaction_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "LoanRecordInput": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "INCREASE",
+              "DECREASE"
+            ]
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "> 0, loan currency"
+          },
+          "note": {
+            "type": "string"
+          },
+          "occurred_at": {
+            "type": "string",
+            "description": "default now"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "account_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "see LoanInput.account_amount"
           }
         }
       }
@@ -4438,9 +5209,19 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "LOAN_MANAGED: the transaction is a loan booking",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
-        "description": "Partial update: omitted fields keep their value; null clears nullable fields.",
+        "description": "Partial update: omitted fields keep their value; null clears nullable fields. Setting occurred_at on a plan's pending occurrence pays it (the next occurrence is generated); clearing occurred_at of a paid plan occurrence is rejected (422). LOAN transactions \u2192 409 LOAN_MANAGED. Moving a planned (unpaid) item to an account in another currency converts it like POST /transactions/{id}/pay (RATES_UNAVAILABLE without a rate).",
         "requestBody": {
           "required": true,
           "content": {
@@ -4503,6 +5284,16 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "LOAN_MANAGED: the transaction is a loan booking",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "parameters": [
@@ -4517,7 +5308,8 @@
           {
             "$ref": "#/components/parameters/IdempotencyKey"
           }
-        ]
+        ],
+        "description": "Soft-deletes. Deleting a plan's pending occurrence behaves like POST /transactions/{id}/skip. LOAN transactions \u2192 409 LOAN_MANAGED."
       }
     },
     "/api/v1/transactions/{id}/duplicate": {
@@ -4547,6 +5339,16 @@
           },
           "404": {
             "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "LOAN_MANAGED: the transaction is a loan booking",
             "content": {
               "application/json": {
                 "schema": {
@@ -5855,6 +6657,1502 @@
             }
           }
         },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
+    "/api/v1/transactions/{id}/pay": {
+      "post": {
+        "summary": "Pay a planned transaction",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR or RATES_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Sets occurred_at (default now) so the item counts in balances, optionally overriding amount/to_amount/account_id. For a plan's occurrence the next one is generated (month arithmetic clamps to the month end from the plan's start_at: Jan 31 \u2192 Feb 28 \u2192 Mar 31); a one-time plan becomes inactive. 409 NOT_PLANNED if already paid, 409 LOAN_MANAGED for loan bookings. When account_id names an account whose currency differs from the item's: a sent `amount` is taken as minor units of the account currency; otherwise the item's amount is converted with the user's rates (overrides first, then daily rates), and 422 RATES_UNAVAILABLE is returned when no rate exists. The booked currency is always the account's. For a TRANSFER without `to_amount`, a same-currency pair follows the amount, otherwise the original to_amount (destination currency) is kept.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayInput"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
+    "/api/v1/transactions/{id}/skip": {
+      "post": {
+        "summary": "Skip a planned transaction",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Deletes this unpaid occurrence; for a plan the next occurrence is generated (one-time plan \u2192 inactive). Response has only `next`. 409 NOT_PLANNED if already paid.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
+    "/api/v1/transactions/skip-overdue": {
+      "post": {
+        "summary": "Skip all overdue planned transactions",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "skipped": {
+                      "type": "integer",
+                      "description": "pending items deleted"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Skips every unpaid planned item due before now; recurring plans move to their first occurrence due now or later, one-time plans become inactive. Optional filters (query, comma lists as on GET /transactions): `account` (matches account_id or to_account_id) and `category`.",
+        "parameters": [
+          {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of account ids (matches account or to_account)"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of category ids"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
+    "/api/v1/planned": {
+      "get": {
+        "summary": "List planned payments",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PlannedPayment"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "All plans (not paginated), active first, then by next due date.",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list: INCOME,EXPENSE,TRANSFER"
+          },
+          {
+            "name": "active",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "true | false | all (default)"
+          }
+        ]
+      },
+      "post": {
+        "summary": "Create planned payment",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlannedPayment"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Creates the plan and its first pending occurrence (due at start_at). Same account/currency/transfer/category/tag rules as transactions; foreign ids \u2192 422.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlannedPaymentInput"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
+    "/api/v1/planned/{id}": {
+      "get": {
+        "summary": "Get planned payment",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlannedPayment"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "patch": {
+        "summary": "Update planned payment",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlannedPayment"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Partial update (null clears nullable fields). The pending occurrence is regenerated in place (same id): new fields/amount and the next due date per the schedule, continuing after the last paid/skipped occurrence. active=false removes the pending item; re-activating a completed one-time plan re-opens it at start_at.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlannedPaymentInput"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      },
+      "delete": {
+        "summary": "Delete planned payment",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Deletes the plan and its pending occurrence; paid occurrences stay as history (planned_payment_id kept).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
+    "/api/v1/budgets": {
+      "get": {
+        "summary": "List budgets with spending",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Default range: the current period per month_start_day. from and to must be given together.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "RFC 3339 or YYYY-MM-DD (inclusive)"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "RFC 3339 (exclusive) or YYYY-MM-DD (inclusive day)"
+          }
+        ]
+      },
+      "post": {
+        "summary": "Create budget",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Budget"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Response includes spent for the current period (or ?from&to).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetInput"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
+    "/api/v1/budgets/reorder": {
+      "post": {
+        "summary": "Reorder budgets",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "ids in the new order.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
+    "/api/v1/budgets/{id}": {
+      "get": {
+        "summary": "Get budget",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Budget"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "RFC 3339 or YYYY-MM-DD (inclusive)"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "RFC 3339 (exclusive) or YYYY-MM-DD (inclusive day)"
+          }
+        ]
+      },
+      "patch": {
+        "summary": "Update budget",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Budget"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Partial update. Only newly added category_ids/account_ids are validated; ids of categories/accounts deleted since stay (matching nothing) so the budget stays editable \u2014 send the list without them to prune.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetInput"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "RFC 3339 or YYYY-MM-DD (inclusive)"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "RFC 3339 (exclusive) or YYYY-MM-DD (inclusive day)"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      },
+      "delete": {
+        "summary": "Delete budget",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
+    "/api/v1/loans": {
+      "get": {
+        "summary": "List loans",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "LEND or BORROW (comma list)"
+          },
+          {
+            "name": "include_paid_off",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "true (default) | false"
+          }
+        ]
+      },
+      "post": {
+        "summary": "Create loan",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Loan"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "With account_id a LOAN booking is posted (LEND \u2192 EXPENSE-typed outflow, BORROW \u2192 INCOME-typed inflow). Bookings move balances but are never income/expense, and can only be changed through loan endpoints.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoanInput"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
+    "/api/v1/loans/reorder": {
+      "post": {
+        "summary": "Reorder loans",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "ids in the new order.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
+    "/api/v1/loans/{id}": {
+      "get": {
+        "summary": "Get loan",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Loan"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "patch": {
+        "summary": "Update loan",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Loan"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Partial update; the loan's booking and its records' bookings are kept in sync (type, title, account, amount).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoanInput"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      },
+      "delete": {
+        "summary": "Delete loan",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Soft-deletes the loan, its records and all their booking transactions.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
+    "/api/v1/loans/{id}/records": {
+      "get": {
+        "summary": "List loan records",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/LoanRecord"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Newest first (not paginated).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "Add loan record",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanRecord"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "With account_id a booking is posted: LEND+INCREASE / BORROW+DECREASE \u2192 money out (EXPENSE-typed); LEND+DECREASE / BORROW+INCREASE \u2192 money in (INCOME-typed).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoanRecordInput"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
+    "/api/v1/loan-records/{id}": {
+      "patch": {
+        "summary": "Update loan record",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoanRecord"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Partial update; the booking follows (removed when account_id is set to null).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoanRecordInput"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      },
+      "delete": {
+        "summary": "Delete loan record",
+        "tags": [
+          "Wallet"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Soft-deletes the record and its booking.",
         "parameters": [
           {
             "name": "id",

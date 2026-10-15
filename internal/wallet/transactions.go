@@ -316,6 +316,7 @@ type updateTxnReq struct {
 
 // UpdateTransaction applies a partial update: absent fields keep their value, null
 // clears nullable ones (category_id, to_account_id, to_amount, occurred_at, due_at).
+// The update is merged onto the row as locked (plan first, then the transaction).
 func (h *Handler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathID(w, r)
 	if !ok {
@@ -328,10 +329,78 @@ func (h *Handler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
+	if cur.Source == "LOAN" {
+		loanManaged(w)
+		return
+	}
 	var req updateTxnReq
 	if !decode(w, r, &req) {
 		return
 	}
+	var t db.Transaction
+	err = h.withTx(ctx, func(qtx *db.Queries) error {
+		locked, err := lockTxnPlanFirst(ctx, qtx, id, userID)
+		if err != nil {
+			return err
+		}
+		if locked.Source == "LOAN" {
+			return errLoanManaged
+		}
+		in, msg := mergeTxnUpdate(locked, req)
+		if msg != "" {
+			return vErr(msg)
+		}
+		// Moving a pending item to an account in another currency converts it,
+		// as pay does.
+		if !locked.OccurredAt.Valid && req.AccountID.Set && in.AccountID != nil {
+			if err := h.adaptToAccount(ctx, userID, &in, locked.Currency, int8Ptr(locked.ToAmount), req.Amount.Set, req.ToAmount.Set); err != nil {
+				return err
+			}
+		}
+		if locked.PlannedPaymentID.Valid && locked.OccurredAt.Valid && in.OccurredAt == nil {
+			return vErr("a paid occurrence of a planned payment cannot be made unpaid again")
+		}
+		if msg, err := h.validate(ctx, userID, &in); err != nil || msg != "" {
+			if err != nil {
+				return err
+			}
+			return vErr(msg)
+		}
+		t, err = qtx.UpdateTransaction(ctx, db.UpdateTransactionParams{
+			ID: id, UserID: userID, Type: in.Type, AccountID: pgUUID(in.AccountID), ToAccountID: pgUUID(in.ToAccountID),
+			Amount: in.Amount, Currency: in.Currency, ToAmount: pgInt8(in.ToAmount), CategoryID: pgUUID(in.CategoryID),
+			Title: in.Title, Description: in.Description, OccurredAt: ts(in.OccurredAt), DueAt: ts(in.DueAt),
+		})
+		if err != nil {
+			return err
+		}
+		if in.TagIDs != nil {
+			if err := qtx.DeleteTransactionTags(ctx, pu(id)); err != nil {
+				return err
+			}
+			if len(in.TagIDs) > 0 {
+				if err := qtx.AddTransactionTags(ctx, db.AddTransactionTagsParams{TransactionID: pu(id), TagIds: pgUUIDs(in.TagIDs)}); err != nil {
+					return err
+				}
+			}
+		}
+		// Setting occurred_at on a plan's pending occurrence pays it: generate the next.
+		if locked.PlannedPaymentID.Valid && !locked.OccurredAt.Valid && in.OccurredAt != nil {
+			if _, err := h.advancePlan(ctx, qtx, uuid.UUID(locked.PlannedPaymentID.Bytes), userID, locked.DueAt.Time, false); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+	h.writeTransaction(w, r, http.StatusOK, t)
+}
+
+// mergeTxnUpdate applies a partial update to the current state of a transaction.
+func mergeTxnUpdate(cur db.Transaction, req updateTxnReq) (txnInput, string) {
 	in := txnInput{
 		Type: cur.Type, AccountID: uuidPtr(cur.AccountID), ToAccountID: uuidPtr(cur.ToAccountID), Amount: cur.Amount,
 		ToAmount: int8Ptr(cur.ToAmount), Currency: "", CategoryID: nilIfZero(cur.CategoryID), Title: cur.Title,
@@ -402,8 +471,7 @@ func (h *Handler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 		if v, ok := req.OccurredAt.Value(); ok {
 			t, msg := optTime(&v)
 			if msg != "" {
-				validation(w, "occurred_at: "+msg)
-				return
+				return in, "occurred_at: " + msg
 			}
 			in.OccurredAt = t
 		}
@@ -413,8 +481,7 @@ func (h *Handler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 		if v, ok := req.DueAt.Value(); ok {
 			t, msg := optTime(&v)
 			if msg != "" {
-				validation(w, "due_at: "+msg)
-				return
+				return in, "due_at: " + msg
 			}
 			in.DueAt = t
 		}
@@ -425,62 +492,35 @@ func (h *Handler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
 			in.TagIDs = v
 		}
 	}
-	msg, err := h.validate(ctx, userID, &in)
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	if msg != "" {
-		validation(w, msg)
-		return
-	}
-	tx, err := h.Pool.Begin(ctx)
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	qtx := h.q().WithTx(tx)
-	t, err := qtx.UpdateTransaction(ctx, db.UpdateTransactionParams{
-		ID: id, UserID: userID, Type: in.Type, AccountID: pgUUID(in.AccountID), ToAccountID: pgUUID(in.ToAccountID),
-		Amount: in.Amount, Currency: in.Currency, ToAmount: pgInt8(in.ToAmount), CategoryID: pgUUID(in.CategoryID),
-		Title: in.Title, Description: in.Description, OccurredAt: ts(in.OccurredAt), DueAt: ts(in.DueAt),
-	})
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	if in.TagIDs != nil {
-		if err := qtx.DeleteTransactionTags(ctx, pu(id)); err != nil {
-			httpx.WriteError(w, r, err)
-			return
-		}
-		if len(in.TagIDs) > 0 {
-			if err := qtx.AddTransactionTags(ctx, db.AddTransactionTagsParams{TransactionID: pu(id), TagIds: pgUUIDs(in.TagIDs)}); err != nil {
-				httpx.WriteError(w, r, err)
-				return
-			}
-		}
-	}
-	if err := tx.Commit(ctx); err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	h.writeTransaction(w, r, http.StatusOK, t)
+	return in, ""
 }
 
+// DeleteTransaction soft-deletes a transaction. Deleting a plan's pending
+// occurrence skips it (the next occurrence is generated); loan bookings can only
+// be removed through the loan endpoints (409 LOAN_MANAGED).
 func (h *Handler) DeleteTransaction(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathID(w, r)
 	if !ok {
 		return
 	}
-	n, err := h.q().SoftDeleteTransaction(r.Context(), db.SoftDeleteTransactionParams{ID: id, UserID: currentUser(r)})
+	userID := currentUser(r)
+	ctx := r.Context()
+	err := h.withTx(ctx, func(qtx *db.Queries) error {
+		cur, err := lockTxnPlanFirst(ctx, qtx, id, userID)
+		if err != nil {
+			return err
+		}
+		if cur.Source == "LOAN" {
+			return errLoanManaged
+		}
+		if cur.OccurredAt.Valid {
+			return qtx.SoftDeleteTransactionByID(ctx, id)
+		}
+		_, _, err = h.skipOne(ctx, qtx, cur, false)
+		return err
+	})
 	if err != nil {
 		httpx.WriteError(w, r, err)
-		return
-	}
-	if n == 0 {
-		httpx.WriteError(w, r, httpx.ErrNotFound)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"message": "deleted"})
@@ -497,6 +537,10 @@ func (h *Handler) DuplicateTransaction(w http.ResponseWriter, r *http.Request) {
 	cur, err := h.q().GetTransaction(ctx, db.GetTransactionParams{ID: id, UserID: userID})
 	if err != nil {
 		httpx.WriteError(w, r, httpx.ErrNotFound)
+		return
+	}
+	if cur.Source == "LOAN" {
+		loanManaged(w)
 		return
 	}
 	tags, err := h.tagsFor(ctx, []uuid.UUID{id})

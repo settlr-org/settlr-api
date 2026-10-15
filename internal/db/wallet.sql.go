@@ -82,8 +82,8 @@ const accountMovements = `-- name: AccountMovements :many
 SELECT m.currency::text AS currency,
        COALESCE(SUM(m.delta) FILTER (WHERE m.delta > 0), 0)::bigint AS inflow,
        COALESCE(-SUM(m.delta) FILTER (WHERE m.delta < 0), 0)::bigint AS outflow,
-       COALESCE(SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'INCOME' AND m.source <> 'ADJUSTMENT'), 0)::bigint AS income,
-       COALESCE(-SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'EXPENSE' AND m.source <> 'ADJUSTMENT'), 0)::bigint AS expense,
+       COALESCE(SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'INCOME' AND m.source NOT IN ('ADJUSTMENT', 'LOAN')), 0)::bigint AS income,
+       COALESCE(-SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'EXPENSE' AND m.source NOT IN ('ADJUSTMENT', 'LOAN')), 0)::bigint AS expense,
        COALESCE(SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'TRANSFER' AND m.delta > 0), 0)::bigint AS transfer_in,
        COALESCE(-SUM(m.delta) FILTER (WHERE m.kind = 'TRANSACTION' AND m.type = 'TRANSFER' AND m.delta < 0), 0)::bigint AS transfer_out
 FROM (
@@ -119,7 +119,7 @@ type AccountMovementsRow struct {
 
 // In/out totals for one account within [from_at, to_at), per currency, plus the
 // part that came from INCOME/EXPENSE transactions and from transfers. Balance
-// adjustments (starting balances, corrections) move the account but are neither
+// adjustments (starting balances, corrections) and loan bookings move the account but are neither
 // income nor expense.
 func (q *Queries) AccountMovements(ctx context.Context, arg AccountMovementsParams) ([]AccountMovementsRow, error) {
 	rows, err := q.db.Query(ctx, accountMovements,
@@ -707,7 +707,7 @@ LEFT JOIN accounts a ON a.id = le.account_id
 WHERE le.user_id = $1
   AND le.occurred_at IS NOT NULL
   AND le.type IN ('INCOME', 'EXPENSE')
-  AND le.source <> 'ADJUSTMENT'
+  AND le.source NOT IN ('ADJUSTMENT', 'LOAN')
   AND (le.kind <> 'TRANSACTION' OR a.include_in_balance)
   AND ($2::timestamptz IS NULL OR le.occurred_at >= $2::timestamptz)
   AND ($3::timestamptz IS NULL OR le.occurred_at < $3::timestamptz)
@@ -731,7 +731,7 @@ type LedgerFlowTotalsRow struct {
 
 // Income/expense flows within [from_at, to_at) per currency. Transactions on accounts
 // excluded from the balance are left out; group shares always count. Balance
-// adjustments (starting balances, corrections) are not income or expense.
+// adjustments (starting balances, corrections) and loan bookings are not income or expense.
 func (q *Queries) LedgerFlowTotals(ctx context.Context, arg LedgerFlowTotalsParams) ([]LedgerFlowTotalsRow, error) {
 	rows, err := q.db.Query(ctx, ledgerFlowTotals,
 		arg.UserID,
@@ -809,7 +809,7 @@ func (q *Queries) ListAccounts(ctx context.Context, userID uuid.UUID) ([]Account
 
 const listLedgerEntries = `-- name: ListLedgerEntries :many
 
-SELECT le.user_id, le.kind, le.id, le.type, le.account_id, le.to_account_id, le.amount, le.currency, le.to_amount, le.to_currency, le.account_amount, le.to_account_amount, le.flow_amount, le.category_id, le.title, le.description, le.occurred_at, le.due_at, le.source, le.group_id, le.group_name, le.expense_id, le.settlement_id, le.total_amount, le.sort_at, le.created_at FROM ledger_entries le
+SELECT le.user_id, le.kind, le.id, le.type, le.account_id, le.to_account_id, le.amount, le.currency, le.to_amount, le.to_currency, le.account_amount, le.to_account_amount, le.flow_amount, le.category_id, le.title, le.description, le.occurred_at, le.due_at, le.source, le.group_id, le.group_name, le.expense_id, le.settlement_id, le.total_amount, le.sort_at, le.created_at, le.planned_payment_id, le.loan_id, le.loan_record_id FROM ledger_entries le
 WHERE le.user_id = $1
   AND (CASE $2::text WHEN 'only' THEN le.occurred_at IS NULL WHEN 'all' THEN true ELSE le.occurred_at IS NOT NULL END)
   AND ($3::timestamptz IS NULL OR le.sort_at >= $3::timestamptz)
@@ -910,6 +910,9 @@ func (q *Queries) ListLedgerEntries(ctx context.Context, arg ListLedgerEntriesPa
 			&i.TotalAmount,
 			&i.SortAt,
 			&i.CreatedAt,
+			&i.PlannedPaymentID,
+			&i.LoanID,
+			&i.LoanRecordID,
 		); err != nil {
 			return nil, err
 		}
