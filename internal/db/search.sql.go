@@ -138,3 +138,371 @@ func (q *Queries) SearchUsers(ctx context.Context, dollar_1 pgtype.Text) ([]Sear
 	}
 	return items, nil
 }
+
+const searchWalletAccounts = `-- name: SearchWalletAccounts :many
+SELECT id, name, currency::text AS currency, color, icon
+FROM accounts
+WHERE user_id = $1 AND deleted_at IS NULL AND name ILIKE $2::text ESCAPE '\'
+ORDER BY sort_order, name, id
+LIMIT 10
+`
+
+type SearchWalletAccountsParams struct {
+	UserID  uuid.UUID `json:"user_id"`
+	Pattern string    `json:"pattern"`
+}
+
+type SearchWalletAccountsRow struct {
+	ID       uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+	Currency string    `json:"currency"`
+	Color    string    `json:"color"`
+	Icon     string    `json:"icon"`
+}
+
+func (q *Queries) SearchWalletAccounts(ctx context.Context, arg SearchWalletAccountsParams) ([]SearchWalletAccountsRow, error) {
+	rows, err := q.db.Query(ctx, searchWalletAccounts, arg.UserID, arg.Pattern)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchWalletAccountsRow
+	for rows.Next() {
+		var i SearchWalletAccountsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Currency,
+			&i.Color,
+			&i.Icon,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchWalletBudgets = `-- name: SearchWalletBudgets :many
+SELECT id, name, amount, currency::text AS currency
+FROM budgets
+WHERE user_id = $1 AND name ILIKE $2::text ESCAPE '\'
+ORDER BY sort_order, name, id
+LIMIT 10
+`
+
+type SearchWalletBudgetsParams struct {
+	UserID  uuid.UUID `json:"user_id"`
+	Pattern string    `json:"pattern"`
+}
+
+type SearchWalletBudgetsRow struct {
+	ID       uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+	Amount   int64     `json:"amount"`
+	Currency string    `json:"currency"`
+}
+
+func (q *Queries) SearchWalletBudgets(ctx context.Context, arg SearchWalletBudgetsParams) ([]SearchWalletBudgetsRow, error) {
+	rows, err := q.db.Query(ctx, searchWalletBudgets, arg.UserID, arg.Pattern)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchWalletBudgetsRow
+	for rows.Next() {
+		var i SearchWalletBudgetsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Amount,
+			&i.Currency,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchWalletCategories = `-- name: SearchWalletCategories :many
+SELECT id, name, icon, color
+FROM categories
+WHERE (is_system OR owner_id = $1) AND name ILIKE $2::text ESCAPE '\'
+ORDER BY is_system, name, id
+LIMIT 10
+`
+
+type SearchWalletCategoriesParams struct {
+	UserID  uuid.UUID `json:"user_id"`
+	Pattern string    `json:"pattern"`
+}
+
+type SearchWalletCategoriesRow struct {
+	ID    uuid.UUID `json:"id"`
+	Name  string    `json:"name"`
+	Icon  string    `json:"icon"`
+	Color string    `json:"color"`
+}
+
+func (q *Queries) SearchWalletCategories(ctx context.Context, arg SearchWalletCategoriesParams) ([]SearchWalletCategoriesRow, error) {
+	rows, err := q.db.Query(ctx, searchWalletCategories, arg.UserID, arg.Pattern)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchWalletCategoriesRow
+	for rows.Next() {
+		var i SearchWalletCategoriesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Icon,
+			&i.Color,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchWalletLoans = `-- name: SearchWalletLoans :many
+SELECT id, name, type, amount, currency::text AS currency
+FROM loans
+WHERE user_id = $1 AND deleted_at IS NULL
+  AND (name ILIKE $2::text ESCAPE '\' OR note ILIKE $2::text ESCAPE '\')
+ORDER BY sort_order, name, id
+LIMIT 10
+`
+
+type SearchWalletLoansParams struct {
+	UserID  uuid.UUID `json:"user_id"`
+	Pattern string    `json:"pattern"`
+}
+
+type SearchWalletLoansRow struct {
+	ID       uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+	Type     string    `json:"type"`
+	Amount   int64     `json:"amount"`
+	Currency string    `json:"currency"`
+}
+
+func (q *Queries) SearchWalletLoans(ctx context.Context, arg SearchWalletLoansParams) ([]SearchWalletLoansRow, error) {
+	rows, err := q.db.Query(ctx, searchWalletLoans, arg.UserID, arg.Pattern)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchWalletLoansRow
+	for rows.Next() {
+		var i SearchWalletLoansRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Type,
+			&i.Amount,
+			&i.Currency,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchWalletPlanned = `-- name: SearchWalletPlanned :many
+SELECT p.id, p.title, p.type, p.amount, p.currency::text AS currency, p.one_time, p.interval_n, p.interval_unit, p.active,
+       (SELECT t.due_at FROM transactions t
+         WHERE t.planned_payment_id = p.id AND t.occurred_at IS NULL AND t.deleted_at IS NULL
+         LIMIT 1) AS next_due_at
+FROM planned_payments p
+WHERE p.user_id = $1 AND p.deleted_at IS NULL
+  AND (p.title ILIKE $2::text ESCAPE '\' OR p.description ILIKE $2::text ESCAPE '\'
+       OR EXISTS (SELECT 1 FROM planned_payment_tags pt JOIN tags g ON g.id = pt.tag_id
+                  WHERE pt.planned_payment_id = p.id AND g.name ILIKE $2::text ESCAPE '\'))
+ORDER BY p.active DESC, p.created_at, p.id
+LIMIT 10
+`
+
+type SearchWalletPlannedParams struct {
+	UserID  uuid.UUID `json:"user_id"`
+	Pattern string    `json:"pattern"`
+}
+
+type SearchWalletPlannedRow struct {
+	ID           uuid.UUID          `json:"id"`
+	Title        string             `json:"title"`
+	Type         string             `json:"type"`
+	Amount       int64              `json:"amount"`
+	Currency     string             `json:"currency"`
+	OneTime      bool               `json:"one_time"`
+	IntervalN    pgtype.Int4        `json:"interval_n"`
+	IntervalUnit pgtype.Text        `json:"interval_unit"`
+	Active       bool               `json:"active"`
+	NextDueAt    pgtype.Timestamptz `json:"next_due_at"`
+}
+
+func (q *Queries) SearchWalletPlanned(ctx context.Context, arg SearchWalletPlannedParams) ([]SearchWalletPlannedRow, error) {
+	rows, err := q.db.Query(ctx, searchWalletPlanned, arg.UserID, arg.Pattern)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchWalletPlannedRow
+	for rows.Next() {
+		var i SearchWalletPlannedRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Type,
+			&i.Amount,
+			&i.Currency,
+			&i.OneTime,
+			&i.IntervalN,
+			&i.IntervalUnit,
+			&i.Active,
+			&i.NextDueAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchWalletTags = `-- name: SearchWalletTags :many
+SELECT id, name, color
+FROM tags
+WHERE user_id = $1 AND name ILIKE $2::text ESCAPE '\'
+ORDER BY sort_order, lower(name), id
+LIMIT 10
+`
+
+type SearchWalletTagsParams struct {
+	UserID  uuid.UUID `json:"user_id"`
+	Pattern string    `json:"pattern"`
+}
+
+type SearchWalletTagsRow struct {
+	ID    uuid.UUID `json:"id"`
+	Name  string    `json:"name"`
+	Color string    `json:"color"`
+}
+
+func (q *Queries) SearchWalletTags(ctx context.Context, arg SearchWalletTagsParams) ([]SearchWalletTagsRow, error) {
+	rows, err := q.db.Query(ctx, searchWalletTags, arg.UserID, arg.Pattern)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchWalletTagsRow
+	for rows.Next() {
+		var i SearchWalletTagsRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.Color); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchWalletTransactions = `-- name: SearchWalletTransactions :many
+
+WITH m AS (
+    SELECT t1.id FROM transactions t1
+    WHERE t1.user_id = $1 AND t1.deleted_at IS NULL AND t1.title ILIKE $2::text ESCAPE '\'
+    UNION
+    SELECT t2.id FROM transactions t2
+    WHERE t2.user_id = $1 AND t2.deleted_at IS NULL AND t2.description ILIKE $2::text ESCAPE '\'
+    UNION
+    SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id
+    WHERE g.user_id = $1 AND g.name ILIKE $2::text ESCAPE '\'
+)
+SELECT t.id, t.type, t.title, t.description, t.amount, t.currency::text AS currency,
+       t.account_id, a.name AS account_name, t.category_id, t.occurred_at, t.due_at, t.source
+FROM transactions t
+JOIN m ON m.id = t.id
+LEFT JOIN accounts a ON a.id = t.account_id
+WHERE t.user_id = $1 AND t.deleted_at IS NULL
+  AND t.source NOT IN ('ADJUSTMENT', 'LOAN')
+ORDER BY COALESCE(t.occurred_at, t.due_at) DESC, t.id DESC
+LIMIT 10
+`
+
+type SearchWalletTransactionsParams struct {
+	UserID  uuid.UUID `json:"user_id"`
+	Pattern string    `json:"pattern"`
+}
+
+type SearchWalletTransactionsRow struct {
+	ID          uuid.UUID          `json:"id"`
+	Type        string             `json:"type"`
+	Title       string             `json:"title"`
+	Description string             `json:"description"`
+	Amount      int64              `json:"amount"`
+	Currency    string             `json:"currency"`
+	AccountID   pgtype.UUID        `json:"account_id"`
+	AccountName pgtype.Text        `json:"account_name"`
+	CategoryID  uuid.UUID          `json:"category_id"`
+	OccurredAt  pgtype.Timestamptz `json:"occurred_at"`
+	DueAt       pgtype.Timestamptz `json:"due_at"`
+	Source      string             `json:"source"`
+}
+
+// ---------------------------------------------------------------- wallet search
+// Patterns are built by the handler with %, _ and \ escaped; matching is ILIKE ... ESCAPE '\'.
+// Planned items are included; balance adjustments and loan bookings are not. The
+// three match sources are UNIONed (instead of OR-ed) so each can use the trigram
+// indexes (0016) or the per-user index, whichever the planner finds cheaper.
+func (q *Queries) SearchWalletTransactions(ctx context.Context, arg SearchWalletTransactionsParams) ([]SearchWalletTransactionsRow, error) {
+	rows, err := q.db.Query(ctx, searchWalletTransactions, arg.UserID, arg.Pattern)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchWalletTransactionsRow
+	for rows.Next() {
+		var i SearchWalletTransactionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Title,
+			&i.Description,
+			&i.Amount,
+			&i.Currency,
+			&i.AccountID,
+			&i.AccountName,
+			&i.CategoryID,
+			&i.OccurredAt,
+			&i.DueAt,
+			&i.Source,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

@@ -402,6 +402,18 @@ type Querier interface {
 	// Handler usage: Handler{Pool *pgxpool.Pool, Queries *db.Queries} where Queries wraps the pool.
 	SearchUsers(ctx context.Context, dollar_1 pgtype.Text) ([]SearchUsersRow, error)
 	SearchUsersByName(ctx context.Context, arg SearchUsersByNameParams) ([]SearchUsersByNameRow, error)
+	SearchWalletAccounts(ctx context.Context, arg SearchWalletAccountsParams) ([]SearchWalletAccountsRow, error)
+	SearchWalletBudgets(ctx context.Context, arg SearchWalletBudgetsParams) ([]SearchWalletBudgetsRow, error)
+	SearchWalletCategories(ctx context.Context, arg SearchWalletCategoriesParams) ([]SearchWalletCategoriesRow, error)
+	SearchWalletLoans(ctx context.Context, arg SearchWalletLoansParams) ([]SearchWalletLoansRow, error)
+	SearchWalletPlanned(ctx context.Context, arg SearchWalletPlannedParams) ([]SearchWalletPlannedRow, error)
+	SearchWalletTags(ctx context.Context, arg SearchWalletTagsParams) ([]SearchWalletTagsRow, error)
+	// ---------------------------------------------------------------- wallet search
+	// Patterns are built by the handler with %, _ and \ escaped; matching is ILIKE ... ESCAPE '\'.
+	// Planned items are included; balance adjustments and loan bookings are not. The
+	// three match sources are UNIONed (instead of OR-ed) so each can use the trigram
+	// indexes (0016) or the per-user index, whichever the planner finds cheaper.
+	SearchWalletTransactions(ctx context.Context, arg SearchWalletTransactionsParams) ([]SearchWalletTransactionsRow, error)
 	SendFriendRequest(ctx context.Context, arg SendFriendRequestParams) error
 	SetAccountSortOrder(ctx context.Context, arg SetAccountSortOrderParams) (int64, error)
 	SetBudgetSortOrder(ctx context.Context, arg SetBudgetSortOrderParams) (int64, error)
