@@ -687,6 +687,15 @@ func TestIntegration_ReportCSVStreamsAcrossPages(t *testing.T) {
 // converted to USD (fixture rates divide evenly, so per-entry and per-total rounding agree).
 func ledgerSum(t *testing.T, e *env, u user, q string) (income, expense, count int64) {
 	t.Helper()
+	// Accounts excluded from the balance do not count unless the query names accounts (as /overview).
+	excluded := map[string]bool{}
+	if !strings.Contains(q, "account=") {
+		for _, a := range list(e.must(200, "GET", "/api/v1/accounts", u, nil), "data") {
+			if a["include_in_balance"] == false {
+				excluded[str(a["id"])] = true
+			}
+		}
+	}
 	cursor := ""
 	for pages := 0; pages < 200; pages++ {
 		path := "/api/v1/ledger?limit=2&exclude_source=ADJUSTMENT,LOAN&" + q
@@ -697,7 +706,7 @@ func ledgerSum(t *testing.T, e *env, u user, q string) (income, expense, count i
 		for _, en := range list(out, "data") {
 			typ := str(en["type"])
 			amt := float64(num(en["amount"]))
-			if amt == 0 || (typ != "INCOME" && typ != "EXPENSE") {
+			if amt == 0 || (typ != "INCOME" && typ != "EXPENSE") || excluded[str(en["account_id"])] {
 				continue
 			}
 			switch str(en["currency"]) {
@@ -726,6 +735,10 @@ func ledgerSum(t *testing.T, e *env, u user, q string) (income, expense, count i
 
 func TestIntegration_ReportMatchesLedgerPaging(t *testing.T) {
 	f := newReportFixture(t)
+	// An account excluded from the balance with an expense in range joins the matrix.
+	vault := str(f.e.createAccount(f.alice, "Vault", "USD", 0)["id"])
+	f.e.must(200, "PATCH", "/api/v1/accounts/"+vault, f.alice, map[string]any{"include_in_balance": false})
+	f.e.must(201, "POST", "/api/v1/transactions", f.alice, map[string]any{"type": "EXPENSE", "account_id": vault, "amount": 7700, "title": "Vault spend", "occurred_at": "2026-05-12", "category_id": f.rent})
 	queries := []string{
 		may,
 		"",
@@ -736,15 +749,18 @@ func TestIntegration_ReportMatchesLedgerPaging(t *testing.T) {
 		may + "&category=none," + f.rent,
 		may + "&account=" + f.bank,
 		may + "&account=" + f.nepal,
-		may + "&account=" + f.bank + "," + f.euro,
+		may + "&account=" + vault,
+		may + "&account=" + f.bank + "," + vault,
 		may + "&tag=" + f.t1,
 		may + "&tag=" + f.t1 + "," + f.holiday,
 		may + "&excl_tag=" + f.t1,
 		may + "&q=lunch+pizza",
 		may + "&q=holiday",
+		may + "&q=holiday+paris",
 		may + "&q=groceries",
 		may + "&excl_q=pizza+paris",
 		may + "&excl_q=groceries",
+		may + "&excl_q=holiday",
 		may + "&min=10000",
 		may + "&max=9000",
 		may + "&min=5000&max=13300",
@@ -754,28 +770,66 @@ func TestIntegration_ReportMatchesLedgerPaging(t *testing.T) {
 		may + "&include_group_shares=false",
 		"from=2026-05-03&to=2026-05-06",
 		"from=2026-05-06T12:00:00Z&to=2026-05-10",
+		"from=2026-05-10T00:00:00%2B05:45&to=2026-05-11T00:00:00%2B05:45",
+		"from=2026-05-10T00:00:30Z&to=2026-05-12T00:00:30Z",
 	}
 	for _, q := range queries {
 		for _, u := range []user{f.alice, f.bob} {
+			who := "alice"
+			if u == f.bob {
+				who = "bob"
+			}
 			r := f.report(u, q)
 			inc, exp, cnt := ledgerSum(t, f.e, u, q)
+			// The fixture's amounts divide evenly by the rates, so per-pair and per-entry rounding agree exactly.
 			if num(r["income"]) != inc || num(r["expense"]) != exp || num(r["count"]) != cnt {
-				who := "alice"
-				if u == f.bob {
-					who = "bob"
-				}
 				t.Errorf("%s %q: report income/expense/count = %v/%v/%v, ledger paging = %d/%d/%d", who, q, r["income"], r["expense"], r["count"], inc, exp, cnt)
 			}
-		}
-	}
-}
-
-// useBase sets the users' base (default) currency; new users start in NPR.
-func (e *env) useBase(currency string, users ...user) {
-	e.t.Helper()
-	for _, u := range users {
-		if _, err := e.pool.Exec(context.Background(), `UPDATE users SET default_currency = $1 WHERE id = $2`, currency, u.id); err != nil {
-			e.t.Fatal(err)
+			// Breakdowns add up to the totals.
+			var catSum, accInc, accExp int64
+			var pct float64
+			for _, c := range list(r, "by_category") {
+				catSum += num(c["amount"])
+				pct += c["percent"].(float64)
+			}
+			for _, a := range list(r, "by_account") {
+				accInc += num(a["base_income"])
+				accExp += num(a["base_expense"])
+			}
+			if catSum != num(r["expense"]) || accInc != num(r["income"]) || accExp != num(r["expense"]) {
+				t.Errorf("%s %q: by_category=%d by_account=%d/%d vs expense=%v income=%v", who, q, catSum, accInc, accExp, r["expense"], r["income"])
+			}
+			if len(list(r, "by_category")) > 0 && math.Abs(pct-100) > 1e-9 {
+				t.Errorf("%s %q: percent sums to %v", who, q, pct)
+			}
+			if ri := f.report(u, q+"&breakdown=income"); func() int64 {
+				var s int64
+				for _, c := range list(ri, "by_category") {
+					s += num(c["amount"])
+				}
+				return s
+			}() != num(r["income"]) {
+				t.Errorf("%s %q: income breakdown != income", who, q)
+			}
+			// The trend over the same window adds up too.
+			if strings.Contains(q, "from=") {
+				tr := f.e.must(200, "GET", "/api/v1/reports/trend?bucket=day&"+q, u, nil)
+				var ti, te int64
+				for _, b := range list(tr, "buckets") {
+					ti += num(b["income"])
+					te += num(b["expense"])
+				}
+				if ti != num(r["income"]) || te != num(r["expense"]) {
+					t.Errorf("%s %q: trend %d/%d vs report %v/%v", who, q, ti, te, r["income"], r["expense"])
+				}
+			}
+			// So does the CSV: same entries as /ledger.
+			if q == may {
+				_, raw := f.e.raw("GET", "/api/v1/reports/export.csv?"+q+"&exclude_source=ADJUSTMENT,LOAN", u.token, nil, nil)
+				if n := len(readCSV(t, raw)) - 1; n < int(cnt) {
+					t.Errorf("%s csv rows %d < counted entries %d", who, n, cnt)
+				}
+			}
 		}
 	}
 }
