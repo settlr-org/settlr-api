@@ -252,8 +252,10 @@ filter combinations and compares count/income/expense with `/reports`).
   without a rate are left out and listed in `missing_rates`. Nothing is converted per row except
   the CSV `base_amount`, which is the row's own amount.
 - **`GET /reports`**: `currency, from, to, income, expense, net, transfers_in, transfers_out,
-  count, breakdown, by_category[], by_account[], treat_transfers_as_flow, hide_adjustments,
-  missing_rates`. `breakdown=expense|income` (default expense) picks the side of `by_category`
+  count, entries_count, breakdown, by_category[], by_account[], treat_transfers_as_flow, hide_adjustments,
+  missing_rates`. `count` = entries that contribute to income/expense/net (no loans, adjustments,
+  settlements or zero-share rows; transfers only as flow); `entries_count` = exactly the rows `/ledger`
+  and the CSV list for the same filters. `breakdown=expense|income` (default expense) picks the side of `by_category`
   (`category_id|null, name, icon, color, amount, count, percent`), sorted by amount desc then
   name, uncategorized as `category_id: null, name "Uncategorized"` (categories the caller cannot
   see count as uncategorized). **Percent rule:** one decimal; tenths of a percent are allotted

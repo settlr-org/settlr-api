@@ -104,7 +104,7 @@ type Querier interface {
 	CreateRecurringSplit(ctx context.Context, arg CreateRecurringSplitParams) error
 	CreateRecurringSplitWithPercentage(ctx context.Context, arg CreateRecurringSplitWithPercentageParams) error
 	CreateRecurringSplitWithShares(ctx context.Context, arg CreateRecurringSplitWithSharesParams) error
-	CreateSession(ctx context.Context, arg CreateSessionParams) error
+	CreateSession(ctx context.Context, arg CreateSessionParams) (uuid.UUID, error)
 	CreateSettlement(ctx context.Context, arg CreateSettlementParams) error
 	CreateSettlementActivity(ctx context.Context, arg CreateSettlementActivityParams) error
 	CreateSettlementNotification(ctx context.Context, arg CreateSettlementNotificationParams) error
@@ -412,6 +412,8 @@ type Querier interface {
 	// Spending (or income) per category and currency; categories the caller cannot see count as uncategorized.
 	ReportByCategory(ctx context.Context, arg ReportByCategoryParams) ([]ReportByCategoryRow, error)
 	ReportCategoryNames(ctx context.Context, arg ReportCategoryNamesParams) ([]ReportCategoryNamesRow, error)
+	// Exactly the rows ListLedgerEntries returns for the same filters (no report-only exclusions).
+	ReportEntriesCount(ctx context.Context, arg ReportEntriesCountParams) (int64, error)
 	// NOTE: the filter block below is identical to ListLedgerEntries
 	// (wallet.sql); keep them in sync (the ledger/report consistency tests catch drift).
 	// Reports aggregate in SQL per currency; Go converts per currency pair.

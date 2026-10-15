@@ -74,18 +74,35 @@ func HashToken(raw string) string {
 	return hex.EncodeToString(h[:])
 }
 
+// GenerateAccessToken mints an access token without a session marker.
 func GenerateAccessToken(cfg config.Config, userID uuid.UUID) (string, error) {
+	return GenerateSessionAccessToken(cfg, userID, uuid.Nil)
+}
+
+// GenerateSessionAccessToken mints an access token carrying `sid`, the id of the sessions row
+// the accompanying refresh token belongs to. The claim only lets GET /auth/sessions mark the
+// caller's own session as current; it is never used for authorization.
+func GenerateSessionAccessToken(cfg config.Config, userID, sessionID uuid.UUID) (string, error) {
 	now := time.Now()
 	claims := jwt.MapClaims{
 		"sub": userID.String(),
 		"iat": now.Unix(),
 		"exp": now.Add(time.Duration(cfg.JWTExpiryMinutes) * time.Minute).Unix(),
 	}
+	if sessionID != uuid.Nil {
+		claims["sid"] = sessionID.String()
+	}
 	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return tok.SignedString([]byte(cfg.JWTSecret))
 }
 
 func ParseAccessToken(cfg config.Config, tokenStr string) (uuid.UUID, error) {
+	id, _, err := ParseAccessClaims(cfg, tokenStr)
+	return id, err
+}
+
+// ParseAccessClaims returns the user id and the session id claim (uuid.Nil when absent or malformed).
+func ParseAccessClaims(cfg config.Config, tokenStr string) (uuid.UUID, uuid.UUID, error) {
 	tok, err := jwt.Parse(tokenStr, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method")
@@ -93,17 +110,25 @@ func ParseAccessToken(cfg config.Config, tokenStr string) (uuid.UUID, error) {
 		return []byte(cfg.JWTSecret), nil
 	})
 	if err != nil || !tok.Valid {
-		return uuid.Nil, fmt.Errorf("invalid token: %w", err)
+		return uuid.Nil, uuid.Nil, fmt.Errorf("invalid token: %w", err)
 	}
 	claims, ok := tok.Claims.(jwt.MapClaims)
 	if !ok {
-		return uuid.Nil, fmt.Errorf("invalid claims")
+		return uuid.Nil, uuid.Nil, fmt.Errorf("invalid claims")
 	}
 	sub, ok := claims["sub"].(string)
 	if !ok {
-		return uuid.Nil, fmt.Errorf("missing sub")
+		return uuid.Nil, uuid.Nil, fmt.Errorf("missing sub")
 	}
-	return uuid.Parse(sub)
+	uid, err := uuid.Parse(sub)
+	if err != nil {
+		return uuid.Nil, uuid.Nil, err
+	}
+	sid := uuid.Nil
+	if raw, ok := claims["sid"].(string); ok {
+		sid, _ = uuid.Parse(raw)
+	}
+	return uid, sid, nil
 }
 
 // Service holds auth business logic.
@@ -128,27 +153,33 @@ func (s *Service) ensureQueries() *db.Queries {
 }
 
 func (s *Service) GetUserIDFromToken(ctx context.Context, authHeader string) (uuid.UUID, error) {
+	id, _, err := s.GetClaimsFromToken(ctx, authHeader)
+	return id, err
+}
+
+// GetClaimsFromToken returns the user id and the session id claim (uuid.Nil for older tokens).
+func (s *Service) GetClaimsFromToken(ctx context.Context, authHeader string) (uuid.UUID, uuid.UUID, error) {
 	if authHeader == "" {
-		return uuid.Nil, httpx.ErrUnauthorized
+		return uuid.Nil, uuid.Nil, httpx.ErrUnauthorized
 	}
 	parts := strings.SplitN(authHeader, " ", 2)
 	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-		return uuid.Nil, httpx.ErrUnauthorized
+		return uuid.Nil, uuid.Nil, httpx.ErrUnauthorized
 	}
-	id, err := ParseAccessToken(s.Cfg, parts[1])
+	id, sid, err := ParseAccessClaims(s.Cfg, parts[1])
 	if err != nil {
-		return uuid.Nil, httpx.ErrUnauthorized
+		return uuid.Nil, uuid.Nil, httpx.ErrUnauthorized
 	}
-	return id, nil
+	return id, sid, nil
 }
 
 // CreateSession stores a refresh token session.
-func (s *Service) CreateSession(ctx context.Context, userID uuid.UUID, rawToken, userAgent, ip string) error {
+func (s *Service) CreateSession(ctx context.Context, userID uuid.UUID, rawToken, userAgent, ip string) (uuid.UUID, error) {
 	hash := HashToken(rawToken)
 	expiresAt := time.Now().Add(time.Duration(s.Cfg.RefreshExpiryDays) * 24 * time.Hour)
 	q := s.ensureQueries()
 	if q == nil {
-		return fmt.Errorf("no db queries available")
+		return uuid.Nil, fmt.Errorf("no db queries available")
 	}
 	return q.CreateSession(ctx, db.CreateSessionParams{
 		UserID:           userID,

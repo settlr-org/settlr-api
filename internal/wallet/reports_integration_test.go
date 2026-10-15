@@ -733,6 +733,26 @@ func ledgerSum(t *testing.T, e *env, u user, q string) (income, expense, count i
 	return
 }
 
+// ledgerRows counts every row /ledger pages through for the filters (nothing excluded).
+func ledgerRows(t *testing.T, e *env, u user, q string) int64 {
+	t.Helper()
+	var n int64
+	cursor := ""
+	for i := 0; i < 200; i++ {
+		path := "/api/v1/ledger?limit=2&" + q
+		if cursor != "" {
+			path += "&cursor=" + url.QueryEscape(cursor)
+		}
+		out := e.must(200, "GET", path, u, nil)
+		n += int64(len(list(out, "data")))
+		if cursor, _ = out["next_cursor"].(string); cursor == "" {
+			return n
+		}
+	}
+	t.Fatal("paging")
+	return 0
+}
+
 func TestIntegration_ReportMatchesLedgerPaging(t *testing.T) {
 	f := newReportFixture(t)
 	// An account excluded from the balance with an expense in range joins the matrix.
@@ -768,6 +788,10 @@ func TestIntegration_ReportMatchesLedgerPaging(t *testing.T) {
 		may + "&source=MANUAL",
 		may + "&exclude_source=GROUP",
 		may + "&include_group_shares=false",
+		may + "&type=TRANSFER",
+		may + "&source=ADJUSTMENT",
+		may + "&source=LOAN",
+		may + "&planned=all",
 		"from=2026-05-03&to=2026-05-06",
 		"from=2026-05-06T12:00:00Z&to=2026-05-10",
 		"from=2026-05-10T00:00:00%2B05:45&to=2026-05-11T00:00:00%2B05:45",
@@ -784,6 +808,10 @@ func TestIntegration_ReportMatchesLedgerPaging(t *testing.T) {
 			// The fixture's amounts divide evenly by the rates, so per-pair and per-entry rounding agree exactly.
 			if num(r["income"]) != inc || num(r["expense"]) != exp || num(r["count"]) != cnt {
 				t.Errorf("%s %q: report income/expense/count = %v/%v/%v, ledger paging = %d/%d/%d", who, q, r["income"], r["expense"], r["count"], inc, exp, cnt)
+			}
+			// entries_count is exactly the number of rows /ledger lists (and the CSV) for the same filters.
+			if want := ledgerRows(t, f.e, u, q); num(r["entries_count"]) != want {
+				t.Errorf("%s %q: entries_count %v, /ledger lists %d", who, q, r["entries_count"], want)
 			}
 			// Breakdowns add up to the totals.
 			var catSum, accInc, accExp int64
@@ -828,6 +856,10 @@ func TestIntegration_ReportMatchesLedgerPaging(t *testing.T) {
 				_, raw := f.e.raw("GET", "/api/v1/reports/export.csv?"+q+"&exclude_source=ADJUSTMENT,LOAN", u.token, nil, nil)
 				if n := len(readCSV(t, raw)) - 1; n < int(cnt) {
 					t.Errorf("%s csv rows %d < counted entries %d", who, n, cnt)
+				}
+				_, raw = f.e.raw("GET", "/api/v1/reports/export.csv?"+q, u.token, nil, nil)
+				if n := int64(len(readCSV(t, raw)) - 1); n != num(r["entries_count"]) {
+					t.Errorf("%s csv rows %d != entries_count %v", who, n, r["entries_count"])
 				}
 			}
 		}

@@ -201,13 +201,14 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	// Integration tests use generated bearer tokens to exercise unrelated
 	// domain handlers. Production and development never create a session here.
 	if h.Svc.Cfg.Env == "test" {
-		accessToken, tokenErr := GenerateAccessToken(h.Svc.Cfg, id)
+		rawRefresh, _ := GenerateRefreshToken()
+		sid, tokenErr := h.Svc.CreateSession(r.Context(), id, rawRefresh, r.UserAgent(), r.RemoteAddr)
 		if tokenErr != nil {
 			httpx.WriteError(w, r, tokenErr)
 			return
 		}
-		rawRefresh, _ := GenerateRefreshToken()
-		if tokenErr := h.Svc.CreateSession(r.Context(), id, rawRefresh, r.UserAgent(), r.RemoteAddr); tokenErr != nil {
+		accessToken, tokenErr := GenerateSessionAccessToken(h.Svc.Cfg, id, sid)
+		if tokenErr != nil {
 			httpx.WriteError(w, r, tokenErr)
 			return
 		}
@@ -267,13 +268,14 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) writeSession(w http.ResponseWriter, r *http.Request, id uuid.UUID, name, email string) {
-	accessToken, err := GenerateAccessToken(h.Svc.Cfg, id)
+	rawRefresh, _ := GenerateRefreshToken()
+	sid, err := h.Svc.CreateSession(r.Context(), id, rawRefresh, r.UserAgent(), r.RemoteAddr)
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
-	rawRefresh, _ := GenerateRefreshToken()
-	if err := h.Svc.CreateSession(r.Context(), id, rawRefresh, r.UserAgent(), r.RemoteAddr); err != nil {
+	accessToken, err := GenerateSessionAccessToken(h.Svc.Cfg, id, sid)
+	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
 	}
@@ -297,7 +299,7 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	newRaw, _ := GenerateRefreshToken()
-	_, err := h.Svc.RotateSession(r.Context(), req.RefreshToken, newRaw)
+	newSID, err := h.Svc.RotateSession(r.Context(), req.RefreshToken, newRaw)
 	if err != nil {
 		ae, ok := err.(*httpx.AppError)
 		if ok {
@@ -316,7 +318,8 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var userID uuid.UUID
 	q := h.ensureQueries()
 	userID, _ = q.GetSessionUserByHash(r.Context(), HashToken(newRaw))
-	accessToken, err := GenerateAccessToken(h.Svc.Cfg, userID)
+	// The rotated refresh token belongs to a new sessions row: sid must point at it.
+	accessToken, err := GenerateSessionAccessToken(h.Svc.Cfg, userID, newSID)
 	if err != nil {
 		httpx.WriteError(w, r, err)
 		return
@@ -518,7 +521,7 @@ func (h *Handler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListSessions(w http.ResponseWriter, r *http.Request) {
-	uid, err := h.Svc.GetUserIDFromToken(r.Context(), r.Header.Get("Authorization"))
+	uid, currentSID, err := h.Svc.GetClaimsFromToken(r.Context(), r.Header.Get("Authorization"))
 	if err != nil {
 		httpx.WriteError(w, r, httpx.ErrUnauthorized)
 		return
@@ -542,7 +545,8 @@ func (h *Handler) ListSessions(w http.ResponseWriter, r *http.Request) {
 		if s.RevokedAt.Valid {
 			revokedAt = s.RevokedAt.Time
 		}
-		out = append(out, map[string]any{"id": s.ID, "user_agent": ua, "ip": ip, "created_at": s.CreatedAt.Time, "last_used_at": s.LastUsedAt.Time, "expires_at": s.ExpiresAt.Time, "revoked_at": revokedAt})
+		out = append(out, map[string]any{"id": s.ID, "user_agent": ua, "ip": ip, "created_at": s.CreatedAt.Time, "last_used_at": s.LastUsedAt.Time, "expires_at": s.ExpiresAt.Time, "revoked_at": revokedAt,
+			"current": currentSID != uuid.Nil && s.ID == currentSID && !s.RevokedAt.Valid})
 	}
 	if out == nil {
 		out = []map[string]any{}

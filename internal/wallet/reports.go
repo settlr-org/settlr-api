@@ -85,6 +85,16 @@ func (f filters) accountParams(userID uuid.UUID) db.ReportByAccountParams {
 	return db.ReportByAccountParams(f.totalsParams(userID))
 }
 
+func (f filters) entriesParams(userID uuid.UUID) db.ReportEntriesCountParams {
+	t := f.totalsParams(userID)
+	return db.ReportEntriesCountParams{
+		UserID: userID, Planned: t.Planned, FromAt: t.FromAt, ToAt: t.ToAt, Kinds: t.Kinds, Types: t.Types,
+		Sources: t.Sources, ExclSources: t.ExclSources, AccountIds: t.AccountIds, CategoryIds: t.CategoryIds,
+		CategoryNone: t.CategoryNone, GroupIds: t.GroupIds, TagIds: t.TagIds, ExclTagIds: t.ExclTagIds,
+		QTerms: t.QTerms, ExclQTerms: t.ExclQTerms, MinAmount: t.MinAmount, MaxAmount: t.MaxAmount,
+	}
+}
+
 func (f filters) trendParams(userID uuid.UUID, bucket string, startDay int) db.ReportTrendParams {
 	t := f.totalsParams(userID)
 	return db.ReportTrendParams{
@@ -225,6 +235,12 @@ func (h *Handler) Report(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	entriesCount, err := q.ReportEntriesCount(ctx, f.entriesParams(userID))
+	if err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	}
+
 	catRows, err := q.ReportByCategory(ctx, f.categoryParams(userID, breakdown))
 	if err != nil {
 		httpx.WriteError(w, r, err)
@@ -346,7 +362,7 @@ func (h *Handler) Report(w http.ResponseWriter, r *http.Request) {
 		"currency": fxc.base, "from": from, "to": to,
 		"income": tot.incomeTotal(asFlow), "expense": tot.expenseTotal(asFlow), "net": tot.net(asFlow),
 		"transfers_in": tot.tIn, "transfers_out": tot.tOut,
-		"count": count, "breakdown": strings.ToLower(breakdown),
+		"count": count, "entries_count": entriesCount, "breakdown": strings.ToLower(breakdown),
 		"by_category": byCategory, "by_account": byAccount,
 		"treat_transfers_as_flow": asFlow,
 		"hide_adjustments":        hideAdjustments(f),
