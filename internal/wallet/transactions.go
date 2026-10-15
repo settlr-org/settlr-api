@@ -3,6 +3,7 @@ package wallet
 import (
 	"context"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -562,7 +563,7 @@ func (h *Handler) DuplicateTransaction(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) ListTransactions(w http.ResponseWriter, r *http.Request) {
 	userID := currentUser(r)
-	f, msg := parseFilters(r)
+	f, msg := parseFilters(r, false)
 	if msg != "" {
 		validation(w, msg)
 		return
@@ -571,7 +572,7 @@ func (h *Handler) ListTransactions(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	rows, err := h.q().ListTransactions(ctx, db.ListTransactionsParams{
 		UserID: userID, Planned: f.planned, FromAt: f.from, ToAt: f.to, Types: f.types,
-		AccountIds: f.accounts, CategoryIds: f.categories, TagIds: f.tags, ExclTagIds: f.exclTags,
+		Sources: nonNil(f.sources), ExclSources: nonNil(f.exclSources), AccountIds: f.accounts, CategoryIds: f.categories, TagIds: f.tags, ExclTagIds: f.exclTags,
 		Q: f.q, ExclQ: f.exclQ, MinAmount: f.min, MaxAmount: f.max, CursorAt: f.cursorAt, CursorID: f.cursorID,
 		Lim: int32(limit + 1),
 	})
@@ -615,6 +616,7 @@ type filters struct {
 	planned                            string
 	from, to                           pgtype.Timestamptz
 	types, kinds                       []string
+	sources, exclSources               []string
 	accounts, categories, groups, tags []pgtype.UUID
 	exclTags                           []pgtype.UUID
 	q, exclQ                           string
@@ -623,8 +625,45 @@ type filters struct {
 	cursorID                           pgtype.UUID
 }
 
-func parseFilters(r *http.Request) (filters, string) {
+// transactionSources are the values of transactions.source; the ledger adds GROUP
+// for group expense shares and settlements.
+var transactionSources = []string{"MANUAL", "ADJUSTMENT", "LOAN", "IMPORT", "PERSONAL_LEGACY"}
+
+// sourceList reads a comma-separated source list and validates it against allowed.
+func sourceList(r *http.Request, name string, allowed []string) ([]string, string) {
+	out := queryList(r, name)
+	for _, s := range out {
+		if !slices.Contains(allowed, s) {
+			return nil, name + " must be one of " + strings.Join(allowed, ", ")
+		}
+	}
+	return out, ""
+}
+
+// parseFilters reads the filters shared by /transactions and /ledger; ledger
+// additionally accepts source=GROUP.
+func parseFilters(r *http.Request, ledger bool) (filters, string) {
 	var f filters
+	allowed := transactionSources
+	if ledger {
+		allowed = append(slices.Clone(transactionSources), "GROUP")
+	}
+	var msg string
+	if f.sources, msg = sourceList(r, "source", allowed); msg != "" {
+		return f, msg
+	}
+	if f.exclSources, msg = sourceList(r, "exclude_source", allowed); msg != "" {
+		return f, msg
+	}
+	switch strings.ToLower(strings.TrimSpace(r.URL.Query().Get("hide_adjustments"))) {
+	case "", "false", "0":
+	case "true", "1":
+		if !slices.Contains(f.exclSources, "ADJUSTMENT") {
+			f.exclSources = append(f.exclSources, "ADJUSTMENT")
+		}
+	default:
+		return f, "hide_adjustments must be true or false"
+	}
 	from, to, err := parseRange(r)
 	if err != nil {
 		return f, err.Error()

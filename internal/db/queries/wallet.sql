@@ -206,6 +206,8 @@ WHERE t.user_id = @user_id AND t.deleted_at IS NULL
   AND (sqlc.narg(from_at)::timestamptz IS NULL OR COALESCE(t.occurred_at, t.due_at) >= sqlc.narg(from_at)::timestamptz)
   AND (sqlc.narg(to_at)::timestamptz IS NULL OR COALESCE(t.occurred_at, t.due_at) < sqlc.narg(to_at)::timestamptz)
   AND (cardinality(@types::text[]) = 0 OR t.type = ANY(@types::text[]))
+  AND (cardinality(@sources::text[]) = 0 OR t.source = ANY(@sources::text[]))
+  AND (cardinality(@excl_sources::text[]) = 0 OR NOT (t.source = ANY(@excl_sources::text[])))
   AND (cardinality(@account_ids::uuid[]) = 0 OR t.account_id = ANY(@account_ids::uuid[]) OR t.to_account_id = ANY(@account_ids::uuid[]))
   AND (cardinality(@category_ids::uuid[]) = 0 OR t.category_id = ANY(@category_ids::uuid[]))
   AND (cardinality(@tag_ids::uuid[]) = 0 OR EXISTS (
@@ -231,6 +233,8 @@ WHERE le.user_id = @user_id
   AND (sqlc.narg(to_at)::timestamptz IS NULL OR le.sort_at < sqlc.narg(to_at)::timestamptz)
   AND (cardinality(@kinds::text[]) = 0 OR le.kind = ANY(@kinds::text[]))
   AND (cardinality(@types::text[]) = 0 OR le.type = ANY(@types::text[]))
+  AND (cardinality(@sources::text[]) = 0 OR le.source = ANY(@sources::text[]))
+  AND (cardinality(@excl_sources::text[]) = 0 OR NOT (le.source = ANY(@excl_sources::text[])))
   AND (cardinality(@account_ids::uuid[]) = 0 OR le.account_id = ANY(@account_ids::uuid[]) OR le.to_account_id = ANY(@account_ids::uuid[]))
   AND (cardinality(@category_ids::uuid[]) = 0 OR le.category_id = ANY(@category_ids::uuid[]))
   AND (cardinality(@group_ids::uuid[]) = 0 OR le.group_id = ANY(@group_ids::uuid[]))

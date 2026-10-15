@@ -137,14 +137,36 @@ type Querier interface {
 	DeleteTag(ctx context.Context, arg DeleteTagParams) (int64, error)
 	DeleteTransactionTags(ctx context.Context, transactionID pgtype.UUID) error
 	EnsureFriendship(ctx context.Context, arg EnsureFriendshipParams) error
+	ExportAccounts(ctx context.Context, userID uuid.UUID) ([]Account, error)
+	ExportBudgets(ctx context.Context, userID uuid.UUID) ([]Budget, error)
+	ExportCategoryNames(ctx context.Context, ids []pgtype.UUID) ([]ExportCategoryNamesRow, error)
+	ExportCategoryOrder(ctx context.Context, userID uuid.UUID) ([]ExportCategoryOrderRow, error)
 	ExportGroupCSV(ctx context.Context, groupID uuid.UUID) ([]ExportGroupCSVRow, error)
 	ExportGroupJSON(ctx context.Context, groupID uuid.UUID) ([]ExportGroupJSONRow, error)
 	ExportGroupSettlements(ctx context.Context, groupID uuid.UUID) ([]ExportGroupSettlementsRow, error)
+	ExportLoanRecords(ctx context.Context, userID uuid.UUID) ([]LoanRecord, error)
+	ExportLoans(ctx context.Context, userID uuid.UUID) ([]Loan, error)
 	// Export domain queries for sqlc with pgx/v5.
 	// These replace manual Pool.Query/Exec calls in internal/export/handlers.go
 	// Handler usage: Handler{Pool *pgxpool.Pool, Queries *db.Queries} where Queries wraps the pool.
 	ExportMyCSV(ctx context.Context, userID uuid.UUID) ([]ExportMyCSVRow, error)
+	// paid_by_id/payer_account_id and my_share describe the caller's side; payer_account_id is
+	// only set when the caller paid.
+	ExportMyGroupExpenses(ctx context.Context, userID uuid.UUID) ([]ExportMyGroupExpensesRow, error)
+	ExportMyGroupSettlements(ctx context.Context, userID uuid.UUID) ([]ExportMyGroupSettlementsRow, error)
+	ExportMyGroups(ctx context.Context, userID uuid.UUID) ([]ExportMyGroupsRow, error)
 	ExportMyJSON(ctx context.Context, userID uuid.UUID) ([]ExportMyJSONRow, error)
+	ExportOwnedCategories(ctx context.Context, ownerID uuid.UUID) ([]ExportOwnedCategoriesRow, error)
+	ExportPlannedPayments(ctx context.Context, userID uuid.UUID) ([]ExportPlannedPaymentsRow, error)
+	ExportTags(ctx context.Context, userID uuid.UUID) ([]Tag, error)
+	// Newest first (same order as the ledger), keyset-paginated by (sort time, id).
+	ExportTransactionsCSVPage(ctx context.Context, arg ExportTransactionsCSVPageParams) ([]ExportTransactionsCSVPageRow, error)
+	// Keyset-paginated by id so large histories stream in bounded memory.
+	ExportTransactionsPage(ctx context.Context, arg ExportTransactionsPageParams) ([]ExportTransactionsPageRow, error)
+	// ---------------------------------------------------------------- wallet export
+	// Backup (GET /me/export.json, version 2) and CSV exports. Only live (not soft-deleted)
+	// rows of the caller are exported; ids are kept as stored.
+	ExportUserProfile(ctx context.Context, id uuid.UUID) (ExportUserProfileRow, error)
 	GetAccount(ctx context.Context, arg GetAccountParams) (Account, error)
 	GetAttachmentForServe(ctx context.Context, id uuid.UUID) (GetAttachmentForServeRow, error)
 	GetAttachmentOwner(ctx context.Context, id uuid.UUID) (GetAttachmentOwnerRow, error)
@@ -400,8 +422,20 @@ type Querier interface {
 	// Search domain queries for sqlc with pgx/v5.
 	// These replace manual Pool.Query/Exec calls in internal/search/handlers.go
 	// Handler usage: Handler{Pool *pgxpool.Pool, Queries *db.Queries} where Queries wraps the pool.
-	SearchUsers(ctx context.Context, dollar_1 pgtype.Text) ([]SearchUsersRow, error)
+	SearchUsers(ctx context.Context, dollar_1 string) ([]SearchUsersRow, error)
 	SearchUsersByName(ctx context.Context, arg SearchUsersByNameParams) ([]SearchUsersByNameRow, error)
+	SearchWalletAccounts(ctx context.Context, arg SearchWalletAccountsParams) ([]SearchWalletAccountsRow, error)
+	SearchWalletBudgets(ctx context.Context, arg SearchWalletBudgetsParams) ([]SearchWalletBudgetsRow, error)
+	SearchWalletCategories(ctx context.Context, arg SearchWalletCategoriesParams) ([]SearchWalletCategoriesRow, error)
+	SearchWalletLoans(ctx context.Context, arg SearchWalletLoansParams) ([]SearchWalletLoansRow, error)
+	SearchWalletPlanned(ctx context.Context, arg SearchWalletPlannedParams) ([]SearchWalletPlannedRow, error)
+	SearchWalletTags(ctx context.Context, arg SearchWalletTagsParams) ([]SearchWalletTagsRow, error)
+	// ---------------------------------------------------------------- wallet search
+	// Patterns are built by the handler with %, _ and \ escaped; matching is ILIKE ... ESCAPE '\'.
+	// Planned items are included; balance adjustments and loan bookings are not. The
+	// three match sources are UNIONed (instead of OR-ed) so each can use the trigram
+	// indexes (0016) or the per-user index, whichever the planner finds cheaper.
+	SearchWalletTransactions(ctx context.Context, arg SearchWalletTransactionsParams) ([]SearchWalletTransactionsRow, error)
 	SendFriendRequest(ctx context.Context, arg SendFriendRequestParams) error
 	SetAccountSortOrder(ctx context.Context, arg SetAccountSortOrderParams) (int64, error)
 	SetBudgetSortOrder(ctx context.Context, arg SetBudgetSortOrderParams) (int64, error)

@@ -1637,6 +1637,1125 @@
             "description": "see LoanInput.account_amount"
           }
         }
+      },
+      "SearchTag": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      },
+      "SearchTransaction": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "INCOME",
+              "EXPENSE",
+              "TRANSFER"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "account_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "category_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "planned": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "MANUAL",
+              "IMPORT",
+              "PERSONAL_LEGACY"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchTag"
+            }
+          }
+        },
+        "description": "Wallet transaction hit. planned=true when occurred_at is null (then due_at is set). ADJUSTMENT and LOAN rows are never returned."
+      },
+      "SearchAccount": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          }
+        }
+      },
+      "SearchLoan": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "LEND",
+              "BORROW"
+            ]
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "remaining": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "paid_off": {
+            "type": "boolean"
+          }
+        },
+        "description": "amount is the loan's original amount; remaining is in the loan currency (minor units) after records."
+      },
+      "SearchPlanned": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "INCOME",
+              "EXPENSE",
+              "TRANSFER"
+            ]
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "next_due_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "one_time": {
+            "type": "boolean"
+          },
+          "interval_n": {
+            "type": "integer",
+            "nullable": true
+          },
+          "interval_unit": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "DAY",
+              "WEEK",
+              "MONTH",
+              "YEAR",
+              null
+            ]
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SearchBudget": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          }
+        }
+      },
+      "SearchCategory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      },
+      "SearchResult": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "avatar_url": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "expenses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "group_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "currency": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "transactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchTransaction"
+            }
+          },
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchAccount"
+            }
+          },
+          "loans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchLoan"
+            }
+          },
+          "planned": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchPlanned"
+            }
+          },
+          "budgets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchBudget"
+            }
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchCategory"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchTag"
+            }
+          }
+        },
+        "description": "Every group is always present (empty array when nothing matches or q is empty)."
+      },
+      "BackupDocument": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "enum": [
+              2
+            ]
+          },
+          "exported_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "avatar_url": {
+                "type": "string",
+                "nullable": true
+              },
+              "default_currency": {
+                "type": "string"
+              },
+              "timezone": {
+                "type": "string"
+              },
+              "email_verified_at": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              },
+              "bank_name": {
+                "type": "string",
+                "nullable": true
+              },
+              "payment_handle": {
+                "type": "string",
+                "nullable": true
+              },
+              "bank_qr_url": {
+                "type": "string",
+                "nullable": true
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "description": "Profile without password hash, tokens or sessions."
+          },
+          "settings": {
+            "type": "object",
+            "properties": {
+              "month_start_day": {
+                "type": "integer"
+              },
+              "hide_balance": {
+                "type": "boolean"
+              },
+              "hide_income": {
+                "type": "boolean"
+              },
+              "treat_transfers_as_flow": {
+                "type": "boolean"
+              },
+              "theme": {
+                "type": "string"
+              },
+              "reminder_enabled": {
+                "type": "boolean"
+              },
+              "reminder_time": {
+                "type": "string"
+              },
+              "onboarded_at": {
+                "type": "string",
+                "format": "date-time",
+                "nullable": true
+              }
+            }
+          },
+          "rate_overrides": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "base": {
+                  "type": "string"
+                },
+                "quote": {
+                  "type": "string"
+                },
+                "rate": {
+                  "type": "number"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "accounts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "color": {
+                  "type": "string"
+                },
+                "icon": {
+                  "type": "string"
+                },
+                "include_in_balance": {
+                  "type": "boolean"
+                },
+                "is_default": {
+                  "type": "boolean"
+                },
+                "sort_order": {
+                  "type": "integer"
+                },
+                "archived_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "nullable": true
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "icon": {
+                  "type": "string"
+                },
+                "color": {
+                  "type": "string"
+                },
+                "grouping": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "category_order": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "category_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "sort_order": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "color": {
+                  "type": "string"
+                },
+                "icon": {
+                  "type": "string"
+                },
+                "sort_order": {
+                  "type": "integer"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "transactions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "INCOME",
+                    "EXPENSE",
+                    "TRANSFER"
+                  ]
+                },
+                "account_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "nullable": true
+                },
+                "to_account_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "nullable": true
+                },
+                "amount": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "to_amount": {
+                  "type": "integer",
+                  "format": "int64",
+                  "nullable": true
+                },
+                "category_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "nullable": true
+                },
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "occurred_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "nullable": true
+                },
+                "due_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "nullable": true
+                },
+                "planned": {
+                  "type": "boolean"
+                },
+                "planned_payment_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "nullable": true
+                },
+                "loan_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "nullable": true
+                },
+                "loan_record_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "nullable": true
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "MANUAL",
+                    "ADJUSTMENT",
+                    "LOAN",
+                    "IMPORT",
+                    "PERSONAL_LEGACY"
+                  ]
+                },
+                "import_ref": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "tag_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "description": "Raw stored transaction row (amounts in minor units = hundredths). ADJUSTMENT/LOAN bookings are included; ids are the live ids."
+            }
+          },
+          "planned_payments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "account_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "nullable": true
+                },
+                "to_account_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "nullable": true
+                },
+                "amount": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "to_amount": {
+                  "type": "integer",
+                  "format": "int64",
+                  "nullable": true
+                },
+                "category_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "nullable": true
+                },
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "start_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "one_time": {
+                  "type": "boolean"
+                },
+                "interval_n": {
+                  "type": "integer",
+                  "nullable": true
+                },
+                "interval_unit": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "active": {
+                  "type": "boolean"
+                },
+                "resolved_until": {
+                  "type": "string",
+                  "format": "date-time",
+                  "nullable": true
+                },
+                "tag_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "budgets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "category_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "account_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "sort_order": {
+                  "type": "integer"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "loans": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "LEND",
+                    "BORROW"
+                  ]
+                },
+                "amount": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "color": {
+                  "type": "string"
+                },
+                "icon": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "account_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "nullable": true
+                },
+                "occurred_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "sort_order": {
+                  "type": "integer"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "records": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "loan_id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "INCREASE",
+                          "DECREASE"
+                        ]
+                      },
+                      "amount": {
+                        "type": "integer",
+                        "format": "int64"
+                      },
+                      "note": {
+                        "type": "string"
+                      },
+                      "occurred_at": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "account_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                      },
+                      "transaction_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                      },
+                      "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "group_type": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string"
+                },
+                "archived_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "nullable": true
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "expenses": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "category_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                      },
+                      "category": {
+                        "type": "string"
+                      },
+                      "paid_by_id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "paid_by": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "integer",
+                        "format": "int64"
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "split_mode": {
+                        "type": "string"
+                      },
+                      "expense_date": {
+                        "type": "string"
+                      },
+                      "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "notes": {
+                        "type": "string"
+                      },
+                      "payer_account_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                      },
+                      "my_share": {
+                        "type": "integer",
+                        "format": "int64"
+                      }
+                    }
+                  }
+                },
+                "settlements": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "from_user_id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "from_name": {
+                        "type": "string"
+                      },
+                      "to_user_id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "to_name": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "integer",
+                        "format": "int64"
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "note": {
+                        "type": "string"
+                      },
+                      "settled_at": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "from_account_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "group_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "group_name": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "paid_by": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "split_mode": {
+                  "type": "string"
+                },
+                "expense_date": {
+                  "type": "string"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        },
+        "description": "Complete, versioned backup of the caller's data (version 2). Only live rows (not deleted) are included. Ids are stable (the stored ids). `data` is the version 1 flat group-expense list, kept for existing readers; personal_expenses are not exported separately because migration 0013 moved them into transactions (source PERSONAL_LEGACY)."
       }
     },
     "parameters": {
@@ -3261,22 +4380,24 @@
           {
             "bearerAuth": []
           }
-        ]
+        ],
+        "description": "Group expenses only (unchanged). For wallet data use /me/export/transactions.csv and the sibling files, or the JSON backup."
       }
     },
     "/api/v1/me/export.json": {
       "get": {
-        "summary": "Export my data as JSON",
+        "summary": "Export my data as a JSON backup (version 2)",
         "tags": [
           "Export"
         ],
+        "description": "Streams a complete backup document (see BackupDocument). Downloaded as settlr-all-data.json. Transactions are streamed in pages; if the stream fails midway the connection is reset instead of ending a truncated file cleanly.",
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "Backup document",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/BackupDocument"
                 }
               }
             }
@@ -4072,9 +5193,34 @@
     "/api/v1/search": {
       "get": {
         "summary": "Search",
+        "tags": [
+          "Search"
+        ],
+        "description": "Case-insensitive substring search (min 1 character after trimming; empty q returns empty groups). users/groups/expenses behave as before. The wallet groups (transactions, accounts, loans, planned, budgets, categories, tags) are scoped to the caller (categories: own + system), matched with %, _ and \\ treated literally (q is cut at 100 characters), ordered newest/first-by-sort-order and capped at 10 each. transactions match title, description or tag name, include planned items, and exclude ADJUSTMENT and LOAN sources (loans are listed in `loans`).",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "search text; matched case-insensitively as a substring"
+          }
+        ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
           }
         },
         "security": [
@@ -5064,6 +6210,33 @@
               "type": "integer"
             },
             "description": "page size (default 50, max 200)"
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list (case-insensitive) of sources to include: MANUAL, ADJUSTMENT, LOAN, IMPORT, PERSONAL_LEGACY. Unknown value -> 422 VALIDATION_ERROR."
+          },
+          {
+            "name": "exclude_source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of sources to exclude (same values as source). Combined with source: included AND not excluded. Unknown value -> 422."
+          },
+          {
+            "name": "hide_adjustments",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "true|false (default false). Alias for exclude_source=ADJUSTMENT (hides \"Initial balance\"/\"Balance adjustment\" rows). Anything else -> 422."
           }
         ]
       },
@@ -5881,6 +7054,33 @@
               "type": "string"
             },
             "description": "comma list of group ids"
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list (case-insensitive) of sources to include: MANUAL, ADJUSTMENT, LOAN, IMPORT, PERSONAL_LEGACY. The ledger additionally knows GROUP (group expense shares and settlements). Unknown value -> 422 VALIDATION_ERROR."
+          },
+          {
+            "name": "exclude_source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "comma list of sources to exclude (same values as source). Combined with source: included AND not excluded. Unknown value -> 422."
+          },
+          {
+            "name": "hide_adjustments",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "true|false (default false). Alias for exclude_source=ADJUSTMENT (hides \"Initial balance\"/\"Balance adjustment\" rows). Anything else -> 422."
           }
         ]
       }
@@ -8164,6 +9364,122 @@
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ]
+      }
+    },
+    "/api/v1/me/export/transactions.csv": {
+      "get": {
+        "summary": "Export wallet transactions as CSV",
+        "tags": [
+          "Export"
+        ],
+        "description": "All wallet transactions of the caller, newest first (planned items included with planned=true and date = due date; ADJUSTMENT and LOAN bookings included, see the source column). Group-share ledger entries are not included. Streamed. Header: id,date,planned,type,title,description,account,to_account,category,tags,amount_minor,amount,currency,to_amount_minor,to_amount,to_currency,source. Text cells that start with = + - @ (or a tab/CR) are prefixed with ' (CSV/formula injection protection); amounts are never prefixed. RFC 4180 quoting. Amounts: *_minor are stored minor units (hundredths of the major unit for every currency), the unprefixed columns the same value as a decimal string with 2 decimals.",
+        "responses": {
+          "200": {
+            "description": "CSV file",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/export/accounts.csv": {
+      "get": {
+        "summary": "Export accounts as CSV",
+        "tags": [
+          "Export"
+        ],
+        "description": "Live accounts (archived included). Header: id,name,currency,color,icon,include_in_balance,is_default,archived,created_at. Text cells that start with = + - @ (or a tab/CR) are prefixed with ' (CSV/formula injection protection); amounts are never prefixed. RFC 4180 quoting. Amounts: *_minor are stored minor units (hundredths of the major unit for every currency), the unprefixed columns the same value as a decimal string with 2 decimals.",
+        "responses": {
+          "200": {
+            "description": "CSV file",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/export/budgets.csv": {
+      "get": {
+        "summary": "Export budgets as CSV",
+        "tags": [
+          "Export"
+        ],
+        "description": "Budgets with category/account names joined by '; '. Header: id,name,amount_minor,amount,currency,categories,accounts. Text cells that start with = + - @ (or a tab/CR) are prefixed with ' (CSV/formula injection protection); amounts are never prefixed. RFC 4180 quoting. Amounts: *_minor are stored minor units (hundredths of the major unit for every currency), the unprefixed columns the same value as a decimal string with 2 decimals.",
+        "responses": {
+          "200": {
+            "description": "CSV file",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/export/loans.csv": {
+      "get": {
+        "summary": "Export loans as CSV",
+        "tags": [
+          "Export"
+        ],
+        "description": "Loans with totals (amount + increases, paid = decreases, remaining). Header: id,name,type,amount_minor,amount,currency,total_minor,total,paid_minor,paid,remaining_minor,remaining,paid_off,account,date,note. Text cells that start with = + - @ (or a tab/CR) are prefixed with ' (CSV/formula injection protection); amounts are never prefixed. RFC 4180 quoting. Amounts: *_minor are stored minor units (hundredths of the major unit for every currency), the unprefixed columns the same value as a decimal string with 2 decimals.",
+        "responses": {
+          "200": {
+            "description": "CSV file",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
           }
         ]
       }

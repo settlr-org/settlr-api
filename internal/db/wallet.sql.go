@@ -816,21 +816,23 @@ WHERE le.user_id = $1
   AND ($4::timestamptz IS NULL OR le.sort_at < $4::timestamptz)
   AND (cardinality($5::text[]) = 0 OR le.kind = ANY($5::text[]))
   AND (cardinality($6::text[]) = 0 OR le.type = ANY($6::text[]))
-  AND (cardinality($7::uuid[]) = 0 OR le.account_id = ANY($7::uuid[]) OR le.to_account_id = ANY($7::uuid[]))
-  AND (cardinality($8::uuid[]) = 0 OR le.category_id = ANY($8::uuid[]))
-  AND (cardinality($9::uuid[]) = 0 OR le.group_id = ANY($9::uuid[]))
-  AND (cardinality($10::uuid[]) = 0 OR (le.kind = 'TRANSACTION' AND EXISTS (
-        SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY($10::uuid[]))))
-  AND (cardinality($11::uuid[]) = 0 OR le.kind <> 'TRANSACTION' OR NOT EXISTS (
-        SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY($11::uuid[])))
-  AND ($12::text = '' OR le.title ILIKE '%' || $12::text || '%' OR le.description ILIKE '%' || $12::text || '%')
-  AND ($13::text = '' OR NOT (le.title ILIKE '%' || $13::text || '%' OR le.description ILIKE '%' || $13::text || '%'))
-  AND ($14::bigint IS NULL OR le.amount >= $14::bigint)
-  AND ($15::bigint IS NULL OR le.amount <= $15::bigint)
-  AND ($16::timestamptz IS NULL
-       OR (le.sort_at, le.id) < ($16::timestamptz, $17::uuid))
+  AND (cardinality($7::text[]) = 0 OR le.source = ANY($7::text[]))
+  AND (cardinality($8::text[]) = 0 OR NOT (le.source = ANY($8::text[])))
+  AND (cardinality($9::uuid[]) = 0 OR le.account_id = ANY($9::uuid[]) OR le.to_account_id = ANY($9::uuid[]))
+  AND (cardinality($10::uuid[]) = 0 OR le.category_id = ANY($10::uuid[]))
+  AND (cardinality($11::uuid[]) = 0 OR le.group_id = ANY($11::uuid[]))
+  AND (cardinality($12::uuid[]) = 0 OR (le.kind = 'TRANSACTION' AND EXISTS (
+        SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY($12::uuid[]))))
+  AND (cardinality($13::uuid[]) = 0 OR le.kind <> 'TRANSACTION' OR NOT EXISTS (
+        SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY($13::uuid[])))
+  AND ($14::text = '' OR le.title ILIKE '%' || $14::text || '%' OR le.description ILIKE '%' || $14::text || '%')
+  AND ($15::text = '' OR NOT (le.title ILIKE '%' || $15::text || '%' OR le.description ILIKE '%' || $15::text || '%'))
+  AND ($16::bigint IS NULL OR le.amount >= $16::bigint)
+  AND ($17::bigint IS NULL OR le.amount <= $17::bigint)
+  AND ($18::timestamptz IS NULL
+       OR (le.sort_at, le.id) < ($18::timestamptz, $19::uuid))
 ORDER BY le.sort_at DESC, le.id DESC
-LIMIT $18::int
+LIMIT $20::int
 `
 
 type ListLedgerEntriesParams struct {
@@ -840,6 +842,8 @@ type ListLedgerEntriesParams struct {
 	ToAt        pgtype.Timestamptz `json:"to_at"`
 	Kinds       []string           `json:"kinds"`
 	Types       []string           `json:"types"`
+	Sources     []string           `json:"sources"`
+	ExclSources []string           `json:"excl_sources"`
 	AccountIds  []pgtype.UUID      `json:"account_ids"`
 	CategoryIds []pgtype.UUID      `json:"category_ids"`
 	GroupIds    []pgtype.UUID      `json:"group_ids"`
@@ -863,6 +867,8 @@ func (q *Queries) ListLedgerEntries(ctx context.Context, arg ListLedgerEntriesPa
 		arg.ToAt,
 		arg.Kinds,
 		arg.Types,
+		arg.Sources,
+		arg.ExclSources,
 		arg.AccountIds,
 		arg.CategoryIds,
 		arg.GroupIds,
@@ -1043,20 +1049,22 @@ WHERE t.user_id = $1 AND t.deleted_at IS NULL
   AND ($3::timestamptz IS NULL OR COALESCE(t.occurred_at, t.due_at) >= $3::timestamptz)
   AND ($4::timestamptz IS NULL OR COALESCE(t.occurred_at, t.due_at) < $4::timestamptz)
   AND (cardinality($5::text[]) = 0 OR t.type = ANY($5::text[]))
-  AND (cardinality($6::uuid[]) = 0 OR t.account_id = ANY($6::uuid[]) OR t.to_account_id = ANY($6::uuid[]))
-  AND (cardinality($7::uuid[]) = 0 OR t.category_id = ANY($7::uuid[]))
-  AND (cardinality($8::uuid[]) = 0 OR EXISTS (
-        SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = t.id AND tt.tag_id = ANY($8::uuid[])))
-  AND (cardinality($9::uuid[]) = 0 OR NOT EXISTS (
-        SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = t.id AND tt.tag_id = ANY($9::uuid[])))
-  AND ($10::text = '' OR t.title ILIKE '%' || $10::text || '%' OR t.description ILIKE '%' || $10::text || '%')
-  AND ($11::text = '' OR NOT (t.title ILIKE '%' || $11::text || '%' OR t.description ILIKE '%' || $11::text || '%'))
-  AND ($12::bigint IS NULL OR t.amount >= $12::bigint)
-  AND ($13::bigint IS NULL OR t.amount <= $13::bigint)
-  AND ($14::timestamptz IS NULL
-       OR (COALESCE(t.occurred_at, t.due_at), t.id) < ($14::timestamptz, $15::uuid))
+  AND (cardinality($6::text[]) = 0 OR t.source = ANY($6::text[]))
+  AND (cardinality($7::text[]) = 0 OR NOT (t.source = ANY($7::text[])))
+  AND (cardinality($8::uuid[]) = 0 OR t.account_id = ANY($8::uuid[]) OR t.to_account_id = ANY($8::uuid[]))
+  AND (cardinality($9::uuid[]) = 0 OR t.category_id = ANY($9::uuid[]))
+  AND (cardinality($10::uuid[]) = 0 OR EXISTS (
+        SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = t.id AND tt.tag_id = ANY($10::uuid[])))
+  AND (cardinality($11::uuid[]) = 0 OR NOT EXISTS (
+        SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = t.id AND tt.tag_id = ANY($11::uuid[])))
+  AND ($12::text = '' OR t.title ILIKE '%' || $12::text || '%' OR t.description ILIKE '%' || $12::text || '%')
+  AND ($13::text = '' OR NOT (t.title ILIKE '%' || $13::text || '%' OR t.description ILIKE '%' || $13::text || '%'))
+  AND ($14::bigint IS NULL OR t.amount >= $14::bigint)
+  AND ($15::bigint IS NULL OR t.amount <= $15::bigint)
+  AND ($16::timestamptz IS NULL
+       OR (COALESCE(t.occurred_at, t.due_at), t.id) < ($16::timestamptz, $17::uuid))
 ORDER BY COALESCE(t.occurred_at, t.due_at) DESC, t.id DESC
-LIMIT $16::int
+LIMIT $18::int
 `
 
 type ListTransactionsParams struct {
@@ -1065,6 +1073,8 @@ type ListTransactionsParams struct {
 	FromAt      pgtype.Timestamptz `json:"from_at"`
 	ToAt        pgtype.Timestamptz `json:"to_at"`
 	Types       []string           `json:"types"`
+	Sources     []string           `json:"sources"`
+	ExclSources []string           `json:"excl_sources"`
 	AccountIds  []pgtype.UUID      `json:"account_ids"`
 	CategoryIds []pgtype.UUID      `json:"category_ids"`
 	TagIds      []pgtype.UUID      `json:"tag_ids"`
@@ -1085,6 +1095,8 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 		arg.FromAt,
 		arg.ToAt,
 		arg.Types,
+		arg.Sources,
+		arg.ExclSources,
 		arg.AccountIds,
 		arg.CategoryIds,
 		arg.TagIds,

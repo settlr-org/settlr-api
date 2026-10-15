@@ -47,6 +47,10 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) h
 	mux.Handle("GET /api/v1/groups/{id}/export", authMw(http.HandlerFunc(h.GroupExport)))
 	mux.Handle("GET /api/v1/me/export.csv", authMw(http.HandlerFunc(h.MyCSV)))
 	mux.Handle("GET /api/v1/me/export.json", authMw(http.HandlerFunc(h.MyJSON)))
+	mux.Handle("GET /api/v1/me/export/transactions.csv", authMw(http.HandlerFunc(h.TransactionsCSV)))
+	mux.Handle("GET /api/v1/me/export/accounts.csv", authMw(http.HandlerFunc(h.AccountsCSV)))
+	mux.Handle("GET /api/v1/me/export/budgets.csv", authMw(http.HandlerFunc(h.BudgetsCSV)))
+	mux.Handle("GET /api/v1/me/export/loans.csv", authMw(http.HandlerFunc(h.LoansCSV)))
 }
 
 // MyCSV exports every expense across all of the user's groups.
@@ -104,39 +108,6 @@ func (h *Handler) GroupExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.GroupCSV(w, r)
-}
-
-func (h *Handler) MyJSON(w http.ResponseWriter, r *http.Request) {
-	uid, _ := httpx.GetUserID(r.Context())
-	userID, _ := uuid.Parse(uid)
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Content-Disposition", "attachment; filename=\"settlr-all-data.json\"")
-	q := h.ensureQueries()
-	if q == nil {
-		httpx.WriteError(w, r, fmt.Errorf("no db queries available"))
-		return
-	}
-	rows, err := q.ExportMyJSON(r.Context(), userID)
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	var out []map[string]any
-	for _, row := range rows {
-		ed := ""
-		if row.ExpenseDate.Valid {
-			ed = row.ExpenseDate.Time.Format("2006-01-02")
-		}
-		var ca any
-		if row.CreatedAt.Valid {
-			ca = row.CreatedAt.Time
-		}
-		out = append(out, map[string]any{"id": row.ID, "group_id": row.GroupID, "group_name": row.GroupName, "description": row.Description, "category": row.Category, "paid_by": row.PaidBy, "amount": row.Amount, "currency": row.Currency, "split_mode": row.SplitMode, "expense_date": ed, "created_at": ca})
-	}
-	if out == nil {
-		out = []map[string]any{}
-	}
-	httpx.WriteJSON(w, 200, map[string]any{"data": out})
 }
 
 func (h *Handler) GroupJSON(w http.ResponseWriter, r *http.Request) {

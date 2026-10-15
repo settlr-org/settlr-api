@@ -298,7 +298,7 @@ func (h *Handler) SearchUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := q.SearchUsersByName(r.Context(), db.SearchUsersByNameParams{
-		Column1: pgtype.Text{String: qStr, Valid: true},
+		Column1: httpx.LikeContains(qStr),
 		Column2: pgtype.UUID{Bytes: currentID, Valid: true},
 	})
 	if err != nil {

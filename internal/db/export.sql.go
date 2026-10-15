@@ -28,6 +28,137 @@ func (q *Queries) CheckExportGroupMember(ctx context.Context, arg CheckExportGro
 	return is_member, err
 }
 
+const exportAccounts = `-- name: ExportAccounts :many
+SELECT id, user_id, name, currency, color, icon, include_in_balance, is_default, sort_order, archived_at, created_at, updated_at, deleted_at FROM accounts WHERE user_id = $1 AND deleted_at IS NULL ORDER BY sort_order, created_at, id
+`
+
+func (q *Queries) ExportAccounts(ctx context.Context, userID uuid.UUID) ([]Account, error) {
+	rows, err := q.db.Query(ctx, exportAccounts, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Account
+	for rows.Next() {
+		var i Account
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Name,
+			&i.Currency,
+			&i.Color,
+			&i.Icon,
+			&i.IncludeInBalance,
+			&i.IsDefault,
+			&i.SortOrder,
+			&i.ArchivedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportBudgets = `-- name: ExportBudgets :many
+SELECT id, user_id, name, amount, currency, category_ids, account_ids, sort_order, created_at, updated_at FROM budgets WHERE user_id = $1 ORDER BY sort_order, created_at, id
+`
+
+func (q *Queries) ExportBudgets(ctx context.Context, userID uuid.UUID) ([]Budget, error) {
+	rows, err := q.db.Query(ctx, exportBudgets, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Budget
+	for rows.Next() {
+		var i Budget
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Name,
+			&i.Amount,
+			&i.Currency,
+			&i.CategoryIds,
+			&i.AccountIds,
+			&i.SortOrder,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportCategoryNames = `-- name: ExportCategoryNames :many
+SELECT id, name FROM categories WHERE id = ANY($1::uuid[])
+`
+
+type ExportCategoryNamesRow struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+func (q *Queries) ExportCategoryNames(ctx context.Context, ids []pgtype.UUID) ([]ExportCategoryNamesRow, error) {
+	rows, err := q.db.Query(ctx, exportCategoryNames, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ExportCategoryNamesRow
+	for rows.Next() {
+		var i ExportCategoryNamesRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportCategoryOrder = `-- name: ExportCategoryOrder :many
+SELECT category_id, sort_order FROM category_order WHERE user_id = $1 ORDER BY sort_order, category_id
+`
+
+type ExportCategoryOrderRow struct {
+	CategoryID uuid.UUID `json:"category_id"`
+	SortOrder  int32     `json:"sort_order"`
+}
+
+func (q *Queries) ExportCategoryOrder(ctx context.Context, userID uuid.UUID) ([]ExportCategoryOrderRow, error) {
+	rows, err := q.db.Query(ctx, exportCategoryOrder, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ExportCategoryOrderRow
+	for rows.Next() {
+		var i ExportCategoryOrderRow
+		if err := rows.Scan(&i.CategoryID, &i.SortOrder); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportGroupCSV = `-- name: ExportGroupCSV :many
 SELECT e.expense_date, e.description, coalesce(c.name, '') AS category,
        pu.name AS paid_by, e.amount, e.currency, e.split_mode,
@@ -181,6 +312,85 @@ func (q *Queries) ExportGroupSettlements(ctx context.Context, groupID uuid.UUID)
 	return items, nil
 }
 
+const exportLoanRecords = `-- name: ExportLoanRecords :many
+SELECT r.id, r.loan_id, r.user_id, r.type, r.amount, r.note, r.occurred_at, r.account_id, r.transaction_id, r.created_at, r.updated_at, r.deleted_at FROM loan_records r JOIN loans l ON l.id = r.loan_id
+WHERE r.user_id = $1 AND r.deleted_at IS NULL AND l.deleted_at IS NULL
+ORDER BY r.occurred_at, r.id
+`
+
+func (q *Queries) ExportLoanRecords(ctx context.Context, userID uuid.UUID) ([]LoanRecord, error) {
+	rows, err := q.db.Query(ctx, exportLoanRecords, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []LoanRecord
+	for rows.Next() {
+		var i LoanRecord
+		if err := rows.Scan(
+			&i.ID,
+			&i.LoanID,
+			&i.UserID,
+			&i.Type,
+			&i.Amount,
+			&i.Note,
+			&i.OccurredAt,
+			&i.AccountID,
+			&i.TransactionID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportLoans = `-- name: ExportLoans :many
+SELECT id, user_id, name, type, amount, currency, color, icon, note, account_id, occurred_at, sort_order, created_at, updated_at, deleted_at FROM loans WHERE user_id = $1 AND deleted_at IS NULL ORDER BY sort_order, created_at, id
+`
+
+func (q *Queries) ExportLoans(ctx context.Context, userID uuid.UUID) ([]Loan, error) {
+	rows, err := q.db.Query(ctx, exportLoans, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Loan
+	for rows.Next() {
+		var i Loan
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Name,
+			&i.Type,
+			&i.Amount,
+			&i.Currency,
+			&i.Color,
+			&i.Icon,
+			&i.Note,
+			&i.AccountID,
+			&i.OccurredAt,
+			&i.SortOrder,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportMyCSV = `-- name: ExportMyCSV :many
 
 SELECT e.expense_date, g.name AS group_name, e.description, coalesce(c.name, '') AS category,
@@ -233,6 +443,181 @@ func (q *Queries) ExportMyCSV(ctx context.Context, userID uuid.UUID) ([]ExportMy
 			&i.SplitMode,
 			&i.SplitUser,
 			&i.SplitAmount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportMyGroupExpenses = `-- name: ExportMyGroupExpenses :many
+SELECT e.id, e.group_id, e.description, e.category_id, coalesce(c.name, '')::text AS category,
+       e.paid_by AS paid_by_id, pu.name AS paid_by, e.amount, e.currency::text AS currency, e.split_mode,
+       e.expense_date, e.created_at, e.notes,
+       (CASE WHEN e.paid_by = $1 THEN e.payer_account_id END)::uuid AS payer_account_id,
+       coalesce(s.amount, 0)::bigint AS my_share
+FROM expenses e
+JOIN group_members gm ON gm.group_id = e.group_id AND gm.user_id = $1
+JOIN users pu ON pu.id = e.paid_by
+LEFT JOIN categories c ON c.id = e.category_id
+LEFT JOIN expense_splits s ON s.expense_id = e.id AND s.user_id = $1
+WHERE e.deleted_at IS NULL
+ORDER BY e.expense_date, e.created_at, e.id
+`
+
+type ExportMyGroupExpensesRow struct {
+	ID             uuid.UUID          `json:"id"`
+	GroupID        uuid.UUID          `json:"group_id"`
+	Description    string             `json:"description"`
+	CategoryID     uuid.UUID          `json:"category_id"`
+	Category       string             `json:"category"`
+	PaidByID       uuid.UUID          `json:"paid_by_id"`
+	PaidBy         string             `json:"paid_by"`
+	Amount         int64              `json:"amount"`
+	Currency       string             `json:"currency"`
+	SplitMode      string             `json:"split_mode"`
+	ExpenseDate    pgtype.Date        `json:"expense_date"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	Notes          string             `json:"notes"`
+	PayerAccountID pgtype.UUID        `json:"payer_account_id"`
+	MyShare        int64              `json:"my_share"`
+}
+
+// paid_by_id/payer_account_id and my_share describe the caller's side; payer_account_id is
+// only set when the caller paid.
+func (q *Queries) ExportMyGroupExpenses(ctx context.Context, userID uuid.UUID) ([]ExportMyGroupExpensesRow, error) {
+	rows, err := q.db.Query(ctx, exportMyGroupExpenses, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ExportMyGroupExpensesRow
+	for rows.Next() {
+		var i ExportMyGroupExpensesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.GroupID,
+			&i.Description,
+			&i.CategoryID,
+			&i.Category,
+			&i.PaidByID,
+			&i.PaidBy,
+			&i.Amount,
+			&i.Currency,
+			&i.SplitMode,
+			&i.ExpenseDate,
+			&i.CreatedAt,
+			&i.Notes,
+			&i.PayerAccountID,
+			&i.MyShare,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportMyGroupSettlements = `-- name: ExportMyGroupSettlements :many
+SELECT st.id, st.group_id, st.from_user, f.name AS from_name, st.to_user, t.name AS to_name,
+       st.amount, st.currency::text AS currency, st.note, st.settled_at,
+       (CASE WHEN st.from_user = $1 THEN st.from_account_id END)::uuid AS from_account_id
+FROM settlements st
+JOIN group_members gm ON gm.group_id = st.group_id AND gm.user_id = $1
+JOIN users f ON f.id = st.from_user
+JOIN users t ON t.id = st.to_user
+WHERE st.deleted_at IS NULL
+ORDER BY st.settled_at, st.id
+`
+
+type ExportMyGroupSettlementsRow struct {
+	ID            uuid.UUID          `json:"id"`
+	GroupID       uuid.UUID          `json:"group_id"`
+	FromUser      uuid.UUID          `json:"from_user"`
+	FromName      string             `json:"from_name"`
+	ToUser        uuid.UUID          `json:"to_user"`
+	ToName        string             `json:"to_name"`
+	Amount        int64              `json:"amount"`
+	Currency      string             `json:"currency"`
+	Note          string             `json:"note"`
+	SettledAt     pgtype.Timestamptz `json:"settled_at"`
+	FromAccountID pgtype.UUID        `json:"from_account_id"`
+}
+
+func (q *Queries) ExportMyGroupSettlements(ctx context.Context, userID uuid.UUID) ([]ExportMyGroupSettlementsRow, error) {
+	rows, err := q.db.Query(ctx, exportMyGroupSettlements, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ExportMyGroupSettlementsRow
+	for rows.Next() {
+		var i ExportMyGroupSettlementsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.GroupID,
+			&i.FromUser,
+			&i.FromName,
+			&i.ToUser,
+			&i.ToName,
+			&i.Amount,
+			&i.Currency,
+			&i.Note,
+			&i.SettledAt,
+			&i.FromAccountID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportMyGroups = `-- name: ExportMyGroups :many
+SELECT g.id, g.name, g.description, g.currency, g.group_type, g.archived_at, g.created_at, gm.role
+FROM groups g JOIN group_members gm ON gm.group_id = g.id AND gm.user_id = $1
+ORDER BY g.created_at, g.id
+`
+
+type ExportMyGroupsRow struct {
+	ID          uuid.UUID          `json:"id"`
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	Currency    string             `json:"currency"`
+	GroupType   string             `json:"group_type"`
+	ArchivedAt  pgtype.Timestamptz `json:"archived_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	Role        string             `json:"role"`
+}
+
+func (q *Queries) ExportMyGroups(ctx context.Context, userID uuid.UUID) ([]ExportMyGroupsRow, error) {
+	rows, err := q.db.Query(ctx, exportMyGroups, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ExportMyGroupsRow
+	for rows.Next() {
+		var i ExportMyGroupsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.Currency,
+			&i.GroupType,
+			&i.ArchivedAt,
+			&i.CreatedAt,
+			&i.Role,
 		); err != nil {
 			return nil, err
 		}
@@ -299,6 +684,371 @@ func (q *Queries) ExportMyJSON(ctx context.Context, userID uuid.UUID) ([]ExportM
 		return nil, err
 	}
 	return items, nil
+}
+
+const exportOwnedCategories = `-- name: ExportOwnedCategories :many
+SELECT id, name, icon, color, grouping, created_at
+FROM categories WHERE owner_id = $1 AND NOT is_system ORDER BY created_at, id
+`
+
+type ExportOwnedCategoriesRow struct {
+	ID        uuid.UUID          `json:"id"`
+	Name      string             `json:"name"`
+	Icon      string             `json:"icon"`
+	Color     string             `json:"color"`
+	Grouping  pgtype.Text        `json:"grouping"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) ExportOwnedCategories(ctx context.Context, ownerID uuid.UUID) ([]ExportOwnedCategoriesRow, error) {
+	rows, err := q.db.Query(ctx, exportOwnedCategories, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ExportOwnedCategoriesRow
+	for rows.Next() {
+		var i ExportOwnedCategoriesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Icon,
+			&i.Color,
+			&i.Grouping,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportPlannedPayments = `-- name: ExportPlannedPayments :many
+SELECT p.id, p.user_id, p.type, p.account_id, p.to_account_id, p.amount, p.currency, p.to_amount, p.category_id, p.title, p.description, p.start_at, p.one_time, p.interval_n, p.interval_unit, p.active, p.resolved_until, p.created_at, p.updated_at, p.deleted_at,
+       (SELECT COALESCE(array_agg(pt.tag_id ORDER BY pt.tag_id), '{}') FROM planned_payment_tags pt WHERE pt.planned_payment_id = p.id)::uuid[] AS tag_ids
+FROM planned_payments p
+WHERE p.user_id = $1 AND p.deleted_at IS NULL
+ORDER BY p.created_at, p.id
+`
+
+type ExportPlannedPaymentsRow struct {
+	ID            uuid.UUID          `json:"id"`
+	UserID        uuid.UUID          `json:"user_id"`
+	Type          string             `json:"type"`
+	AccountID     pgtype.UUID        `json:"account_id"`
+	ToAccountID   pgtype.UUID        `json:"to_account_id"`
+	Amount        int64              `json:"amount"`
+	Currency      string             `json:"currency"`
+	ToAmount      pgtype.Int8        `json:"to_amount"`
+	CategoryID    uuid.UUID          `json:"category_id"`
+	Title         string             `json:"title"`
+	Description   string             `json:"description"`
+	StartAt       pgtype.Timestamptz `json:"start_at"`
+	OneTime       bool               `json:"one_time"`
+	IntervalN     pgtype.Int4        `json:"interval_n"`
+	IntervalUnit  pgtype.Text        `json:"interval_unit"`
+	Active        bool               `json:"active"`
+	ResolvedUntil pgtype.Timestamptz `json:"resolved_until"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt     pgtype.Timestamptz `json:"deleted_at"`
+	TagIds        []pgtype.UUID      `json:"tag_ids"`
+}
+
+func (q *Queries) ExportPlannedPayments(ctx context.Context, userID uuid.UUID) ([]ExportPlannedPaymentsRow, error) {
+	rows, err := q.db.Query(ctx, exportPlannedPayments, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ExportPlannedPaymentsRow
+	for rows.Next() {
+		var i ExportPlannedPaymentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Type,
+			&i.AccountID,
+			&i.ToAccountID,
+			&i.Amount,
+			&i.Currency,
+			&i.ToAmount,
+			&i.CategoryID,
+			&i.Title,
+			&i.Description,
+			&i.StartAt,
+			&i.OneTime,
+			&i.IntervalN,
+			&i.IntervalUnit,
+			&i.Active,
+			&i.ResolvedUntil,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.TagIds,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportTags = `-- name: ExportTags :many
+SELECT id, user_id, name, color, icon, sort_order, created_at, updated_at FROM tags WHERE user_id = $1 ORDER BY sort_order, created_at, id
+`
+
+func (q *Queries) ExportTags(ctx context.Context, userID uuid.UUID) ([]Tag, error) {
+	rows, err := q.db.Query(ctx, exportTags, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Tag
+	for rows.Next() {
+		var i Tag
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Name,
+			&i.Color,
+			&i.Icon,
+			&i.SortOrder,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportTransactionsCSVPage = `-- name: ExportTransactionsCSVPage :many
+SELECT t.id, t.type, t.title, t.description, t.amount, t.currency::text AS currency, t.to_amount,
+       COALESCE(ta.currency::text, '')::text AS to_currency, t.occurred_at, t.due_at, t.source,
+       COALESCE(a.name, '')::text AS account_name, COALESCE(ta.name, '')::text AS to_account_name,
+       COALESCE(c.name, '')::text AS category_name,
+       COALESCE((SELECT string_agg(g.name, '; ' ORDER BY g.sort_order, lower(g.name))
+                 FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = t.id), '')::text AS tag_names,
+       COALESCE(t.occurred_at, t.due_at)::timestamptz AS sort_at
+FROM transactions t
+LEFT JOIN accounts a ON a.id = t.account_id
+LEFT JOIN accounts ta ON ta.id = t.to_account_id
+LEFT JOIN categories c ON c.id = t.category_id
+WHERE t.user_id = $1 AND t.deleted_at IS NULL
+  AND ($2::timestamptz IS NULL
+       OR (COALESCE(t.occurred_at, t.due_at), t.id) < ($2::timestamptz, $3::uuid))
+ORDER BY COALESCE(t.occurred_at, t.due_at) DESC, t.id DESC
+LIMIT $4::int
+`
+
+type ExportTransactionsCSVPageParams struct {
+	UserID   uuid.UUID          `json:"user_id"`
+	CursorAt pgtype.Timestamptz `json:"cursor_at"`
+	CursorID pgtype.UUID        `json:"cursor_id"`
+	Lim      int32              `json:"lim"`
+}
+
+type ExportTransactionsCSVPageRow struct {
+	ID            uuid.UUID          `json:"id"`
+	Type          string             `json:"type"`
+	Title         string             `json:"title"`
+	Description   string             `json:"description"`
+	Amount        int64              `json:"amount"`
+	Currency      string             `json:"currency"`
+	ToAmount      pgtype.Int8        `json:"to_amount"`
+	ToCurrency    string             `json:"to_currency"`
+	OccurredAt    pgtype.Timestamptz `json:"occurred_at"`
+	DueAt         pgtype.Timestamptz `json:"due_at"`
+	Source        string             `json:"source"`
+	AccountName   string             `json:"account_name"`
+	ToAccountName string             `json:"to_account_name"`
+	CategoryName  string             `json:"category_name"`
+	TagNames      string             `json:"tag_names"`
+	SortAt        pgtype.Timestamptz `json:"sort_at"`
+}
+
+// Newest first (same order as the ledger), keyset-paginated by (sort time, id).
+func (q *Queries) ExportTransactionsCSVPage(ctx context.Context, arg ExportTransactionsCSVPageParams) ([]ExportTransactionsCSVPageRow, error) {
+	rows, err := q.db.Query(ctx, exportTransactionsCSVPage,
+		arg.UserID,
+		arg.CursorAt,
+		arg.CursorID,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ExportTransactionsCSVPageRow
+	for rows.Next() {
+		var i ExportTransactionsCSVPageRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Title,
+			&i.Description,
+			&i.Amount,
+			&i.Currency,
+			&i.ToAmount,
+			&i.ToCurrency,
+			&i.OccurredAt,
+			&i.DueAt,
+			&i.Source,
+			&i.AccountName,
+			&i.ToAccountName,
+			&i.CategoryName,
+			&i.TagNames,
+			&i.SortAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportTransactionsPage = `-- name: ExportTransactionsPage :many
+SELECT t.id, t.user_id, t.type, t.account_id, t.to_account_id, t.amount, t.currency, t.to_amount, t.category_id, t.title, t.description, t.occurred_at, t.due_at, t.planned_payment_id, t.loan_id, t.loan_record_id, t.source, t.import_ref, t.created_at, t.updated_at, t.deleted_at,
+       (SELECT COALESCE(array_agg(tt.tag_id ORDER BY tt.tag_id), '{}') FROM transaction_tags tt WHERE tt.transaction_id = t.id)::uuid[] AS tag_ids
+FROM transactions t
+WHERE t.user_id = $1 AND t.deleted_at IS NULL AND t.id > $2::uuid
+ORDER BY t.id
+LIMIT $3::int
+`
+
+type ExportTransactionsPageParams struct {
+	UserID  uuid.UUID   `json:"user_id"`
+	AfterID pgtype.UUID `json:"after_id"`
+	Lim     int32       `json:"lim"`
+}
+
+type ExportTransactionsPageRow struct {
+	ID               uuid.UUID          `json:"id"`
+	UserID           uuid.UUID          `json:"user_id"`
+	Type             string             `json:"type"`
+	AccountID        pgtype.UUID        `json:"account_id"`
+	ToAccountID      pgtype.UUID        `json:"to_account_id"`
+	Amount           int64              `json:"amount"`
+	Currency         string             `json:"currency"`
+	ToAmount         pgtype.Int8        `json:"to_amount"`
+	CategoryID       uuid.UUID          `json:"category_id"`
+	Title            string             `json:"title"`
+	Description      string             `json:"description"`
+	OccurredAt       pgtype.Timestamptz `json:"occurred_at"`
+	DueAt            pgtype.Timestamptz `json:"due_at"`
+	PlannedPaymentID pgtype.UUID        `json:"planned_payment_id"`
+	LoanID           pgtype.UUID        `json:"loan_id"`
+	LoanRecordID     pgtype.UUID        `json:"loan_record_id"`
+	Source           string             `json:"source"`
+	ImportRef        pgtype.Text        `json:"import_ref"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	TagIds           []pgtype.UUID      `json:"tag_ids"`
+}
+
+// Keyset-paginated by id so large histories stream in bounded memory.
+func (q *Queries) ExportTransactionsPage(ctx context.Context, arg ExportTransactionsPageParams) ([]ExportTransactionsPageRow, error) {
+	rows, err := q.db.Query(ctx, exportTransactionsPage, arg.UserID, arg.AfterID, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ExportTransactionsPageRow
+	for rows.Next() {
+		var i ExportTransactionsPageRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Type,
+			&i.AccountID,
+			&i.ToAccountID,
+			&i.Amount,
+			&i.Currency,
+			&i.ToAmount,
+			&i.CategoryID,
+			&i.Title,
+			&i.Description,
+			&i.OccurredAt,
+			&i.DueAt,
+			&i.PlannedPaymentID,
+			&i.LoanID,
+			&i.LoanRecordID,
+			&i.Source,
+			&i.ImportRef,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.TagIds,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportUserProfile = `-- name: ExportUserProfile :one
+
+SELECT id, name, email, avatar_url, default_currency, timezone, email_verified_at,
+       created_at, updated_at, bank_name, payment_handle, bank_qr_url
+FROM users WHERE id = $1
+`
+
+type ExportUserProfileRow struct {
+	ID              uuid.UUID          `json:"id"`
+	Name            string             `json:"name"`
+	Email           string             `json:"email"`
+	AvatarUrl       pgtype.Text        `json:"avatar_url"`
+	DefaultCurrency string             `json:"default_currency"`
+	Timezone        string             `json:"timezone"`
+	EmailVerifiedAt pgtype.Timestamptz `json:"email_verified_at"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	BankName        pgtype.Text        `json:"bank_name"`
+	PaymentHandle   pgtype.Text        `json:"payment_handle"`
+	BankQrUrl       pgtype.Text        `json:"bank_qr_url"`
+}
+
+// ---------------------------------------------------------------- wallet export
+// Backup (GET /me/export.json, version 2) and CSV exports. Only live (not soft-deleted)
+// rows of the caller are exported; ids are kept as stored.
+func (q *Queries) ExportUserProfile(ctx context.Context, id uuid.UUID) (ExportUserProfileRow, error) {
+	row := q.db.QueryRow(ctx, exportUserProfile, id)
+	var i ExportUserProfileRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.AvatarUrl,
+		&i.DefaultCurrency,
+		&i.Timezone,
+		&i.EmailVerifiedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.BankName,
+		&i.PaymentHandle,
+		&i.BankQrUrl,
+	)
+	return i, err
 }
 
 const getExportGroupName = `-- name: GetExportGroupName :one

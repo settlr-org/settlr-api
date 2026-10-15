@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/google/uuid"
@@ -145,6 +146,19 @@ func TestIntegration_Search(t *testing.T) {
 	resp.Body.Close()
 	if len(searchOut["users"].([]any)) != 0 || len(searchOut["groups"].([]any)) != 0 || len(searchOut["expenses"].([]any)) != 0 {
 		t.Fatalf("empty q should return empty")
+	}
+
+	// % and _ are literals, not wildcards: they must not list other users.
+	for _, q := range []string{"%", "_", "%25%25", "A_ice", "Al%ce", `\`} {
+		req, _ = http.NewRequest("GET", srv.URL+"/api/v1/search?q="+url.QueryEscape(q), nil)
+		req.Header.Set("Authorization", "Bearer "+aliceTok)
+		resp, _ = http.DefaultClient.Do(req)
+		var o map[string]any
+		_ = json.NewDecoder(resp.Body).Decode(&o)
+		resp.Body.Close()
+		if n := len(o["users"].([]any)); n != 0 {
+			t.Fatalf("q=%q matched %d users", q, n)
+		}
 	}
 
 	_ = gid
