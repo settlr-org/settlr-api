@@ -79,6 +79,19 @@ func TestIntegration_FriendsFlow(t *testing.T) {
 		t.Fatalf("unexpected search result: %#v", result)
 	}
 
+	// % and _ match literally (they must not list every user); fragments still match.
+	for q, want := range map[string]int{"%25": 0, "_": 0, "bob_friends": 0, "bob-friends@": 1, "BOBF": 1} {
+		req, _ = http.NewRequest("GET", srv.URL+"/api/v1/users/search?q="+q, nil)
+		req.Header.Set("Authorization", "Bearer "+aliceTok)
+		resp, _ = http.DefaultClient.Do(req)
+		var o map[string]any
+		_ = json.NewDecoder(resp.Body).Decode(&o)
+		resp.Body.Close()
+		if got := len(o["data"].([]any)); got != want {
+			t.Fatalf("users/search q=%q: %d results, want %d", q, got, want)
+		}
+	}
+
 	// Alice sends friend request to Bob
 	req, _ = http.NewRequest("POST", srv.URL+"/api/v1/friends/"+bobID.String()+"/request", nil)
 	req.Header.Set("Authorization", "Bearer "+aliceTok)

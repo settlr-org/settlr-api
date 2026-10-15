@@ -58,7 +58,7 @@ SELECT u.id, u.name, u.email, coalesce(u.avatar_url, '') AS avatar_url,
 FROM users u
 WHERE u.id <> $2
   AND u.is_anonymous = false
-  AND (u.name ILIKE '%' || $1 || '%' OR u.email ILIKE '%' || $1 || '%')
+  AND (u.name ILIKE $1::text ESCAPE '\' OR u.email ILIKE $1::text ESCAPE '\')
 ORDER BY u.name
 LIMIT 20;
 

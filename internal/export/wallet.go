@@ -177,6 +177,7 @@ func (h *Handler) MyJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	longWrite(w)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Disposition", "attachment; filename=\"settlr-all-data.json\"")
 	rc := http.NewResponseController(w)
@@ -465,7 +466,15 @@ func csvSafe(s string) string {
 		return s
 	}
 	switch s[0] {
-	case '=', '+', '-', '@', '\t', '\r':
+	case '\t', '\r', '\n':
+		return "'" + s
+	}
+	// Spreadsheets ignore leading spaces/quotes before a formula.
+	i := 0
+	for i < len(s) && (s[i] == ' ' || s[i] == '\'' || s[i] == '"') {
+		i++
+	}
+	if i < len(s) && strings.IndexByte("=+-@", s[i]) >= 0 {
 		return "'" + s
 	}
 	return s
@@ -480,6 +489,11 @@ func minorPtr(v pgtype.Int8) (string, string) {
 		return "", ""
 	}
 	return minor(v.Int64), money(v.Int64)
+}
+
+// longWrite lifts the server's 30s write deadline for a streamed export.
+func longWrite(w http.ResponseWriter) {
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(5 * time.Minute))
 }
 
 func newCSV(w http.ResponseWriter, filename string, header []string) *csv.Writer {
@@ -521,6 +535,7 @@ func (h *Handler) TransactionsCSV(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, err)
 		return
 	}
+	longWrite(w)
 	cw := newCSV(w, "settlr-transactions.csv", []string{
 		"id", "date", "planned", "type", "title", "description", "account", "to_account", "category", "tags",
 		"amount_minor", "amount", "currency", "to_amount_minor", "to_amount", "to_currency", "source",
@@ -565,7 +580,7 @@ func (h *Handler) AccountsCSV(w http.ResponseWriter, r *http.Request) {
 	cw := newCSV(w, "settlr-accounts.csv", []string{"id", "name", "currency", "color", "icon", "include_in_balance", "is_default", "archived", "created_at"})
 	for _, a := range accs {
 		_ = cw.Write([]string{
-			a.ID.String(), csvSafe(a.Name), cur(a.Currency), a.Color, a.Icon, strconv.FormatBool(a.IncludeInBalance),
+			a.ID.String(), csvSafe(a.Name), cur(a.Currency), csvSafe(a.Color), csvSafe(a.Icon), strconv.FormatBool(a.IncludeInBalance),
 			strconv.FormatBool(a.IsDefault), strconv.FormatBool(a.ArchivedAt.Valid), tsReq(a.CreatedAt).Format(time.RFC3339),
 		})
 	}

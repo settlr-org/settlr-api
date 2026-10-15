@@ -2,6 +2,7 @@ package search
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -47,7 +48,7 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 200, emptyResult())
 		return
 	}
-	uRows, _ := queries.SearchUsers(r.Context(), pgtype.Text{String: q, Valid: true})
+	uRows, _ := queries.SearchUsers(r.Context(), httpx.LikeContains(q))
 	var users []map[string]any
 	for _, u := range uRows {
 		users = append(users, map[string]any{"id": u.ID, "name": u.Name, "avatar_url": u.AvatarUrl})
@@ -73,8 +74,11 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 	}
 	res := map[string]any{"users": users, "groups": groups, "expenses": expenses}
 	if err := h.searchWallet(r.Context(), queries, userID, q, res); err != nil {
-		httpx.WriteError(w, r, err)
-		return
+		// Old clients never saw a 500 here: keep the legacy groups, drop the wallet ones.
+		slog.Error("search: wallet search failed", "error", err)
+		for _, k := range walletGroups {
+			res[k] = []any{}
+		}
 	}
 	httpx.WriteJSON(w, 200, res)
 }
@@ -93,14 +97,12 @@ func emptyResult() map[string]any {
 // maxQueryRunes bounds the wallet match pattern.
 const maxQueryRunes = 100
 
-// likePattern turns user input into a case-insensitive "contains" pattern for
-// ILIKE ... ESCAPE '\', escaping \, % and _ so they match literally.
+// likePattern builds the wallet match pattern from q, cut at maxQueryRunes.
 func likePattern(q string) string {
 	if utf8.RuneCountInString(q) > maxQueryRunes {
 		q = string([]rune(q)[:maxQueryRunes])
 	}
-	r := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
-	return "%" + r.Replace(q) + "%"
+	return httpx.LikeContains(q)
 }
 
 type tagOut struct {

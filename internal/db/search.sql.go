@@ -106,7 +106,8 @@ const searchUsers = `-- name: SearchUsers :many
 SELECT id, name, coalesce(avatar_url, '') AS avatar_url
 FROM users
 WHERE is_anonymous = false
-  AND (name ILIKE '%' || $1 || '%' OR email ILIKE '%' || $1 || '%')
+  AND (name ILIKE $1::text ESCAPE '\' OR email ILIKE $1::text ESCAPE '\')
+ORDER BY name, id
 LIMIT 10
 `
 
@@ -119,7 +120,7 @@ type SearchUsersRow struct {
 // Search domain queries for sqlc with pgx/v5.
 // These replace manual Pool.Query/Exec calls in internal/search/handlers.go
 // Handler usage: Handler{Pool *pgxpool.Pool, Queries *db.Queries} where Queries wraps the pool.
-func (q *Queries) SearchUsers(ctx context.Context, dollar_1 pgtype.Text) ([]SearchUsersRow, error) {
+func (q *Queries) SearchUsers(ctx context.Context, dollar_1 string) ([]SearchUsersRow, error) {
 	rows, err := q.db.Query(ctx, searchUsers, dollar_1)
 	if err != nil {
 		return nil, err

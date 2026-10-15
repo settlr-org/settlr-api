@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"log/slog"
 	"net"
 	"net/http"
@@ -61,11 +62,32 @@ func (rw *responseWriter) WriteHeader(code int) {
 	rw.ResponseWriter.WriteHeader(code)
 }
 
-// Recover catches panics and returns 500.
+// Unwrap lets http.ResponseController reach the underlying writer (flush, deadlines).
+func (rw *responseWriter) Unwrap() http.ResponseWriter { return rw.ResponseWriter }
+
+// Flush passes through to the underlying writer when it supports flushing.
+func (rw *responseWriter) Flush() {
+	if f, ok := rw.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// LikeContains builds a case-insensitive "contains" pattern for ILIKE ... ESCAPE '\',
+// escaping \, % and _ so they match literally.
+func LikeContains(q string) string {
+	return "%" + strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(q) + "%"
+}
+
+// Recover catches panics and returns 500. http.ErrAbortHandler is re-panicked:
+// handlers use it to abort a response that already started (a truncated export
+// must fail at the client, not get a JSON 500 appended to a 200 body).
 func Recover(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
+				if err, ok := rec.(error); ok && errors.Is(err, http.ErrAbortHandler) {
+					panic(rec)
+				}
 				slog.Error("panic recovered", "panic", rec, "path", r.URL.Path)
 				WriteJSON(w, http.StatusInternalServerError, map[string]any{"error": map[string]string{"code": "INTERNAL", "message": "internal server error"}})
 			}

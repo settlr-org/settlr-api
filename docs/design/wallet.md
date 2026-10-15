@@ -152,7 +152,7 @@ automatically because nothing is copied. Group entries are read-only in the wall
   skip on them → 409 `LOAN_MANAGED`. Cross-currency bookings convert via rates or take
   `account_amount`. Deleting an account unlinks loans/records and deletes their bookings.
 
-### Search, export, backup and filters (migration 0016)
+### Search, export, backup and filters (migrations 0016, 0017)
 
 - **Global search** (`GET /search?q=`). Existing `users`/`groups`/`expenses` are unchanged;
   seven wallet groups are added, always present (empty array when nothing matches or `q` is
@@ -188,7 +188,7 @@ automatically because nothing is copied. Group entries are read-only in the wall
   `source` and `import_ref`; amounts are stored minor units (hundredths for every currency).
   `personal_expenses` have no section: migration 0013 moved them into transactions
   (`source = PERSONAL_LEGACY`). Transactions stream in id-ordered pages of 1000; if a page
-  fails after the response started the connection is aborted (never a cleanly truncated file).
+  fails after the response started the connection is aborted (`http.ErrAbortHandler`, re-panicked by `httpx.Recover`; never a cleanly truncated file). Export handlers extend the write deadline to 5 minutes; migration 0017 adds `(user_id, id)` for the paging.
   New sections must be additive; breaking changes bump `version`.
 - **CSV.** `/me/export.csv` is unchanged (group expenses). New, all authenticated and
   owner-scoped: `/me/export/transactions.csv` (all wallet transactions incl. planned and
@@ -201,7 +201,7 @@ automatically because nothing is copied. Group entries are read-only in the wall
   validated. The API now logs every successful send (`provider`, `message_id`, `subject`;
   recipients only masked, e.g. `m***@gmail.com`) and at startup, in a background goroutine
   with a short timeout, calls Brevo `GET /v3/senders` and WARNs when `MAIL_FROM_EMAIL` is not
-  registered/active; it also WARNs for log-only mode (empty/unknown `MAIL_PROVIDER` without
+  registered/active (an unlisted sender on a domain-authenticated Brevo domain, checked via `GET /v3/senders/domains`, is fine); it also WARNs for log-only mode (empty/unknown `MAIL_PROVIDER` without
   credentials), a missing Brevo key and placeholder `@example.com` senders. `/readyz` is
   deliberately unchanged (it is unauthenticated; mail state is not worth exposing there).
 

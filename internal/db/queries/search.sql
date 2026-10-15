@@ -6,7 +6,8 @@
 SELECT id, name, coalesce(avatar_url, '') AS avatar_url
 FROM users
 WHERE is_anonymous = false
-  AND (name ILIKE '%' || $1 || '%' OR email ILIKE '%' || $1 || '%')
+  AND (name ILIKE $1::text ESCAPE '\' OR email ILIKE $1::text ESCAPE '\')
+ORDER BY name, id
 LIMIT 10;
 
 -- name: SearchGroups :many

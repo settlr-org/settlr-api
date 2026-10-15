@@ -239,10 +239,12 @@ type brevoSender struct {
 	Active bool   `json:"active"`
 }
 
-func (m *Mailer) checkBrevoSender(ctx context.Context) {
+// brevoGET issues an authenticated GET against the Brevo hosts (404 or a network error
+// tries the next host) and returns the status and body.
+func (m *Mailer) brevoGET(ctx context.Context, path string) (int, []byte, error) {
 	var lastErr error
 	for _, host := range m.cfg.BrevoBaseURLs {
-		req, err := http.NewRequestWithContext(ctx, "GET", host+"/v3/senders", nil)
+		req, err := http.NewRequestWithContext(ctx, "GET", host+path, nil)
 		if err != nil {
 			lastErr = err
 			continue
@@ -256,40 +258,94 @@ func (m *Mailer) checkBrevoSender(ctx context.Context) {
 		}
 		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 		resp.Body.Close()
-		switch {
-		case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
-			slog.Warn("mailer: Brevo rejected the API key (cannot list senders); emails will not be sent — check BREVO_API_KEY and its permissions", "status", resp.StatusCode)
-			return
-		case resp.StatusCode == http.StatusNotFound:
+		if resp.StatusCode == http.StatusNotFound {
 			lastErr = fmt.Errorf("status 404")
 			continue
-		case resp.StatusCode >= 300:
-			slog.Warn("mailer: could not verify the Brevo sender", "status", resp.StatusCode)
-			return
 		}
-		var out struct {
-			Senders []brevoSender `json:"senders"`
+		return resp.StatusCode, raw, nil
+	}
+	return 0, nil, lastErr
+}
+
+type brevoDomain struct {
+	Domain        string `json:"domain_name"`
+	DomainAlt     string `json:"domain"`
+	Authenticated bool   `json:"authenticated"`
+}
+
+// domainAuthenticated reports whether the From address's domain is authenticated in
+// Brevo (then any address on it may be used without being a listed sender).
+func (m *Mailer) domainAuthenticated(ctx context.Context) (known, ok bool) {
+	status, raw, err := m.brevoGET(ctx, "/v3/senders/domains")
+	if err != nil || status != http.StatusOK {
+		return false, false
+	}
+	var out struct {
+		Domains []brevoDomain `json:"domains"`
+	}
+	if json.Unmarshal(raw, &out) != nil {
+		return false, false
+	}
+	at := strings.LastIndex(m.cfg.FromEmail, "@")
+	if at < 0 {
+		return true, false
+	}
+	dom := strings.ToLower(strings.TrimSpace(m.cfg.FromEmail[at+1:]))
+	for _, d := range out.Domains {
+		name := d.Domain
+		if name == "" {
+			name = d.DomainAlt
 		}
-		if err := json.Unmarshal(raw, &out); err != nil {
-			slog.Warn("mailer: could not parse Brevo sender list", "error", err)
-			return
+		if strings.EqualFold(strings.TrimSpace(name), dom) && d.Authenticated {
+			return true, true
 		}
-		for _, s := range out.Senders {
-			if !strings.EqualFold(strings.TrimSpace(s.Email), strings.TrimSpace(m.cfg.FromEmail)) {
-				continue
-			}
-			if !s.Active {
-				slog.Warn("mailer: Brevo sender exists but is NOT active; emails will be rejected — validate the sender in Brevo", "from", m.cfg.FromEmail)
-				return
-			}
-			slog.Info("mailer: Brevo sender OK", "from", m.cfg.FromEmail)
-			return
-		}
-		slog.Warn("mailer: MAIL_FROM_EMAIL is not a registered Brevo sender; emails will be rejected (Brevo still answers 201) — validate the sender or authenticate the domain in Brevo",
-			"from", m.cfg.FromEmail, "registered_senders", len(out.Senders))
+	}
+	return true, false
+}
+
+func (m *Mailer) checkBrevoSender(ctx context.Context) {
+	status, raw, err := m.brevoGET(ctx, "/v3/senders")
+	if err != nil {
+		slog.Warn("mailer: could not reach Brevo to verify the sender", "error", err)
 		return
 	}
-	slog.Warn("mailer: could not reach Brevo to verify the sender", "error", lastErr)
+	switch {
+	case status == http.StatusUnauthorized || status == http.StatusForbidden:
+		slog.Warn("mailer: Brevo rejected the API key (cannot list senders); emails will not be sent — check BREVO_API_KEY and its permissions", "status", status)
+		return
+	case status >= 300:
+		slog.Warn("mailer: could not verify the Brevo sender", "status", status)
+		return
+	}
+	var out struct {
+		Senders []brevoSender `json:"senders"`
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		slog.Warn("mailer: could not parse Brevo sender list", "error", err)
+		return
+	}
+	for _, s := range out.Senders {
+		if !strings.EqualFold(strings.TrimSpace(s.Email), strings.TrimSpace(m.cfg.FromEmail)) {
+			continue
+		}
+		if !s.Active {
+			slog.Warn("mailer: Brevo sender exists but is NOT active; emails will be rejected — validate the sender in Brevo", "from", m.cfg.FromEmail)
+			return
+		}
+		slog.Info("mailer: Brevo sender OK", "from", m.cfg.FromEmail)
+		return
+	}
+	// Not listed: a domain-authenticated sender may use any address on its domain.
+	known, ok := m.domainAuthenticated(ctx)
+	if ok {
+		slog.Info("mailer: Brevo sender OK (domain is authenticated)", "from", m.cfg.FromEmail)
+		return
+	}
+	msg := "mailer: MAIL_FROM_EMAIL is neither a registered Brevo sender nor on an authenticated domain; emails will be rejected (Brevo still answers 201) — validate this sender in Brevo, or authenticate its domain"
+	if !known {
+		msg += " (the domain list could not be read, so the domain may be authenticated)"
+	}
+	slog.Warn(msg, "from", m.cfg.FromEmail, "registered_senders", len(out.Senders))
 }
 
 func (m *Mailer) sendSMTP(to, subject, html string) error {

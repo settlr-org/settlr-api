@@ -54,11 +54,13 @@ type fakeBrevo struct {
 	sent        []map[string]any
 	keys        []string
 	sendersHits int
+	domains     string
+	domainsCode int
 }
 
 func newFakeBrevo(t *testing.T) *fakeBrevo {
 	t.Helper()
-	f := &fakeBrevo{sendStatus: 201, sendBody: `{"messageId":"<202610150000.12345@smtp-relay.mailin.fr>"}`, sendersCode: 200,
+	f := &fakeBrevo{domains: `{"domains":[]}`, domainsCode: 200, sendStatus: 201, sendBody: `{"messageId":"<202610150000.12345@smtp-relay.mailin.fr>"}`, sendersCode: 200,
 		senders: `{"senders":[{"id":1,"name":"Settlr","email":"mail@settlr.app","active":true,"ips":[]}]}`}
 	f.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
@@ -75,6 +77,9 @@ func newFakeBrevo(t *testing.T) *fakeBrevo {
 			f.sendersHits++
 			w.WriteHeader(f.sendersCode)
 			_, _ = io.WriteString(w, f.senders)
+		case r.Method == "GET" && r.URL.Path == "/v3/senders/domains":
+			w.WriteHeader(f.domainsCode)
+			_, _ = io.WriteString(w, f.domains)
 		default:
 			http.NotFound(w, r)
 		}
@@ -222,6 +227,41 @@ func TestDiagnoseBrevoSender(t *testing.T) {
 				t.Fatal("api-key header not sent")
 			}
 		})
+	}
+}
+
+func TestDiagnoseDomainAuthenticatedSenderIsOK(t *testing.T) {
+	for _, body := range []string{
+		`{"domains":[{"domain_name":"settlr.app","authenticated":true,"verified":true}]}`,
+		`{"domains":[{"domain":"SETTLR.app","authenticated":true}]}`,
+	} {
+		logs := captureLogs(t)
+		f := newFakeBrevo(t)
+		f.domains = body
+		f.mailer("billing@settlr.app").Diagnose(context.Background()) // not in the sender list
+		out := logs.String()
+		if !strings.Contains(out, "level=INFO") || !strings.Contains(out, "domain is authenticated") || strings.Contains(out, "level=WARN") {
+			t.Fatalf("log:\n%s", out)
+		}
+	}
+	// Domain present but not authenticated, other domain only, or unreadable list: warn.
+	for name, tc := range map[string]struct {
+		body string
+		code int
+		hint string
+	}{
+		"unauthenticated": {`{"domains":[{"domain_name":"settlr.app","authenticated":false}]}`, 200, "authenticate its domain"},
+		"other domain":    {`{"domains":[{"domain_name":"other.com","authenticated":true}]}`, 200, "validate this sender"},
+		"list failed":     {`oops`, 500, "may be authenticated"},
+	} {
+		logs := captureLogs(t)
+		f := newFakeBrevo(t)
+		f.domains, f.domainsCode = tc.body, tc.code
+		f.mailer("billing@settlr.app").Diagnose(context.Background())
+		out := logs.String()
+		if !strings.Contains(out, "level=WARN") || !strings.Contains(out, "emails will be rejected") || !strings.Contains(out, tc.hint) {
+			t.Fatalf("%s:\n%s", name, out)
+		}
 	}
 }
 

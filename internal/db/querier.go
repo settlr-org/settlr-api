@@ -422,7 +422,7 @@ type Querier interface {
 	// Search domain queries for sqlc with pgx/v5.
 	// These replace manual Pool.Query/Exec calls in internal/search/handlers.go
 	// Handler usage: Handler{Pool *pgxpool.Pool, Queries *db.Queries} where Queries wraps the pool.
-	SearchUsers(ctx context.Context, dollar_1 pgtype.Text) ([]SearchUsersRow, error)
+	SearchUsers(ctx context.Context, dollar_1 string) ([]SearchUsersRow, error)
 	SearchUsersByName(ctx context.Context, arg SearchUsersByNameParams) ([]SearchUsersByNameRow, error)
 	SearchWalletAccounts(ctx context.Context, arg SearchWalletAccountsParams) ([]SearchWalletAccountsRow, error)
 	SearchWalletBudgets(ctx context.Context, arg SearchWalletBudgetsParams) ([]SearchWalletBudgetsRow, error)
