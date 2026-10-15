@@ -346,6 +346,89 @@ func (q *Queries) ReportCategoryNames(ctx context.Context, arg ReportCategoryNam
 	return items, nil
 }
 
+const reportEntriesCount = `-- name: ReportEntriesCount :one
+SELECT COUNT(*)::bigint AS entries FROM ledger_entries le
+WHERE le.user_id = $1
+  AND (CASE $2::text WHEN 'only' THEN le.occurred_at IS NULL WHEN 'all' THEN true ELSE le.occurred_at IS NOT NULL END)
+  AND ($3::timestamptz IS NULL OR COALESCE(le.occurred_at, le.due_at) >= $3::timestamptz)
+  AND ($4::timestamptz IS NULL OR COALESCE(le.occurred_at, le.due_at) < $4::timestamptz)
+  AND (cardinality($5::text[]) = 0 OR le.kind = ANY($5::text[]))
+  AND (cardinality($6::text[]) = 0 OR le.type = ANY($6::text[]))
+  AND (cardinality($7::text[]) = 0 OR le.source = ANY($7::text[]))
+  AND (cardinality($8::text[]) = 0 OR NOT (le.source = ANY($8::text[])))
+  AND (cardinality($9::uuid[]) = 0 OR le.account_id = ANY($9::uuid[]) OR le.to_account_id = ANY($9::uuid[]))
+  AND ((cardinality($10::uuid[]) = 0 AND NOT $11::bool)
+       OR le.category_id = ANY($10::uuid[])
+       OR ($11::bool AND le.category_id IS NULL))
+  AND (cardinality($12::uuid[]) = 0 OR le.group_id = ANY($12::uuid[]))
+  AND (cardinality($13::uuid[]) = 0 OR (le.kind = 'TRANSACTION' AND EXISTS (
+        SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY($13::uuid[]))))
+  AND (cardinality($14::uuid[]) = 0 OR le.kind <> 'TRANSACTION' OR NOT EXISTS (
+        SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY($14::uuid[])))
+  AND (cardinality($15::text[]) < 1 OR le.title ILIKE ($15::text[])[1] OR le.description ILIKE ($15::text[])[1] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[1])))
+  AND (cardinality($15::text[]) < 2 OR le.title ILIKE ($15::text[])[2] OR le.description ILIKE ($15::text[])[2] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[2])))
+  AND (cardinality($15::text[]) < 3 OR le.title ILIKE ($15::text[])[3] OR le.description ILIKE ($15::text[])[3] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[3])))
+  AND (cardinality($15::text[]) < 4 OR le.title ILIKE ($15::text[])[4] OR le.description ILIKE ($15::text[])[4] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[4])))
+  AND (cardinality($15::text[]) < 5 OR le.title ILIKE ($15::text[])[5] OR le.description ILIKE ($15::text[])[5] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[5])))
+  AND (cardinality($15::text[]) < 6 OR le.title ILIKE ($15::text[])[6] OR le.description ILIKE ($15::text[])[6] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[6])))
+  AND (cardinality($15::text[]) < 7 OR le.title ILIKE ($15::text[])[7] OR le.description ILIKE ($15::text[])[7] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[7])))
+  AND (cardinality($15::text[]) < 8 OR le.title ILIKE ($15::text[])[8] OR le.description ILIKE ($15::text[])[8] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[8])))
+  AND (cardinality($15::text[]) < 9 OR le.title ILIKE ($15::text[])[9] OR le.description ILIKE ($15::text[])[9] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[9])))
+  AND (cardinality($15::text[]) < 10 OR le.title ILIKE ($15::text[])[10] OR le.description ILIKE ($15::text[])[10] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ($15::text[])[10])))
+  AND (cardinality($16::text[]) = 0 OR NOT (le.title ILIKE ANY($16::text[]) OR le.description ILIKE ANY($16::text[])
+       OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = $1 AND g.name ILIKE ANY($16::text[])))))
+  AND ($17::bigint IS NULL OR le.amount >= $17::bigint)
+  AND ($18::bigint IS NULL OR le.amount <= $18::bigint)
+`
+
+type ReportEntriesCountParams struct {
+	UserID       uuid.UUID          `json:"user_id"`
+	Planned      string             `json:"planned"`
+	FromAt       pgtype.Timestamptz `json:"from_at"`
+	ToAt         pgtype.Timestamptz `json:"to_at"`
+	Kinds        []string           `json:"kinds"`
+	Types        []string           `json:"types"`
+	Sources      []string           `json:"sources"`
+	ExclSources  []string           `json:"excl_sources"`
+	AccountIds   []pgtype.UUID      `json:"account_ids"`
+	CategoryIds  []pgtype.UUID      `json:"category_ids"`
+	CategoryNone bool               `json:"category_none"`
+	GroupIds     []pgtype.UUID      `json:"group_ids"`
+	TagIds       []pgtype.UUID      `json:"tag_ids"`
+	ExclTagIds   []pgtype.UUID      `json:"excl_tag_ids"`
+	QTerms       []string           `json:"q_terms"`
+	ExclQTerms   []string           `json:"excl_q_terms"`
+	MinAmount    pgtype.Int8        `json:"min_amount"`
+	MaxAmount    pgtype.Int8        `json:"max_amount"`
+}
+
+// Exactly the rows ListLedgerEntries returns for the same filters (no report-only exclusions).
+func (q *Queries) ReportEntriesCount(ctx context.Context, arg ReportEntriesCountParams) (int64, error) {
+	row := q.db.QueryRow(ctx, reportEntriesCount,
+		arg.UserID,
+		arg.Planned,
+		arg.FromAt,
+		arg.ToAt,
+		arg.Kinds,
+		arg.Types,
+		arg.Sources,
+		arg.ExclSources,
+		arg.AccountIds,
+		arg.CategoryIds,
+		arg.CategoryNone,
+		arg.GroupIds,
+		arg.TagIds,
+		arg.ExclTagIds,
+		arg.QTerms,
+		arg.ExclQTerms,
+		arg.MinAmount,
+		arg.MaxAmount,
+	)
+	var entries int64
+	err := row.Scan(&entries)
+	return entries, err
+}
+
 const reportTotals = `-- name: ReportTotals :many
 
 SELECT (CASE WHEN leg.n = 0 THEN le.currency ELSE COALESCE(le.to_currency, le.currency) END)::text AS currency,

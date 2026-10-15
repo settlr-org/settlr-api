@@ -213,6 +213,42 @@ WHERE le.user_id = @user_id
   AND (leg.n = 0 OR le.type = 'TRANSFER')
 GROUP BY 1, 2;
 
+-- name: ReportEntriesCount :one
+-- Exactly the rows ListLedgerEntries returns for the same filters (no report-only exclusions).
+SELECT COUNT(*)::bigint AS entries FROM ledger_entries le
+WHERE le.user_id = @user_id
+  AND (CASE @planned::text WHEN 'only' THEN le.occurred_at IS NULL WHEN 'all' THEN true ELSE le.occurred_at IS NOT NULL END)
+  AND (sqlc.narg(from_at)::timestamptz IS NULL OR COALESCE(le.occurred_at, le.due_at) >= sqlc.narg(from_at)::timestamptz)
+  AND (sqlc.narg(to_at)::timestamptz IS NULL OR COALESCE(le.occurred_at, le.due_at) < sqlc.narg(to_at)::timestamptz)
+  AND (cardinality(@kinds::text[]) = 0 OR le.kind = ANY(@kinds::text[]))
+  AND (cardinality(@types::text[]) = 0 OR le.type = ANY(@types::text[]))
+  AND (cardinality(@sources::text[]) = 0 OR le.source = ANY(@sources::text[]))
+  AND (cardinality(@excl_sources::text[]) = 0 OR NOT (le.source = ANY(@excl_sources::text[])))
+  AND (cardinality(@account_ids::uuid[]) = 0 OR le.account_id = ANY(@account_ids::uuid[]) OR le.to_account_id = ANY(@account_ids::uuid[]))
+  AND ((cardinality(@category_ids::uuid[]) = 0 AND NOT @category_none::bool)
+       OR le.category_id = ANY(@category_ids::uuid[])
+       OR (@category_none::bool AND le.category_id IS NULL))
+  AND (cardinality(@group_ids::uuid[]) = 0 OR le.group_id = ANY(@group_ids::uuid[]))
+  AND (cardinality(@tag_ids::uuid[]) = 0 OR (le.kind = 'TRANSACTION' AND EXISTS (
+        SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY(@tag_ids::uuid[]))))
+  AND (cardinality(@excl_tag_ids::uuid[]) = 0 OR le.kind <> 'TRANSACTION' OR NOT EXISTS (
+        SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY(@excl_tag_ids::uuid[])))
+  AND (cardinality(@q_terms::text[]) < 1 OR le.title ILIKE (@q_terms::text[])[1] OR le.description ILIKE (@q_terms::text[])[1] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = @user_id AND g.name ILIKE (@q_terms::text[])[1])))
+  AND (cardinality(@q_terms::text[]) < 2 OR le.title ILIKE (@q_terms::text[])[2] OR le.description ILIKE (@q_terms::text[])[2] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = @user_id AND g.name ILIKE (@q_terms::text[])[2])))
+  AND (cardinality(@q_terms::text[]) < 3 OR le.title ILIKE (@q_terms::text[])[3] OR le.description ILIKE (@q_terms::text[])[3] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = @user_id AND g.name ILIKE (@q_terms::text[])[3])))
+  AND (cardinality(@q_terms::text[]) < 4 OR le.title ILIKE (@q_terms::text[])[4] OR le.description ILIKE (@q_terms::text[])[4] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = @user_id AND g.name ILIKE (@q_terms::text[])[4])))
+  AND (cardinality(@q_terms::text[]) < 5 OR le.title ILIKE (@q_terms::text[])[5] OR le.description ILIKE (@q_terms::text[])[5] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = @user_id AND g.name ILIKE (@q_terms::text[])[5])))
+  AND (cardinality(@q_terms::text[]) < 6 OR le.title ILIKE (@q_terms::text[])[6] OR le.description ILIKE (@q_terms::text[])[6] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = @user_id AND g.name ILIKE (@q_terms::text[])[6])))
+  AND (cardinality(@q_terms::text[]) < 7 OR le.title ILIKE (@q_terms::text[])[7] OR le.description ILIKE (@q_terms::text[])[7] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = @user_id AND g.name ILIKE (@q_terms::text[])[7])))
+  AND (cardinality(@q_terms::text[]) < 8 OR le.title ILIKE (@q_terms::text[])[8] OR le.description ILIKE (@q_terms::text[])[8] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = @user_id AND g.name ILIKE (@q_terms::text[])[8])))
+  AND (cardinality(@q_terms::text[]) < 9 OR le.title ILIKE (@q_terms::text[])[9] OR le.description ILIKE (@q_terms::text[])[9] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = @user_id AND g.name ILIKE (@q_terms::text[])[9])))
+  AND (cardinality(@q_terms::text[]) < 10 OR le.title ILIKE (@q_terms::text[])[10] OR le.description ILIKE (@q_terms::text[])[10] OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = @user_id AND g.name ILIKE (@q_terms::text[])[10])))
+  AND (cardinality(@excl_q_terms::text[]) = 0 OR NOT (le.title ILIKE ANY(@excl_q_terms::text[]) OR le.description ILIKE ANY(@excl_q_terms::text[])
+       OR le.id = ANY(ARRAY(SELECT tt.transaction_id FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE g.user_id = @user_id AND g.name ILIKE ANY(@excl_q_terms::text[])))))
+  AND (sqlc.narg(min_amount)::bigint IS NULL OR le.amount >= sqlc.narg(min_amount)::bigint)
+  AND (sqlc.narg(max_amount)::bigint IS NULL OR le.amount <= sqlc.narg(max_amount)::bigint);
+
+
 -- name: ReportAccountNames :many
 SELECT id, name FROM accounts WHERE user_id = @user_id AND id = ANY(@ids::uuid[]);
 

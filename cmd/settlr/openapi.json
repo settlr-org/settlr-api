@@ -2881,7 +2881,8 @@
             "description": "minor units; from-side legs"
           },
           "count": {
-            "type": "integer"
+            "type": "integer",
+            "description": "entries that contribute to income/expense/net (paid INCOME/EXPENSE and group shares on counted accounts; transfers only when treat_transfers_as_flow is on; never loans, adjustments, settlements or zero-share rows)"
           },
           "breakdown": {
             "type": "string",
@@ -2915,6 +2916,11 @@
               "example": "EUR/JPY"
             },
             "description": "currency pairs without a rate; their amounts are not in the sums"
+          },
+          "entries_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "exactly the number of rows GET /ledger lists (and /reports/export.csv writes) for the same filters, including transfers, loans, adjustments and settlements"
           }
         }
       },

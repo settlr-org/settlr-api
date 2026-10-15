@@ -412,6 +412,8 @@ type Querier interface {
 	// Spending (or income) per category and currency; categories the caller cannot see count as uncategorized.
 	ReportByCategory(ctx context.Context, arg ReportByCategoryParams) ([]ReportByCategoryRow, error)
 	ReportCategoryNames(ctx context.Context, arg ReportCategoryNamesParams) ([]ReportCategoryNamesRow, error)
+	// Exactly the rows ListLedgerEntries returns for the same filters (no report-only exclusions).
+	ReportEntriesCount(ctx context.Context, arg ReportEntriesCountParams) (int64, error)
 	// NOTE: the filter block below is identical to ListLedgerEntries
 	// (wallet.sql); keep them in sync (the ledger/report consistency tests catch drift).
 	// Reports aggregate in SQL per currency; Go converts per currency pair.
