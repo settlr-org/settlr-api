@@ -2,15 +2,18 @@ package mailer
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"html"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/smtp"
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 type Config struct {
@@ -23,11 +26,21 @@ type Config struct {
 	FromEmail   string
 	FromName    string
 	AppURL      string
+	// BrevoBaseURLs overrides the Brevo API hosts, tried in order (tests point it at a
+	// fake server). Empty = the real hosts (see defaultBrevoHosts).
+	BrevoBaseURLs []string
 }
+
+// defaultBrevoHosts: api.brevo.com is the canonical host; api.sendinblue.com is the
+// legacy host serving the identical API — some networks/regions can't reach one of
+// them, so we fall back automatically.
+var defaultBrevoHosts = []string{"https://api.brevo.com", "https://api.sendinblue.com"}
 
 type Mailer struct {
 	cfg    Config
 	client *http.Client
+	// rawProvider is MAIL_PROVIDER as configured, before auto-detection.
+	rawProvider string
 }
 
 var htmlTags = regexp.MustCompile(`(?s)<[^>]*>`)
@@ -37,9 +50,26 @@ func plainText(htmlContent string) string {
 	return strings.Join(strings.Fields(text), " ")
 }
 
+// MaskEmail hides the local part of an address for logs: "mike@gmail.com" -> "m***@gmail.com".
+func MaskEmail(addr string) string {
+	addr = strings.TrimSpace(addr)
+	at := strings.LastIndex(addr, "@")
+	if at < 0 {
+		return "***"
+	}
+	local, domain := addr[:at], addr[at+1:]
+	if local == "" {
+		return "***@" + domain
+	}
+	r, _ := utf8.DecodeRuneInString(local)
+	return string(r) + "***@" + domain
+}
+
 // FromConfig auto-detects the provider when unset:
 // BREVO_API_KEY -> brevo, SMTP_HOST -> smtp, otherwise log-only (dev).
 func FromConfig(cfg Config) *Mailer {
+	raw := strings.ToLower(strings.TrimSpace(cfg.Provider))
+	cfg.Provider = raw
 	if cfg.Provider == "" {
 		if cfg.BrevoAPIKey != "" {
 			cfg.Provider = "brevo"
@@ -55,7 +85,10 @@ func FromConfig(cfg Config) *Mailer {
 	if cfg.FromName == "" {
 		cfg.FromName = "Settlr"
 	}
-	return &Mailer{cfg: cfg, client: &http.Client{Timeout: 10 * time.Second}}
+	if len(cfg.BrevoBaseURLs) == 0 {
+		cfg.BrevoBaseURLs = defaultBrevoHosts
+	}
+	return &Mailer{cfg: cfg, client: &http.Client{Timeout: 10 * time.Second}, rawProvider: raw}
 }
 
 // Send delivers an email. It never panics and returns an error for callers
@@ -68,9 +101,13 @@ func (m *Mailer) Send(to, subject, html string) error {
 	case "brevo":
 		return m.sendBrevo(to, subject, html)
 	case "smtp":
-		return m.sendSMTP(to, subject, html)
+		err := m.sendSMTP(to, subject, html)
+		if err == nil {
+			slog.Info("mailer: sent", "provider", "smtp", "subject", subject)
+		}
+		return err
 	default:
-		slog.Info("mailer: log-only provider", "to", to, "subject", subject)
+		slog.Info("mailer: log-only provider, email not delivered", "to", MaskEmail(to), "subject", subject)
 		return nil
 	}
 }
@@ -79,10 +116,13 @@ func (m *Mailer) Send(to, subject, html string) error {
 func (m *Mailer) SendAsync(to, subject, html string) {
 	go func() {
 		if err := m.Send(to, subject, html); err != nil {
-			slog.Error("mailer: send failed", "to", to, "subject", subject, "error", err)
+			slog.Error("mailer: send failed", "provider", m.cfg.Provider, "to", MaskEmail(to), "subject", subject, "error", err)
 		}
 	}()
 }
+
+// maxErrBody bounds provider error text copied into errors/logs.
+const maxErrBody = 300
 
 func (m *Mailer) sendBrevo(to, subject, html string) error {
 	body := map[string]any{
@@ -96,12 +136,8 @@ func (m *Mailer) sendBrevo(to, subject, html string) error {
 	if err != nil {
 		return err
 	}
-	// api.brevo.com is the canonical host; api.sendinblue.com is the legacy
-	// host serving the identical API — some networks/regions can't reach one
-	// of them, so we fall back automatically.
-	hosts := []string{"https://api.brevo.com", "https://api.sendinblue.com"}
 	var lastErr error
-	for _, host := range hosts {
+	for _, host := range m.cfg.BrevoBaseURLs {
 		req, err := http.NewRequest("POST", host+"/v3/smtp/email", bytes.NewReader(payload))
 		if err != nil {
 			return err
@@ -114,20 +150,146 @@ func (m *Mailer) sendBrevo(to, subject, html string) error {
 			lastErr = err
 			continue
 		}
-		defer resp.Body.Close()
+		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+		resp.Body.Close()
 		if resp.StatusCode >= 300 {
-			var buf bytes.Buffer
-			_, _ = buf.ReadFrom(resp.Body)
-			lastErr = fmt.Errorf("brevo: status %d: %s", resp.StatusCode, strings.TrimSpace(buf.String()))
+			msg := strings.TrimSpace(string(raw))
+			if len(msg) > maxErrBody {
+				msg = msg[:maxErrBody]
+			}
+			lastErr = fmt.Errorf("brevo: status %d: %s", resp.StatusCode, msg)
 			// 4xx (except 404) means the request itself is bad — don't retry hosts
 			if resp.StatusCode != 404 {
 				return lastErr
 			}
 			continue
 		}
+		// 2xx only means Brevo accepted the request; a message from an unvalidated
+		// sender is rejected afterwards. The messageId lets that be looked up in
+		// Brevo's transactional logs.
+		var ok struct {
+			MessageID string `json:"messageId"`
+		}
+		_ = json.Unmarshal(raw, &ok)
+		slog.Info("mailer: sent", "provider", "brevo", "message_id", ok.MessageID, "subject", subject, "status", resp.StatusCode)
 		return nil
 	}
 	return lastErr
+}
+
+// ---- Startup diagnostics ----
+
+// diagnoseTimeout bounds the whole startup check.
+const diagnoseTimeout = 8 * time.Second
+
+// StartDiagnostics checks the mail configuration in the background. It never blocks
+// startup and never fails it: problems are only logged.
+func (m *Mailer) StartDiagnostics() {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Warn("mailer: diagnostics panicked", "panic", fmt.Sprint(r))
+			}
+		}()
+		ctx, cancel := context.WithTimeout(context.Background(), diagnoseTimeout)
+		defer cancel()
+		m.Diagnose(ctx)
+	}()
+}
+
+// Diagnose logs the effective mail setup and, for Brevo, verifies that the
+// configured sender is registered and active (Brevo silently drops messages from
+// unvalidated senders after answering 201). It never logs the API key.
+func (m *Mailer) Diagnose(ctx context.Context) {
+	switch m.cfg.Provider {
+	case "brevo":
+		if m.cfg.BrevoAPIKey == "" {
+			slog.Warn("mailer: MAIL_PROVIDER=brevo but BREVO_API_KEY is empty; every send will fail", "from", m.cfg.FromEmail)
+			return
+		}
+		if m.rawProvider == "" {
+			slog.Info("mailer: MAIL_PROVIDER not set; using brevo because BREVO_API_KEY is set")
+		}
+		m.warnPlaceholderFrom()
+		m.checkBrevoSender(ctx)
+	case "smtp":
+		slog.Info("mailer: using SMTP", "host", m.cfg.SMTPHost, "port", m.cfg.SMTPPort, "from", m.cfg.FromEmail)
+		m.warnPlaceholderFrom()
+	case "log":
+		if m.rawProvider == "" {
+			slog.Warn("mailer: MAIL_PROVIDER is empty and no BREVO_API_KEY/SMTP_HOST is set: log-only mode, emails are NOT delivered (verification and password-reset mails will never arrive)")
+		} else {
+			slog.Warn("mailer: log-only mode (MAIL_PROVIDER=log): emails are NOT delivered")
+		}
+	default:
+		slog.Warn("mailer: unknown MAIL_PROVIDER; falling back to log-only mode, emails are NOT delivered (use brevo, smtp or log)", "provider", m.cfg.Provider)
+	}
+}
+
+func (m *Mailer) warnPlaceholderFrom() {
+	if strings.HasSuffix(strings.ToLower(m.cfg.FromEmail), "@example.com") {
+		slog.Warn("mailer: MAIL_FROM_EMAIL is a placeholder address; set a real, validated sender", "from", m.cfg.FromEmail)
+	}
+}
+
+type brevoSender struct {
+	ID     int64  `json:"id"`
+	Name   string `json:"name"`
+	Email  string `json:"email"`
+	Active bool   `json:"active"`
+}
+
+func (m *Mailer) checkBrevoSender(ctx context.Context) {
+	var lastErr error
+	for _, host := range m.cfg.BrevoBaseURLs {
+		req, err := http.NewRequestWithContext(ctx, "GET", host+"/v3/senders", nil)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		req.Header.Set("api-key", m.cfg.BrevoAPIKey)
+		req.Header.Set("accept", "application/json")
+		resp, err := m.client.Do(req)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		resp.Body.Close()
+		switch {
+		case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
+			slog.Warn("mailer: Brevo rejected the API key (cannot list senders); emails will not be sent — check BREVO_API_KEY and its permissions", "status", resp.StatusCode)
+			return
+		case resp.StatusCode == http.StatusNotFound:
+			lastErr = fmt.Errorf("status 404")
+			continue
+		case resp.StatusCode >= 300:
+			slog.Warn("mailer: could not verify the Brevo sender", "status", resp.StatusCode)
+			return
+		}
+		var out struct {
+			Senders []brevoSender `json:"senders"`
+		}
+		if err := json.Unmarshal(raw, &out); err != nil {
+			slog.Warn("mailer: could not parse Brevo sender list", "error", err)
+			return
+		}
+		for _, s := range out.Senders {
+			if !strings.EqualFold(strings.TrimSpace(s.Email), strings.TrimSpace(m.cfg.FromEmail)) {
+				continue
+			}
+			if !s.Active {
+				slog.Warn("mailer: Brevo sender exists but is NOT active; emails will be rejected — validate the sender in Brevo", "from", m.cfg.FromEmail)
+				return
+			}
+			slog.Info("mailer: Brevo sender OK", "from", m.cfg.FromEmail)
+			return
+		}
+		slog.Warn("mailer: MAIL_FROM_EMAIL is not a registered Brevo sender; emails will be rejected (Brevo still answers 201) — validate the sender or authenticate the domain in Brevo",
+			"from", m.cfg.FromEmail, "registered_senders", len(out.Senders))
+		return
+	}
+	slog.Warn("mailer: could not reach Brevo to verify the sender", "error", lastErr)
 }
 
 func (m *Mailer) sendSMTP(to, subject, html string) error {

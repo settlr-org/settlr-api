@@ -78,6 +78,7 @@ func main() {
 
 	authSvc := &auth.Service{Pool: pool, Queries: queries, Cfg: cfg}
 	mailSender := mailer.FromConfig(cfg.Mail)
+	mailSender.StartDiagnostics() // non-blocking; only logs
 	authHandler := &auth.Handler{Svc: authSvc, Mailer: mailSender, Queries: queries}
 	rateLimiter := httpx.NewRateLimiter(20, time.Minute)
 	// Refresh needs a valid refresh token, so brute force isn't a concern; clients refresh on every
