@@ -152,4 +152,57 @@ automatically because nothing is copied. Group entries are read-only in the wall
   skip on them → 409 `LOAN_MANAGED`. Cross-currency bookings convert via rates or take
   `account_amount`. Deleting an account unlinks loans/records and deletes their bookings.
 
+### Search, export, backup and filters (migration 0016)
+
+- **Global search** (`GET /search?q=`). Existing `users`/`groups`/`expenses` are unchanged;
+  seven wallet groups are added, always present (empty array when nothing matches or `q` is
+  empty): `transactions`, `accounts`, `loans`, `planned`, `budgets`, `categories`, `tags`.
+  All are scoped to the caller (categories: own + system), at most 10 each, matched
+  case-insensitively as a substring with `%`, `_` and `\` taken literally (the pattern is
+  escaped in Go and used with `ILIKE ... ESCAPE '\'`); `q` is trimmed (min 1 character, as
+  before) and cut at 100 characters for the wallet groups. `transactions` match title,
+  description or tag name, include planned items (their pending plan occurrences too), and
+  exclude `ADJUSTMENT` and `LOAN` sources (loans are listed in `loans`). Order: transactions
+  newest first, the rest by sort order / name. Migration 0016 adds trigram GIN indexes on
+  `transactions.title/description` (pg_trgm was already enabled by 0005); the transaction
+  query UNIONs title / description / tag matches so each branch can use them. The other
+  groups are small per user and use the existing per-user indexes.
+- **Ledger filters.** `/transactions` and `/ledger` accept `source` and `exclude_source`
+  (comma lists, case-insensitive; unknown value → 422) and `hide_adjustments=true|false`
+  (alias for `exclude_source=ADJUSTMENT`; anything else → 422). Sources: `MANUAL`,
+  `ADJUSTMENT`, `LOAN`, `IMPORT`, `PERSONAL_LEGACY` (`/ledger` also `GROUP`, the value of
+  group expense shares and settlements). They are plain WHERE predicates, so the
+  `(sort time, id)` cursor stays correct. Clients hide "Initial balance"/"Balance
+  adjustment" rows in history by default with `hide_adjustments=true`.
+- **Backup format, `GET /me/export.json` (version 2).** A single JSON document:
+  `version` (2), `exported_at`, `user` (profile without password hash/tokens/sessions),
+  `settings`, `rate_overrides`, `accounts`, `categories` (owned only; system categories are
+  referenced by id), `category_order`, `tags`, `transactions`, `planned_payments`, `budgets`,
+  `loans` (each with `records`), `groups` (per group: `expenses` and `settlements` from the
+  caller's view), and `data`, the version 1 flat group-expense list kept for existing readers.
+  Rules a restore can rely on: only live (not soft-deleted) rows; every id is the stored id
+  and every cross-reference (`account_id`, `to_account_id`, `category_id`, `tag_ids`,
+  `planned_payment_id`, `loan_id`, `loan_record_id`, budget `category_ids`/`account_ids`)
+  points at an id in this document, or at a system category; transactions are the raw
+  rows including planned items (`occurred_at` null), `ADJUSTMENT`/`LOAN` bookings,
+  `source` and `import_ref`; amounts are stored minor units (hundredths for every currency).
+  `personal_expenses` have no section: migration 0013 moved them into transactions
+  (`source = PERSONAL_LEGACY`). Transactions stream in id-ordered pages of 1000; if a page
+  fails after the response started the connection is aborted (never a cleanly truncated file).
+  New sections must be additive; breaking changes bump `version`.
+- **CSV.** `/me/export.csv` is unchanged (group expenses). New, all authenticated and
+  owner-scoped: `/me/export/transactions.csv` (all wallet transactions incl. planned and
+  adjustment/loan bookings, newest first, streamed in pages; group-share ledger entries are
+  not included), `/me/export/accounts.csv`, `/me/export/budgets.csv`, `/me/export/loans.csv`.
+  Cells are written with `encoding/csv` (RFC 4180 quoting); text cells starting with
+  `=`, `+`, `-`, `@`, tab or CR get a leading `'` (formula injection), numeric cells never.
+  Amounts appear as `amount_minor` (stored integer) and `amount` (decimal, 2 places).
+- **Mail diagnostics.** Brevo answers 201 and rejects later when the sender is not
+  validated. The API now logs every successful send (`provider`, `message_id`, `subject`;
+  recipients only masked, e.g. `m***@gmail.com`) and at startup, in a background goroutine
+  with a short timeout, calls Brevo `GET /v3/senders` and WARNs when `MAIL_FROM_EMAIL` is not
+  registered/active; it also WARNs for log-only mode (empty/unknown `MAIL_PROVIDER` without
+  credentials), a missing Brevo key and placeholder `@example.com` senders. `/readyz` is
+  deliberately unchanged (it is unauthenticated; mail state is not worth exposing there).
+
 Non-goals: Ivy Cloud / GitHub backup (removed upstream), wishlist, in-app changelog/poll.
