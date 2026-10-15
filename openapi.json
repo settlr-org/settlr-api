@@ -6318,7 +6318,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "RFC 3339 or YYYY-MM-DD (inclusive)"
+            "description": "RFC 3339 (any offset, URL-encode +) or YYYY-MM-DD (inclusive). Range filters compare COALESCE(occurred_at, due_at) on every endpoint (a group expense counts at 00:00 UTC of its expense_date); results are ordered by sort_at"
           },
           {
             "name": "to",
@@ -6381,7 +6381,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "keywords (include): whitespace-separated terms, ALL must match (case-insensitive substring) in the title, the description or a tag name (group entries: title/description). % _ and \\ are matched literally. At most 10 terms of at most 100 characters; more -> 422."
+            "description": "keywords (include): whitespace-separated terms, ALL must match (case-insensitive substring) in the title, the description or a tag name (group entries: title/description). % _ and \\ are matched literally. Only the first 10 terms are used and each is cut to 100 characters (never an error), so one raw search-box value works on every endpoint."
           },
           {
             "name": "excl_q",
@@ -6390,7 +6390,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "keywords (exclude): whitespace-separated terms, an entry containing ANY term (title, description or tag name) is dropped. Same escaping and limits as q."
+            "description": "keywords (exclude): whitespace-separated terms, an entry containing ANY term (title, description or tag name) is dropped. Same escaping and truncation as q."
           },
           {
             "name": "min",
@@ -7135,7 +7135,7 @@
             }
           }
         },
-        "description": "Wallet transactions plus my group-expense shares (my share is my expense; if I paid from an account the full amount leaves it) and settlements booked to my accounts (account effect only). Group entries are read-only. Order: sort_at desc, id desc (the cursor encodes both). Group expenses created on their expense_date (UTC) sort at their creation time, otherwise at 00:00 UTC of expense_date, so a group expense added later in the day sorts above earlier wallet transactions; date filters still select by date.",
+        "description": "Wallet transactions plus my group-expense shares (my share is my expense; if I paid from an account the full amount leaves it) and settlements booked to my accounts (account effect only). Group entries are read-only. Order: sort_at desc, id desc (the cursor encodes both). Group expenses created on their expense_date (UTC) sort at their creation time, otherwise at 00:00 UTC of expense_date, so a group expense added later in the day sorts above earlier wallet transactions; date filters still select by date. Group entries of a group the user has left stay (amounts, title, group name, balances) but the free text others wrote is redacted: description is '' for them.",
         "parameters": [
           {
             "name": "from",
@@ -7144,7 +7144,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "RFC 3339 or YYYY-MM-DD (inclusive)"
+            "description": "RFC 3339 (any offset, URL-encode +) or YYYY-MM-DD (inclusive). Range filters compare COALESCE(occurred_at, due_at) on every endpoint (a group expense counts at 00:00 UTC of its expense_date); results are ordered by sort_at"
           },
           {
             "name": "to",
@@ -7207,7 +7207,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "keywords (include): whitespace-separated terms, ALL must match (case-insensitive substring) in the title, the description or a tag name (group entries: title/description). % _ and \\ are matched literally. At most 10 terms of at most 100 characters; more -> 422."
+            "description": "keywords (include): whitespace-separated terms, ALL must match (case-insensitive substring) in the title, the description or a tag name (group entries: title/description). % _ and \\ are matched literally. Only the first 10 terms are used and each is cut to 100 characters (never an error), so one raw search-box value works on every endpoint."
           },
           {
             "name": "excl_q",
@@ -7216,7 +7216,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "keywords (exclude): whitespace-separated terms, an entry containing ANY term (title, description or tag name) is dropped. Same escaping and limits as q."
+            "description": "keywords (exclude): whitespace-separated terms, an entry containing ANY term (title, description or tag name) is dropped. Same escaping and truncation as q."
           },
           {
             "name": "min",
@@ -9739,7 +9739,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "RFC 3339 or YYYY-MM-DD (inclusive). With `to`, the range must be at most 10 years"
+            "description": "RFC 3339 (any offset, URL-encode +) or YYYY-MM-DD (inclusive). Range filters compare COALESCE(occurred_at, due_at) on every endpoint (a group expense counts at 00:00 UTC of its expense_date); results are ordered by sort_at"
           },
           {
             "name": "to",
@@ -9802,7 +9802,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "keywords (include): whitespace-separated terms, ALL must match (case-insensitive substring) in the title, the description or a tag name (group entries: title/description). % _ and \\ are matched literally. At most 10 terms of at most 100 characters; more -> 422."
+            "description": "keywords (include): whitespace-separated terms, ALL must match (case-insensitive substring) in the title, the description or a tag name (group entries: title/description). % _ and \\ are matched literally. Only the first 10 terms are used and each is cut to 100 characters (never an error), so one raw search-box value works on every endpoint."
           },
           {
             "name": "excl_q",
@@ -9811,7 +9811,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "keywords (exclude): whitespace-separated terms, an entry containing ANY term (title, description or tag name) is dropped. Same escaping and limits as q."
+            "description": "keywords (exclude): whitespace-separated terms, an entry containing ANY term (title, description or tag name) is dropped. Same escaping and truncation as q."
           },
           {
             "name": "min",
@@ -9963,7 +9963,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "RFC 3339 or YYYY-MM-DD (inclusive); required"
+            "description": "RFC 3339 (any offset, URL-encode +) or YYYY-MM-DD (inclusive). Range filters compare COALESCE(occurred_at, due_at) on every endpoint (a group expense counts at 00:00 UTC of its expense_date); results are ordered by sort_at"
           },
           {
             "name": "to",
@@ -10026,7 +10026,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "keywords (include): whitespace-separated terms, ALL must match (case-insensitive substring) in the title, the description or a tag name (group entries: title/description). % _ and \\ are matched literally. At most 10 terms of at most 100 characters; more -> 422."
+            "description": "keywords (include): whitespace-separated terms, ALL must match (case-insensitive substring) in the title, the description or a tag name (group entries: title/description). % _ and \\ are matched literally. Only the first 10 terms are used and each is cut to 100 characters (never an error), so one raw search-box value works on every endpoint."
           },
           {
             "name": "excl_q",
@@ -10035,7 +10035,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "keywords (exclude): whitespace-separated terms, an entry containing ANY term (title, description or tag name) is dropped. Same escaping and limits as q."
+            "description": "keywords (exclude): whitespace-separated terms, an entry containing ANY term (title, description or tag name) is dropped. Same escaping and truncation as q."
           },
           {
             "name": "min",
@@ -10179,7 +10179,7 @@
             "bearerAuth": []
           }
         ],
-        "description": "The ledger entries matching the filters (what GET /ledger would page through, ADJUSTMENT/LOAN rows included unless filtered out), wallet transactions and group shares/settlements, newest first, streamed; the kind column (TRANSACTION, GROUP_EXPENSE, SETTLEMENT) tells them apart. Header: date,kind,type,title,description,account,to_account,category,tags,amount_minor,amount,currency,base_amount,base_currency,group,source. amount is the entry's own amount (my share for group expenses) in its currency; base_amount is that converted to the base currency (empty when no rate exists). Text cells that start with = + - @ (or a tab/CR) are prefixed with ' (formula injection protection); RFC 4180 quoting. Content-Disposition: settlr-report-<from>-<to>.csv ('all' for an open end). Validation errors are JSON 422 before any CSV is written; a failure mid-stream aborts the connection. Filters have the same names and semantics as GET /ledger, so a client can reuse one filter state.",
+        "description": "The ledger entries matching the filters (what GET /ledger would page through, ADJUSTMENT/LOAN rows included unless filtered out), wallet transactions and group shares/settlements, newest first, streamed; the kind column (TRANSACTION, GROUP_EXPENSE, SETTLEMENT) tells them apart. Header: date,kind,type,title,description,account,to_account,category,tags,amount_minor,amount,currency,to_amount_minor,to_amount,to_currency,base_amount,base_currency,group,source (to_* only for transfers: the amount that arrived, in the destination currency). amount is the entry's own amount (my share for group expenses) in its currency; base_amount is that converted to the base currency (empty when no rate exists). Text cells that start with = + - @ (or a tab/CR) are prefixed with ' (formula injection protection); RFC 4180 quoting. Content-Disposition: settlr-report-<from>-<to>.csv ('all' for an open end). Validation errors are JSON 422 before any CSV is written; a failure mid-stream aborts the connection. Filters have the same names and semantics as GET /ledger, so a client can reuse one filter state.",
         "parameters": [
           {
             "name": "from",
@@ -10188,7 +10188,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "RFC 3339 or YYYY-MM-DD (inclusive). With `to`, the range must be at most 10 years"
+            "description": "RFC 3339 (any offset, URL-encode +) or YYYY-MM-DD (inclusive). Range filters compare COALESCE(occurred_at, due_at) on every endpoint (a group expense counts at 00:00 UTC of its expense_date); results are ordered by sort_at"
           },
           {
             "name": "to",
@@ -10251,7 +10251,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "keywords (include): whitespace-separated terms, ALL must match (case-insensitive substring) in the title, the description or a tag name (group entries: title/description). % _ and \\ are matched literally. At most 10 terms of at most 100 characters; more -> 422."
+            "description": "keywords (include): whitespace-separated terms, ALL must match (case-insensitive substring) in the title, the description or a tag name (group entries: title/description). % _ and \\ are matched literally. Only the first 10 terms are used and each is cut to 100 characters (never an error), so one raw search-box value works on every endpoint."
           },
           {
             "name": "excl_q",
@@ -10260,7 +10260,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "keywords (exclude): whitespace-separated terms, an entry containing ANY term (title, description or tag name) is dropped. Same escaping and limits as q."
+            "description": "keywords (exclude): whitespace-separated terms, an entry containing ANY term (title, description or tag name) is dropped. Same escaping and truncation as q."
           },
           {
             "name": "min",

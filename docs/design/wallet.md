@@ -205,7 +205,7 @@ automatically because nothing is copied. Group entries are read-only in the wall
   credentials), a missing Brevo key and placeholder `@example.com` senders. `/readyz` is
   deliberately unchanged (it is unauthenticated; mail state is not worth exposing there).
 
-### Phase 3 implementation notes: reports (migration 0018)
+### Phase 3 implementation notes: reports (migrations 0018, 0019)
 
 Everything below shares the `/ledger` filter set, parsed by one function (`parseFilters`) and
 written once as a SQL block that `ListLedgerEntries`, `ListTransactions` and the four report
@@ -222,10 +222,18 @@ filter combinations and compares count/income/expense with `/reports`).
   `include_group_shares=true|false`. Id lists hold at most 100 ids.
   **Keywords.** `q` is split on whitespace; every term must occur (case-insensitive) in the
   title, the description or a tag name; `excl_q` drops an entry when any term occurs. Terms are
-  LIKE-escaped (`%`, `_`, `\` are literal), at most 10 terms of 100 characters (else 422). Implemented as
-  `(title || ' ' || description [|| ' ' || tag names]) ILIKE ALL(patterns)`; a term has no
-  whitespace so it can never straddle the separators. Group entries have no tags. This replaced
-  the earlier single unescaped substring on title/description.
+  LIKE-escaped (`%`, `_`, `\` are literal). Only the first 10 terms are used and each is cut to 100
+  characters: silently, never a 422, so the web search box can send its raw value to every endpoint.
+  SQL: `title ILIKE ALL(p) OR description ILIKE ALL(p)`, then for one term a short-circuiting tag-name
+  EXISTS, for several terms the concatenation `title || ' ' || description || ' ' || tag names`
+  (terms split across fields; a term has no whitespace so it can never straddle the separators).
+  `excl_q` is `title ILIKE ANY OR description ILIKE ANY OR tag EXISTS`. Group entries have no tags.
+  This replaced the earlier single unescaped substring on title/description.
+- **Date basis.** Range filters (`from`/`to`) compare `COALESCE(occurred_at, due_at)` everywhere
+  (`/ledger`, `/transactions`, reports, trend, CSV; overview/summaries use `occurred_at`, the same
+  value for paid entries), so a group share dated D counts at 00:00 UTC of D whatever time it was
+  created and every view agrees for windows that do not start at UTC midnight (e.g. +05:45).
+  `sort_at` is used only for ordering and the cursor.
 - **What counts.** Income and expense are the paid INCOME/EXPENSE wallet transactions and my
   share of group expenses (a group expense I only fronted has share 0: it is not an entry and
   not counted). Never counted: `ADJUSTMENT` and `LOAN` sources (whatever `source` says),
@@ -266,11 +274,21 @@ filter combinations and compares count/income/expense with `/reports`).
   in keyset pages (1000 rows, doubling up to 20 000: every page rescans the ledger view, so big
   exports use few pages; 100k rows export in ~2.5 s). It is the `/ledger` result set, so
   ADJUSTMENT/LOAN rows appear unless filtered out. Columns `date, kind, type, title, description,
-  account, to_account, category, tags, amount_minor, amount, currency, base_amount, base_currency,
+  account, to_account, category, tags, amount_minor, amount, currency,
+  to_amount_minor, to_amount, to_currency (transfers: what arrived), base_amount, base_currency,
   group, source` (`kind` = TRANSACTION | GROUP_EXPENSE | SETTLEMENT; amount = the entry's own
   amount, my share for group expenses). Cell quoting, formula protection (`csvSafe`), the 5-minute
   write deadline, flushing and abort-on-failure (`http.ErrAbortHandler`) are the helpers of
   `internal/export` (exported for reuse). Filename `settlr-report-<from>-<to>.csv`.
+- **Former group members (migration 0019).** Group expense shares and settlements stay in the ledger
+  of a user who left or was removed (it is their own financial history and their account balances
+  depend on it: money they paid from an account keeps its effect), but the free text other people
+  wrote is redacted once `group_members` no longer has the user: `description` of group entries
+  (expense notes, settlement notes) becomes `''` in `/ledger`, the entries inside category/account
+  summaries and `/reports/export.csv`. Title (the expense description), amount, category and group name
+  stay. There is no removal timestamp, so expenses created or edited after the user left are not told
+  apart. Search (`/search` expenses), the group export and the v2 backup's `groups` section already
+  require current membership. Reports contain no free text.
 - **Performance** (100k transactions + 6k group shares for one user, Postgres 18): all-time
   report ~0.6 s end to end (three ~130-220 ms aggregates, sequential scans: the user owns the
   whole table), a month ~60 ms after migration 0018, which adds
