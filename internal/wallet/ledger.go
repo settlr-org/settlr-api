@@ -120,7 +120,7 @@ func (h *Handler) Ledger(w http.ResponseWriter, r *http.Request) {
 	out, next, err := h.ledgerPage(r.Context(), userID, db.ListLedgerEntriesParams{
 		UserID: userID, Planned: f.planned, FromAt: f.from, ToAt: f.to, Kinds: f.kinds, Types: f.types, Sources: f.sources, ExclSources: f.exclSources,
 		AccountIds: f.accounts, CategoryIds: f.categories, GroupIds: f.groups, TagIds: f.tags, ExclTagIds: f.exclTags,
-		Q: f.q, ExclQ: f.exclQ, MinAmount: f.min, MaxAmount: f.max, CursorAt: f.cursorAt, CursorID: f.cursorID,
+		QTerms: f.qTerms, ExclQTerms: f.exclQTerms, CategoryNone: f.catNone, MinAmount: f.min, MaxAmount: f.max, CursorAt: f.cursorAt, CursorID: f.cursorID,
 		Lim: int32(limit + 1),
 	}, limit)
 	if err != nil {

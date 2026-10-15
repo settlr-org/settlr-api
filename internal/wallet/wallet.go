@@ -274,8 +274,12 @@ func uniqueUUIDs(ids []uuid.UUID) []uuid.UUID {
 
 // queryUUIDs parses a comma-separated (or repeated) uuid list query parameter.
 func queryUUIDs(r *http.Request, name string) ([]uuid.UUID, error) {
+	return parseUUIDs(r.URL.Query()[name], name)
+}
+
+func parseUUIDs(values []string, name string) ([]uuid.UUID, error) {
 	out := []uuid.UUID{}
-	for _, raw := range r.URL.Query()[name] {
+	for _, raw := range values {
 		for _, s := range strings.Split(raw, ",") {
 			s = strings.TrimSpace(s)
 			if s == "" {

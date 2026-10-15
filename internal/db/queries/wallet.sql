@@ -209,13 +209,15 @@ WHERE t.user_id = @user_id AND t.deleted_at IS NULL
   AND (cardinality(@sources::text[]) = 0 OR t.source = ANY(@sources::text[]))
   AND (cardinality(@excl_sources::text[]) = 0 OR NOT (t.source = ANY(@excl_sources::text[])))
   AND (cardinality(@account_ids::uuid[]) = 0 OR t.account_id = ANY(@account_ids::uuid[]) OR t.to_account_id = ANY(@account_ids::uuid[]))
-  AND (cardinality(@category_ids::uuid[]) = 0 OR t.category_id = ANY(@category_ids::uuid[]))
+  AND ((cardinality(@category_ids::uuid[]) = 0 AND NOT @category_none::bool)
+       OR t.category_id = ANY(@category_ids::uuid[])
+       OR (@category_none::bool AND t.category_id IS NULL))
   AND (cardinality(@tag_ids::uuid[]) = 0 OR EXISTS (
         SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = t.id AND tt.tag_id = ANY(@tag_ids::uuid[])))
   AND (cardinality(@excl_tag_ids::uuid[]) = 0 OR NOT EXISTS (
         SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = t.id AND tt.tag_id = ANY(@excl_tag_ids::uuid[])))
-  AND (@q::text = '' OR t.title ILIKE '%' || @q::text || '%' OR t.description ILIKE '%' || @q::text || '%')
-  AND (@excl_q::text = '' OR NOT (t.title ILIKE '%' || @excl_q::text || '%' OR t.description ILIKE '%' || @excl_q::text || '%'))
+  AND NOT EXISTS (SELECT 1 FROM unnest(@q_terms::text[]) AS p(t) WHERE NOT (t.title ILIKE p.t OR t.description ILIKE p.t OR EXISTS (SELECT 1 FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = t.id AND g.name ILIKE p.t)))
+  AND NOT EXISTS (SELECT 1 FROM unnest(@excl_q_terms::text[]) AS p(t) WHERE t.title ILIKE p.t OR t.description ILIKE p.t OR EXISTS (SELECT 1 FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = t.id AND g.name ILIKE p.t))
   AND (sqlc.narg(min_amount)::bigint IS NULL OR t.amount >= sqlc.narg(min_amount)::bigint)
   AND (sqlc.narg(max_amount)::bigint IS NULL OR t.amount <= sqlc.narg(max_amount)::bigint)
   AND (sqlc.narg(cursor_at)::timestamptz IS NULL
@@ -236,14 +238,16 @@ WHERE le.user_id = @user_id
   AND (cardinality(@sources::text[]) = 0 OR le.source = ANY(@sources::text[]))
   AND (cardinality(@excl_sources::text[]) = 0 OR NOT (le.source = ANY(@excl_sources::text[])))
   AND (cardinality(@account_ids::uuid[]) = 0 OR le.account_id = ANY(@account_ids::uuid[]) OR le.to_account_id = ANY(@account_ids::uuid[]))
-  AND (cardinality(@category_ids::uuid[]) = 0 OR le.category_id = ANY(@category_ids::uuid[]))
+  AND ((cardinality(@category_ids::uuid[]) = 0 AND NOT @category_none::bool)
+       OR le.category_id = ANY(@category_ids::uuid[])
+       OR (@category_none::bool AND le.category_id IS NULL))
   AND (cardinality(@group_ids::uuid[]) = 0 OR le.group_id = ANY(@group_ids::uuid[]))
   AND (cardinality(@tag_ids::uuid[]) = 0 OR (le.kind = 'TRANSACTION' AND EXISTS (
         SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY(@tag_ids::uuid[]))))
   AND (cardinality(@excl_tag_ids::uuid[]) = 0 OR le.kind <> 'TRANSACTION' OR NOT EXISTS (
         SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY(@excl_tag_ids::uuid[])))
-  AND (@q::text = '' OR le.title ILIKE '%' || @q::text || '%' OR le.description ILIKE '%' || @q::text || '%')
-  AND (@excl_q::text = '' OR NOT (le.title ILIKE '%' || @excl_q::text || '%' OR le.description ILIKE '%' || @excl_q::text || '%'))
+  AND NOT EXISTS (SELECT 1 FROM unnest(@q_terms::text[]) AS p(t) WHERE NOT (le.title ILIKE p.t OR le.description ILIKE p.t OR (le.kind = 'TRANSACTION' AND EXISTS (SELECT 1 FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = le.id AND g.name ILIKE p.t))))
+  AND NOT EXISTS (SELECT 1 FROM unnest(@excl_q_terms::text[]) AS p(t) WHERE le.title ILIKE p.t OR le.description ILIKE p.t OR (le.kind = 'TRANSACTION' AND EXISTS (SELECT 1 FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = le.id AND g.name ILIKE p.t)))
   AND (sqlc.narg(min_amount)::bigint IS NULL OR le.amount >= sqlc.narg(min_amount)::bigint)
   AND (sqlc.narg(max_amount)::bigint IS NULL OR le.amount <= sqlc.narg(max_amount)::bigint)
   AND (sqlc.narg(cursor_at)::timestamptz IS NULL
