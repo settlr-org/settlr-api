@@ -21,9 +21,10 @@ import (
 
 // Report limits.
 const (
-	maxReportYears = 10  // widest from..to accepted
-	maxTrendBucket = 400 // most buckets one trend response may contain
-	csvPageSize    = 1000
+	maxReportYears = 10    // widest from..to accepted
+	maxTrendBucket = 400   // most buckets one trend response may contain
+	csvPageSize    = 1000  // first CSV page; pages double up to csvMaxPage
+	csvMaxPage     = 20000 // each page re-scans the ledger view, so large exports use fewer, bigger pages
 )
 
 // reportFilters parses the /ledger filter set for a report endpoint and validates
@@ -501,13 +502,14 @@ func (h *Handler) ReportCSV(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := h.q()
+	pageSize := csvPageSize
 	fetch := func(cursorAt pgtype.Timestamptz, cursorID pgtype.UUID) ([]db.LedgerEntry, error) {
 		return q.ListLedgerEntries(ctx, db.ListLedgerEntriesParams{
 			UserID: userID, Planned: f.planned, FromAt: f.from, ToAt: f.to, Kinds: f.kinds, Types: f.types,
 			Sources: f.sources, ExclSources: f.exclSources, AccountIds: f.accounts, CategoryIds: f.categories,
 			CategoryNone: f.catNone, GroupIds: f.groups, TagIds: f.tags, ExclTagIds: f.exclTags,
 			QTerms: f.qTerms, ExclQTerms: f.exclQTerms, MinAmount: f.min, MaxAmount: f.max,
-			CursorAt: cursorAt, CursorID: cursorID, Lim: csvPageSize,
+			CursorAt: cursorAt, CursorID: cursorID, Lim: int32(pageSize),
 		})
 	}
 	page, err := fetch(pgtype.Timestamptz{}, pgtype.UUID{})
@@ -552,10 +554,11 @@ func (h *Handler) ReportCSV(w http.ResponseWriter, r *http.Request) {
 		}
 		cw.Flush()
 		_ = rc.Flush()
-		if len(page) < csvPageSize {
+		if len(page) < pageSize {
 			break
 		}
 		last := page[len(page)-1]
+		pageSize = min(pageSize*2, csvMaxPage)
 		if page, err = fetch(last.SortAt, pu(last.ID)); err != nil {
 			break
 		}

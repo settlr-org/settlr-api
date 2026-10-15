@@ -827,8 +827,8 @@ WHERE le.user_id = $1
         SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY($13::uuid[]))))
   AND (cardinality($14::uuid[]) = 0 OR le.kind <> 'TRANSACTION' OR NOT EXISTS (
         SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY($14::uuid[])))
-  AND NOT EXISTS (SELECT 1 FROM unnest($15::text[]) AS p(t) WHERE NOT (le.title ILIKE p.t OR le.description ILIKE p.t OR (le.kind = 'TRANSACTION' AND EXISTS (SELECT 1 FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = le.id AND g.name ILIKE p.t))))
-  AND NOT EXISTS (SELECT 1 FROM unnest($16::text[]) AS p(t) WHERE le.title ILIKE p.t OR le.description ILIKE p.t OR (le.kind = 'TRANSACTION' AND EXISTS (SELECT 1 FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = le.id AND g.name ILIKE p.t)))
+  AND (cardinality($15::text[]) = 0 OR (le.title || ' ' || le.description) ILIKE ALL($15::text[]) OR ((le.title || ' ' || le.description) || ' ' || COALESCE((SELECT string_agg(g.name, ' ') FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE le.kind = 'TRANSACTION' AND tt.transaction_id = le.id), '')) ILIKE ALL($15::text[]))
+  AND (cardinality($16::text[]) = 0 OR NOT ((le.title || ' ' || le.description) ILIKE ANY($16::text[]) OR ((le.title || ' ' || le.description) || ' ' || COALESCE((SELECT string_agg(g.name, ' ') FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE le.kind = 'TRANSACTION' AND tt.transaction_id = le.id), '')) ILIKE ANY($16::text[])))
   AND ($17::bigint IS NULL OR le.amount >= $17::bigint)
   AND ($18::bigint IS NULL OR le.amount <= $18::bigint)
   AND ($19::timestamptz IS NULL
@@ -1063,8 +1063,8 @@ WHERE t.user_id = $1 AND t.deleted_at IS NULL
         SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = t.id AND tt.tag_id = ANY($11::uuid[])))
   AND (cardinality($12::uuid[]) = 0 OR NOT EXISTS (
         SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = t.id AND tt.tag_id = ANY($12::uuid[])))
-  AND NOT EXISTS (SELECT 1 FROM unnest($13::text[]) AS p(t) WHERE NOT (t.title ILIKE p.t OR t.description ILIKE p.t OR EXISTS (SELECT 1 FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = t.id AND g.name ILIKE p.t)))
-  AND NOT EXISTS (SELECT 1 FROM unnest($14::text[]) AS p(t) WHERE t.title ILIKE p.t OR t.description ILIKE p.t OR EXISTS (SELECT 1 FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = t.id AND g.name ILIKE p.t))
+  AND (cardinality($13::text[]) = 0 OR (t.title || ' ' || t.description) ILIKE ALL($13::text[]) OR ((t.title || ' ' || t.description) || ' ' || COALESCE((SELECT string_agg(g.name, ' ') FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = t.id), '')) ILIKE ALL($13::text[]))
+  AND (cardinality($14::text[]) = 0 OR NOT ((t.title || ' ' || t.description) ILIKE ANY($14::text[]) OR ((t.title || ' ' || t.description) || ' ' || COALESCE((SELECT string_agg(g.name, ' ') FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = t.id), '')) ILIKE ANY($14::text[])))
   AND ($15::bigint IS NULL OR t.amount >= $15::bigint)
   AND ($16::bigint IS NULL OR t.amount <= $16::bigint)
   AND ($17::timestamptz IS NULL

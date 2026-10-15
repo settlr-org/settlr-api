@@ -216,8 +216,8 @@ WHERE t.user_id = @user_id AND t.deleted_at IS NULL
         SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = t.id AND tt.tag_id = ANY(@tag_ids::uuid[])))
   AND (cardinality(@excl_tag_ids::uuid[]) = 0 OR NOT EXISTS (
         SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = t.id AND tt.tag_id = ANY(@excl_tag_ids::uuid[])))
-  AND NOT EXISTS (SELECT 1 FROM unnest(@q_terms::text[]) AS p(t) WHERE NOT (t.title ILIKE p.t OR t.description ILIKE p.t OR EXISTS (SELECT 1 FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = t.id AND g.name ILIKE p.t)))
-  AND NOT EXISTS (SELECT 1 FROM unnest(@excl_q_terms::text[]) AS p(t) WHERE t.title ILIKE p.t OR t.description ILIKE p.t OR EXISTS (SELECT 1 FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = t.id AND g.name ILIKE p.t))
+  AND (cardinality(@q_terms::text[]) = 0 OR (t.title || ' ' || t.description) ILIKE ALL(@q_terms::text[]) OR ((t.title || ' ' || t.description) || ' ' || COALESCE((SELECT string_agg(g.name, ' ') FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = t.id), '')) ILIKE ALL(@q_terms::text[]))
+  AND (cardinality(@excl_q_terms::text[]) = 0 OR NOT ((t.title || ' ' || t.description) ILIKE ANY(@excl_q_terms::text[]) OR ((t.title || ' ' || t.description) || ' ' || COALESCE((SELECT string_agg(g.name, ' ') FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = t.id), '')) ILIKE ANY(@excl_q_terms::text[])))
   AND (sqlc.narg(min_amount)::bigint IS NULL OR t.amount >= sqlc.narg(min_amount)::bigint)
   AND (sqlc.narg(max_amount)::bigint IS NULL OR t.amount <= sqlc.narg(max_amount)::bigint)
   AND (sqlc.narg(cursor_at)::timestamptz IS NULL
@@ -246,8 +246,8 @@ WHERE le.user_id = @user_id
         SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY(@tag_ids::uuid[]))))
   AND (cardinality(@excl_tag_ids::uuid[]) = 0 OR le.kind <> 'TRANSACTION' OR NOT EXISTS (
         SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY(@excl_tag_ids::uuid[])))
-  AND NOT EXISTS (SELECT 1 FROM unnest(@q_terms::text[]) AS p(t) WHERE NOT (le.title ILIKE p.t OR le.description ILIKE p.t OR (le.kind = 'TRANSACTION' AND EXISTS (SELECT 1 FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = le.id AND g.name ILIKE p.t))))
-  AND NOT EXISTS (SELECT 1 FROM unnest(@excl_q_terms::text[]) AS p(t) WHERE le.title ILIKE p.t OR le.description ILIKE p.t OR (le.kind = 'TRANSACTION' AND EXISTS (SELECT 1 FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = le.id AND g.name ILIKE p.t)))
+  AND (cardinality(@q_terms::text[]) = 0 OR (le.title || ' ' || le.description) ILIKE ALL(@q_terms::text[]) OR ((le.title || ' ' || le.description) || ' ' || COALESCE((SELECT string_agg(g.name, ' ') FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE le.kind = 'TRANSACTION' AND tt.transaction_id = le.id), '')) ILIKE ALL(@q_terms::text[]))
+  AND (cardinality(@excl_q_terms::text[]) = 0 OR NOT ((le.title || ' ' || le.description) ILIKE ANY(@excl_q_terms::text[]) OR ((le.title || ' ' || le.description) || ' ' || COALESCE((SELECT string_agg(g.name, ' ') FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE le.kind = 'TRANSACTION' AND tt.transaction_id = le.id), '')) ILIKE ANY(@excl_q_terms::text[])))
   AND (sqlc.narg(min_amount)::bigint IS NULL OR le.amount >= sqlc.narg(min_amount)::bigint)
   AND (sqlc.narg(max_amount)::bigint IS NULL OR le.amount <= sqlc.narg(max_amount)::bigint)
   AND (sqlc.narg(cursor_at)::timestamptz IS NULL

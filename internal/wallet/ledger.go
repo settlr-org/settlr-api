@@ -62,7 +62,7 @@ func ledgerJSON(e db.LedgerEntry, tags []tagRef) map[string]any {
 // ledgerPage runs a ledger query (p.Lim should be limit+1 to detect a next page)
 // and renders the entries with their tags.
 func (h *Handler) ledgerPage(ctx context.Context, userID uuid.UUID, p db.ListLedgerEntriesParams, limit int) ([]map[string]any, *string, error) {
-	for _, s := range []*[]string{&p.Kinds, &p.Types, &p.Sources, &p.ExclSources} {
+	for _, s := range []*[]string{&p.Kinds, &p.Types, &p.Sources, &p.ExclSources, &p.QTerms, &p.ExclQTerms} {
 		if *s == nil {
 			*s = []string{}
 		}
