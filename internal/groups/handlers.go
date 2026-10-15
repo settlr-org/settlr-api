@@ -680,6 +680,12 @@ func (h *Handler) CreateInvite(w http.ResponseWriter, r *http.Request) {
 	if targetID, err := h.queries().GetGroupInviteeIDByEmail(r.Context(), email); err == nil {
 		groupName, _ := h.queries().GetGroupName(r.Context(), groupID)
 		inviterName, _ := h.queries().GetUserNameByID(r.Context(), invitedBy)
+		if groupName == "" {
+			groupName = "a group"
+		}
+		if inviterName == "" {
+			inviterName = "Someone"
+		}
 		_ = h.queries().CreateGroupInviteNotification(r.Context(), db.CreateGroupInviteNotificationParams{
 			UserID: targetID, Title: "Invitation to " + groupName, Body: inviterName + " invited you to join " + groupName,
 			Data: httpx.Payload(map[string]any{"group_id": groupID, "token": raw, "group_name": groupName, "inviter_name": inviterName}),

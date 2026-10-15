@@ -201,6 +201,15 @@ func (h *Handler) CreateSettlement(w http.ResponseWriter, r *http.Request) {
 	payerName, _ := h.Queries.GetUserNameByID(r.Context(), from)
 	payeeName, _ := h.Queries.GetUserNameByID(r.Context(), to)
 	groupName, _ := h.Queries.GetGroupName(r.Context(), groupID)
+	if groupName == "" {
+		groupName = "a group"
+	}
+	if payerName == "" {
+		payerName = "Someone"
+	}
+	if payeeName == "" {
+		payeeName = "someone"
+	}
 	body := fmt.Sprintf("%s paid %s %d.%02d %s", payerName, payeeName, req.Amount/100, req.Amount%100, currency)
 	for _, nid := range []uuid.UUID{from, to} {
 		if nid == createdBy {

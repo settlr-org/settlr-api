@@ -511,6 +511,12 @@ func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 	h.ensureQueries()
 	groupName, _ := h.Queries.GetGroupName(r.Context(), groupID)
 	adderName, _ := h.Queries.GetUserNameByID(r.Context(), createdBy)
+	if groupName == "" {
+		groupName = "a group"
+	}
+	if adderName == "" {
+		adderName = "Someone"
+	}
 	for _, nid := range notifyIDs {
 		_ = h.Queries.CreateNotificationExpenseAdded(r.Context(), db.CreateNotificationExpenseAddedParams{
 			UserID: nid,

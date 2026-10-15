@@ -74,3 +74,28 @@ func TestIntegration_NotificationsAreSpecific(t *testing.T) {
 		t.Fatalf("settlement data: %v", d)
 	}
 }
+
+// A missing name never produces text like "Invitation to " or " commented".
+func TestIntegration_NotificationsFallBackToGenericNames(t *testing.T) {
+	e := newEnv(t, testutil.CleanDB(t))
+	alice := e.register("Alice", "alice-notif-fb@test.local")
+	bob := e.register("Bob", "bob-notif-fb@test.local")
+	e.makeFriends(alice.id, bob.id)
+	gid := str(e.must(201, "POST", "/api/v1/groups", alice, map[string]any{"name": "Trip", "currency": "USD"})["id"])
+	if _, err := e.pool.Exec(context.Background(), `UPDATE users SET name = '' WHERE id = $1`, alice.id); err != nil {
+		t.Fatal(err)
+	}
+	e.must(201, "POST", "/api/v1/groups/"+gid+"/invites", alice, map[string]any{"user_id": bob.id.String()})
+	n := e.notifications(bob.id.String(), "GROUP_INVITATION")
+	if len(n) != 1 || n[0]["body"] != "Someone invited you to join Trip" || n[0]["data"].(map[string]any)["inviter_name"] != "Someone" {
+		t.Fatalf("fallback: %v", n)
+	}
+	if _, err := e.pool.Exec(context.Background(), `UPDATE groups SET name = '' WHERE id = $1`, gid); err == nil {
+		e.must(201, "POST", "/api/v1/groups/"+gid+"/invites", alice, map[string]any{"user_id": bob.id.String()})
+		for _, x := range e.notifications(bob.id.String(), "GROUP_INVITATION") {
+			if strings.HasSuffix(str(x["title"]), "to ") {
+				t.Fatalf("empty group name: %v", x)
+			}
+		}
+	}
+}

@@ -124,6 +124,9 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	// Notify other participants
 	nids, _ := q.ListCommentNotifyUsers(r.Context(), db.ListCommentNotifyUsersParams{ExpenseID: expenseID, UserID: userID})
 	commenter, _ := q.GetUserNameByID(r.Context(), userID)
+	if commenter == "" {
+		commenter = "Someone"
+	}
 	for _, nid := range nids {
 		_ = q.CreateMentionNotification(r.Context(), db.CreateMentionNotificationParams{UserID: nid, Title: commenter + " commented", Body: req.Body,
 			Data: httpx.Payload(map[string]any{"expense_id": expenseID, "group_id": groupID, "commenter_name": commenter})})
