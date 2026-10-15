@@ -104,7 +104,7 @@ type Querier interface {
 	CreateRecurringSplit(ctx context.Context, arg CreateRecurringSplitParams) error
 	CreateRecurringSplitWithPercentage(ctx context.Context, arg CreateRecurringSplitWithPercentageParams) error
 	CreateRecurringSplitWithShares(ctx context.Context, arg CreateRecurringSplitWithSharesParams) error
-	CreateSession(ctx context.Context, arg CreateSessionParams) error
+	CreateSession(ctx context.Context, arg CreateSessionParams) (uuid.UUID, error)
 	CreateSettlement(ctx context.Context, arg CreateSettlementParams) error
 	CreateSettlementActivity(ctx context.Context, arg CreateSettlementActivityParams) error
 	CreateSettlementNotification(ctx context.Context, arg CreateSettlementNotificationParams) error

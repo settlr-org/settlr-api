@@ -65,8 +65,8 @@ UPDATE password_reset_tokens SET used_at = now() WHERE token_hash = $1;
 -- name: RevokeAllUserSessions :exec
 UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL;
 
--- name: CreateSession :exec
-INSERT INTO sessions (user_id, refresh_token_hash, user_agent, ip, expires_at) VALUES ($1, $2, $3, $4, $5);
+-- name: CreateSession :one
+INSERT INTO sessions (user_id, refresh_token_hash, user_agent, ip, expires_at) VALUES ($1, $2, $3, $4, $5) RETURNING id;
 
 -- name: GetSessionUserByHash :one
 SELECT user_id FROM sessions WHERE refresh_token_hash = $1 LIMIT 1;

@@ -69,8 +69,8 @@ func (q *Queries) CreatePasswordResetToken(ctx context.Context, arg CreatePasswo
 	return err
 }
 
-const createSession = `-- name: CreateSession :exec
-INSERT INTO sessions (user_id, refresh_token_hash, user_agent, ip, expires_at) VALUES ($1, $2, $3, $4, $5)
+const createSession = `-- name: CreateSession :one
+INSERT INTO sessions (user_id, refresh_token_hash, user_agent, ip, expires_at) VALUES ($1, $2, $3, $4, $5) RETURNING id
 `
 
 type CreateSessionParams struct {
@@ -81,15 +81,17 @@ type CreateSessionParams struct {
 	ExpiresAt        pgtype.Timestamptz `json:"expires_at"`
 }
 
-func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) error {
-	_, err := q.db.Exec(ctx, createSession,
+func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, createSession,
 		arg.UserID,
 		arg.RefreshTokenHash,
 		arg.UserAgent,
 		arg.Ip,
 		arg.ExpiresAt,
 	)
-	return err
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const createUser = `-- name: CreateUser :exec
