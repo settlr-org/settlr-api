@@ -7,7 +7,6 @@ import (
 	"slices"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -733,12 +732,8 @@ func parseFilters(r *http.Request, ledger bool) (filters, string) {
 		}
 		*l.dst = pgUUIDs(ids)
 	}
-	if f.qTerms, msg = searchTerms(r.URL.Query().Get("q"), "q"); msg != "" {
-		return f, msg
-	}
-	if f.exclQTerms, msg = searchTerms(r.URL.Query().Get("excl_q"), "excl_q"); msg != "" {
-		return f, msg
-	}
+	f.qTerms = searchTerms(r.URL.Query().Get("q"))
+	f.exclQTerms = searchTerms(r.URL.Query().Get("excl_q"))
 	if f.min, err = queryInt64(r, "min"); err != nil {
 		return f, err.Error()
 	}
@@ -758,7 +753,8 @@ func parseFilters(r *http.Request, ledger bool) (filters, string) {
 const maxFilterIDs = 100
 
 // Keyword filters: at most maxSearchTerms whitespace-separated terms of at most
-// maxSearchTermLen characters each.
+// maxSearchTermLen characters each. Longer input is truncated, never rejected, so one raw
+// search-box value works on every endpoint that shares the filter parser.
 const (
 	maxSearchTerms   = 10
 	maxSearchTermLen = 100
@@ -769,18 +765,19 @@ func likeEscape(s string) string {
 	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(s)
 }
 
-// searchTerms splits a keyword filter into LIKE patterns ("%term%", wildcards escaped).
-func searchTerms(raw, name string) ([]string, string) {
+// searchTerms splits a keyword filter into LIKE patterns ("%term%", wildcards escaped):
+// the first maxSearchTerms terms, each cut to maxSearchTermLen characters.
+func searchTerms(raw string) []string {
 	fields := strings.Fields(raw)
 	if len(fields) > maxSearchTerms {
-		return nil, fmt.Sprintf("%s accepts at most %d terms", name, maxSearchTerms)
+		fields = fields[:maxSearchTerms]
 	}
 	out := make([]string, 0, len(fields))
 	for _, t := range fields {
-		if utf8.RuneCountInString(t) > maxSearchTermLen {
-			return nil, fmt.Sprintf("%s terms are limited to %d characters", name, maxSearchTermLen)
+		if r := []rune(t); len(r) > maxSearchTermLen {
+			t = string(r[:maxSearchTermLen])
 		}
 		out = append(out, "%"+likeEscape(t)+"%")
 	}
-	return out, ""
+	return out
 }

@@ -394,8 +394,6 @@ func TestIntegration_ReportValidationAndAuth(t *testing.T) {
 		"/api/v1/reports?source=NOPE",
 		"/api/v1/reports?hide_adjustments=maybe",
 		"/api/v1/reports?include_group_shares=maybe",
-		"/api/v1/reports?q=" + strings.Repeat("a+", 11),
-		"/api/v1/reports?excl_q=" + strings.Repeat("x", 101),
 		"/api/v1/reports/trend?bucket=day",
 		"/api/v1/reports/trend?from=2026-05-01&bucket=day",
 		"/api/v1/reports/trend?from=2026-05-01&to=2026-05-31&bucket=year",
@@ -567,7 +565,7 @@ func TestIntegration_ReportCSV(t *testing.T) {
 		t.Fatalf("headers: %d %v", s, h)
 	}
 	rows := readCSV(t, body)
-	wantHeader := "date,kind,type,title,description,account,to_account,category,tags,amount_minor,amount,currency,base_amount,base_currency,group,source"
+	wantHeader := "date,kind,type,title,description,account,to_account,category,tags,amount_minor,amount,currency,to_amount_minor,to_amount,to_currency,base_amount,base_currency,group,source"
 	if strings.Join(rows[0], ",") != wantHeader {
 		t.Fatalf("header: %v", rows[0])
 	}
@@ -595,17 +593,17 @@ func TestIntegration_ReportCSV(t *testing.T) {
 	if r := by["'@cmd"]; r == nil {
 		t.Fatalf("@ not neutralised: %v", by)
 	}
-	if r := by["Dinner Paris"]; r == nil || r[5] != "Euro" || r[8] != "Holiday" || r[9] != "9000" || r[10] != "90.00" || r[11] != "EUR" || r[12] != "100.00" || r[13] != "USD" || r[14] != "" || r[15] != "MANUAL" {
+	if r := by["Dinner Paris"]; r == nil || r[5] != "Euro" || r[8] != "Holiday" || r[9] != "9000" || r[10] != "90.00" || r[11] != "EUR" || r[12] != "" || r[14] != "" || r[15] != "100.00" || r[16] != "USD" || r[17] != "" || r[18] != "MANUAL" {
 		t.Fatalf("Paris row: %v", r)
 	}
-	if r := by["Top up euro"]; r == nil || r[2] != "TRANSFER" || r[5] != "Bank" || r[6] != "Euro" || r[9] != "9000" || r[12] != "90.00" {
+	if r := by["Top up euro"]; r == nil || r[2] != "TRANSFER" || r[5] != "Bank" || r[6] != "Euro" || r[9] != "9000" || r[12] != "8100" || r[13] != "81.00" || r[14] != "EUR" || r[15] != "90.00" {
 		t.Fatalf("transfer row: %v", r)
 	}
 	groupRows := 0
 	for _, r := range rows[1:] {
 		if r[1] == "GROUP_EXPENSE" {
 			groupRows++
-			if r[14] != "Flat" || r[15] != "GROUP" || r[11] != "NPR" {
+			if r[17] != "Flat" || r[18] != "GROUP" || r[11] != "NPR" {
 				t.Fatalf("group row: %v", r)
 			}
 		}

@@ -520,7 +520,8 @@ func (h *Handler) ReportCSV(w http.ResponseWriter, r *http.Request) {
 	export.LongWrite(w)
 	cw := export.NewCSV(w, reportFilename(r, from, to), []string{
 		"date", "kind", "type", "title", "description", "account", "to_account", "category", "tags",
-		"amount_minor", "amount", "currency", "base_amount", "base_currency", "group", "source",
+		"amount_minor", "amount", "currency", "to_amount_minor", "to_amount", "to_currency",
+		"base_amount", "base_currency", "group", "source",
 	})
 	rc := http.NewResponseController(w)
 	for len(page) > 0 {
@@ -535,6 +536,11 @@ func (h *Handler) ReportCSV(w http.ResponseWriter, r *http.Request) {
 			if v, ok := fxc.convert(ctx, e.Amount, cur, fxc.base); ok {
 				baseAmount = export.Money(v)
 			}
+			toMinor, toMajor, toCur := "", "", ""
+			if e.ToAmount.Valid {
+				toMinor, toMajor = strconv.FormatInt(e.ToAmount.Int64, 10), export.Money(e.ToAmount.Int64)
+				toCur = strings.TrimSpace(e.ToCurrency.String)
+			}
 			var names []string
 			for _, t := range tags[e.ID] {
 				names = append(names, t.Name)
@@ -548,7 +554,7 @@ func (h *Handler) ReportCSV(w http.ResponseWriter, r *http.Request) {
 				export.CSVSafe(e.Title), export.CSVSafe(e.Description),
 				export.CSVSafe(accNames[uuidOf(e.AccountID)]), export.CSVSafe(accNames[uuidOf(e.ToAccountID)]),
 				export.CSVSafe(catNames[e.CategoryID]), export.CSVSafe(strings.Join(names, "; ")),
-				strconv.FormatInt(e.Amount, 10), export.Money(e.Amount), cur, baseAmount, fxc.base,
+				strconv.FormatInt(e.Amount, 10), export.Money(e.Amount), cur, toMinor, toMajor, toCur, baseAmount, fxc.base,
 				export.CSVSafe(group), e.Source,
 			})
 		}

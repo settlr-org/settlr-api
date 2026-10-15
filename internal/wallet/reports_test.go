@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"math/rand"
+	"strings"
 	"testing"
 	"time"
 )
@@ -91,11 +92,19 @@ func TestBucketBoundaries(t *testing.T) {
 }
 
 func TestSearchTerms(t *testing.T) {
-	got, msg := searchTerms("  50%  off_x \\ ", "q")
-	if msg != "" || len(got) != 3 || got[0] != `%50\%%` || got[1] != `%off\_x%` || got[2] != `%\\%` {
-		t.Fatalf("%q %q", got, msg)
+	got := searchTerms("  50%  off_x \\ ")
+	if len(got) != 3 || got[0] != `%50\%%` || got[1] != `%off\_x%` || got[2] != `%\\%` {
+		t.Fatalf("%q", got)
 	}
-	if got, _ := searchTerms("   ", "q"); len(got) != 0 {
+	if got := searchTerms("   "); len(got) != 0 {
 		t.Fatalf("blank: %v", got)
+	}
+	// Too many / too long: truncated, not rejected.
+	if got := searchTerms("a b c d e f g h i j k l"); len(got) != 10 || got[9] != "%j%" {
+		t.Fatalf("terms: %v", got)
+	}
+	long := strings.Repeat("é", 150)
+	if got := searchTerms(long); len([]rune(got[0])) != 102 {
+		t.Fatalf("term length: %d", len([]rune(got[0])))
 	}
 }

@@ -216,8 +216,11 @@ WHERE t.user_id = @user_id AND t.deleted_at IS NULL
         SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = t.id AND tt.tag_id = ANY(@tag_ids::uuid[])))
   AND (cardinality(@excl_tag_ids::uuid[]) = 0 OR NOT EXISTS (
         SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = t.id AND tt.tag_id = ANY(@excl_tag_ids::uuid[])))
-  AND (cardinality(@q_terms::text[]) = 0 OR (t.title || ' ' || t.description) ILIKE ALL(@q_terms::text[]) OR ((t.title || ' ' || t.description) || ' ' || COALESCE((SELECT string_agg(g.name, ' ') FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = t.id), '')) ILIKE ALL(@q_terms::text[]))
-  AND (cardinality(@excl_q_terms::text[]) = 0 OR NOT ((t.title || ' ' || t.description) ILIKE ANY(@excl_q_terms::text[]) OR ((t.title || ' ' || t.description) || ' ' || COALESCE((SELECT string_agg(g.name, ' ') FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = t.id), '')) ILIKE ANY(@excl_q_terms::text[])))
+  AND (cardinality(@q_terms::text[]) = 0 OR t.title ILIKE ALL(@q_terms::text[]) OR t.description ILIKE ALL(@q_terms::text[])
+       OR (cardinality(@q_terms::text[]) = 1 AND EXISTS (SELECT 1 FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = t.id AND g.name ILIKE ANY(@q_terms::text[])))
+       OR (cardinality(@q_terms::text[]) > 1 AND (t.title || ' ' || t.description || ' ' || COALESCE((SELECT string_agg(g.name, ' ') FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = t.id), '')) ILIKE ALL(@q_terms::text[])))
+  AND (cardinality(@excl_q_terms::text[]) = 0 OR NOT (t.title ILIKE ANY(@excl_q_terms::text[]) OR t.description ILIKE ANY(@excl_q_terms::text[])
+       OR EXISTS (SELECT 1 FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE tt.transaction_id = t.id AND g.name ILIKE ANY(@excl_q_terms::text[]))))
   AND (sqlc.narg(min_amount)::bigint IS NULL OR t.amount >= sqlc.narg(min_amount)::bigint)
   AND (sqlc.narg(max_amount)::bigint IS NULL OR t.amount <= sqlc.narg(max_amount)::bigint)
   AND (sqlc.narg(cursor_at)::timestamptz IS NULL
@@ -231,8 +234,8 @@ LIMIT @lim::int;
 SELECT le.* FROM ledger_entries le
 WHERE le.user_id = @user_id
   AND (CASE @planned::text WHEN 'only' THEN le.occurred_at IS NULL WHEN 'all' THEN true ELSE le.occurred_at IS NOT NULL END)
-  AND (sqlc.narg(from_at)::timestamptz IS NULL OR le.sort_at >= sqlc.narg(from_at)::timestamptz)
-  AND (sqlc.narg(to_at)::timestamptz IS NULL OR le.sort_at < sqlc.narg(to_at)::timestamptz)
+  AND (sqlc.narg(from_at)::timestamptz IS NULL OR COALESCE(le.occurred_at, le.due_at) >= sqlc.narg(from_at)::timestamptz)
+  AND (sqlc.narg(to_at)::timestamptz IS NULL OR COALESCE(le.occurred_at, le.due_at) < sqlc.narg(to_at)::timestamptz)
   AND (cardinality(@kinds::text[]) = 0 OR le.kind = ANY(@kinds::text[]))
   AND (cardinality(@types::text[]) = 0 OR le.type = ANY(@types::text[]))
   AND (cardinality(@sources::text[]) = 0 OR le.source = ANY(@sources::text[]))
@@ -246,8 +249,11 @@ WHERE le.user_id = @user_id
         SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY(@tag_ids::uuid[]))))
   AND (cardinality(@excl_tag_ids::uuid[]) = 0 OR le.kind <> 'TRANSACTION' OR NOT EXISTS (
         SELECT 1 FROM transaction_tags tt WHERE tt.transaction_id = le.id AND tt.tag_id = ANY(@excl_tag_ids::uuid[])))
-  AND (cardinality(@q_terms::text[]) = 0 OR (le.title || ' ' || le.description) ILIKE ALL(@q_terms::text[]) OR ((le.title || ' ' || le.description) || ' ' || COALESCE((SELECT string_agg(g.name, ' ') FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE le.kind = 'TRANSACTION' AND tt.transaction_id = le.id), '')) ILIKE ALL(@q_terms::text[]))
-  AND (cardinality(@excl_q_terms::text[]) = 0 OR NOT ((le.title || ' ' || le.description) ILIKE ANY(@excl_q_terms::text[]) OR ((le.title || ' ' || le.description) || ' ' || COALESCE((SELECT string_agg(g.name, ' ') FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE le.kind = 'TRANSACTION' AND tt.transaction_id = le.id), '')) ILIKE ANY(@excl_q_terms::text[])))
+  AND (cardinality(@q_terms::text[]) = 0 OR le.title ILIKE ALL(@q_terms::text[]) OR le.description ILIKE ALL(@q_terms::text[])
+       OR (cardinality(@q_terms::text[]) = 1 AND EXISTS (SELECT 1 FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE le.kind = 'TRANSACTION' AND tt.transaction_id = le.id AND g.name ILIKE ANY(@q_terms::text[])))
+       OR (cardinality(@q_terms::text[]) > 1 AND (le.title || ' ' || le.description || ' ' || COALESCE((SELECT string_agg(g.name, ' ') FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE le.kind = 'TRANSACTION' AND tt.transaction_id = le.id), '')) ILIKE ALL(@q_terms::text[])))
+  AND (cardinality(@excl_q_terms::text[]) = 0 OR NOT (le.title ILIKE ANY(@excl_q_terms::text[]) OR le.description ILIKE ANY(@excl_q_terms::text[])
+       OR EXISTS (SELECT 1 FROM transaction_tags tt JOIN tags g ON g.id = tt.tag_id WHERE le.kind = 'TRANSACTION' AND tt.transaction_id = le.id AND g.name ILIKE ANY(@excl_q_terms::text[]))))
   AND (sqlc.narg(min_amount)::bigint IS NULL OR le.amount >= sqlc.narg(min_amount)::bigint)
   AND (sqlc.narg(max_amount)::bigint IS NULL OR le.amount <= sqlc.narg(max_amount)::bigint)
   AND (sqlc.narg(cursor_at)::timestamptz IS NULL
