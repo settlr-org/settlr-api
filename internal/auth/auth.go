@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -140,6 +141,33 @@ type Service struct {
 	Pool    *pgxpool.Pool
 	Queries *db.Queries
 	Cfg     config.Config
+
+	// denied holds users whose account was just deleted (uuid.UUID → expiry time.Time) so
+	// their still-valid access tokens stop working immediately instead of at expiry.
+	denied sync.Map
+}
+
+// DenyUser makes every access token of userID fail authentication until those tokens would
+// have expired anyway (access-token lifetime plus a minute of clock-skew margin). Refresh
+// already fails because the sessions are gone.
+func (s *Service) DenyUser(userID uuid.UUID) {
+	ttl := time.Duration(s.Cfg.JWTExpiryMinutes)*time.Minute + time.Minute
+	if ttl < 2*time.Minute {
+		ttl = 16 * time.Minute
+	}
+	s.denied.Store(userID, time.Now().Add(ttl))
+}
+
+func (s *Service) isDenied(userID uuid.UUID) bool {
+	v, ok := s.denied.Load(userID)
+	if !ok {
+		return false
+	}
+	if time.Now().After(v.(time.Time)) {
+		s.denied.Delete(userID)
+		return false
+	}
+	return true
 }
 
 func (s *Service) ensureQueries() *db.Queries {
@@ -167,7 +195,7 @@ func (s *Service) GetClaimsFromToken(ctx context.Context, authHeader string) (uu
 		return uuid.Nil, uuid.Nil, httpx.ErrUnauthorized
 	}
 	id, sid, err := ParseAccessClaims(s.Cfg, parts[1])
-	if err != nil {
+	if err != nil || s.isDenied(id) {
 		return uuid.Nil, uuid.Nil, httpx.ErrUnauthorized
 	}
 	return id, sid, nil

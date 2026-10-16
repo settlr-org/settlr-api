@@ -18,7 +18,7 @@ SELECT id, name, email, password_hash, email_verified_at FROM users WHERE lower(
 SELECT id FROM users WHERE lower(email) = lower($1) LIMIT 1;
 
 -- name: GetOAuthIdentityForUpdate :one
-SELECT u.id, u.name, u.email FROM oauth_identities oi JOIN users u ON u.id = oi.user_id WHERE oi.provider = 'google' AND oi.subject = $1 FOR UPDATE;
+SELECT u.id, u.name, u.email FROM oauth_identities oi JOIN users u ON u.id = oi.user_id WHERE oi.provider = 'google' AND oi.subject = $1 AND u.is_anonymous = false FOR UPDATE;
 
 -- name: CreateUser :exec
 INSERT INTO users (id, name, email, password_hash) VALUES ($1, $2, $3, $4);

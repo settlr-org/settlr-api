@@ -4613,7 +4613,23 @@
         "summary": "Delete account",
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "Account deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "account deleted"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated"
           }
         },
         "security": [
@@ -4625,7 +4641,8 @@
           {
             "$ref": "#/components/parameters/IdempotencyKey"
           }
-        ]
+        ],
+        "description": "Erases the signed-in user's personal data and anonymises the account. Removed: all wallet data (accounts, transactions, tags, planned payments, budgets, loans, exchange-rate overrides, own categories, settings and the legacy personal expenses), notifications and preferences, sessions, the Google sign-in link, verification and reset tokens, pending group invitations addressed to the user's e-mail address, and payment details. The user row is kept only as an anonymous 'Deleted User' because shared group history (expenses, splits, settlements, comments) still references it; it cannot sign in again with a password or with Google, its access tokens stop working immediately, and the e-mail address can be registered again. No confirmation parameter is required (clients confirm with the user first)."
       }
     },
     "/api/v1/me/balances": {
@@ -10436,6 +10453,91 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/me/wallet-data": {
+      "delete": {
+        "summary": "Delete all wallet data",
+        "description": "Erases everything the user owns in the wallet while keeping the account, profile, groups, friends and group history: accounts and their transactions, tags, planned payments, budgets, loans with records, exchange-rate overrides, own categories, display settings and the legacy personal expenses. Group expenses that were paid from a deleted account or filed under a deleted category are kept and simply lose that link. Requires the query parameter confirm=DELETE (exactly, upper case); otherwise 422 and nothing is erased. Safe to repeat.",
+        "parameters": [
+          {
+            "name": "confirm",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DELETE"
+              ]
+            },
+            "description": "Must be exactly DELETE."
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Wallet data deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "wallet data deleted"
+                    },
+                    "deleted": {
+                      "type": "object",
+                      "description": "Rows removed per kind.",
+                      "properties": {
+                        "accounts": {
+                          "type": "integer"
+                        },
+                        "transactions": {
+                          "type": "integer"
+                        },
+                        "planned_payments": {
+                          "type": "integer"
+                        },
+                        "loans": {
+                          "type": "integer"
+                        },
+                        "budgets": {
+                          "type": "integer"
+                        },
+                        "tags": {
+                          "type": "integer"
+                        },
+                        "categories": {
+                          "type": "integer"
+                        },
+                        "rate_overrides": {
+                          "type": "integer"
+                        },
+                        "legacy_personal_expenses": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "422": {
+            "description": "confirm=DELETE missing or wrong"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     }
   }

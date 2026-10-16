@@ -213,7 +213,9 @@ func (q *Queries) SearchUsersByName(ctx context.Context, arg SearchUsersByNamePa
 }
 
 const softDeleteUser = `-- name: SoftDeleteUser :exec
-UPDATE users SET name = 'Deleted User', email = $1, password_hash = 'deleted', avatar_url = NULL, is_anonymous = true, updated_at = now() WHERE id = $2
+UPDATE users SET name = 'Deleted User', email = $1, password_hash = 'deleted', avatar_url = NULL,
+       bank_qr_url = NULL, bank_name = NULL, payment_handle = NULL, timezone = 'UTC', email_verified_at = NULL,
+       is_anonymous = true, updated_at = now() WHERE id = $2
 `
 
 type SoftDeleteUserParams struct {

@@ -23,6 +23,7 @@ import (
 	"github.com/settlr-org/settlr-api/internal/rates"
 	"github.com/settlr-org/settlr-api/internal/search"
 	"github.com/settlr-org/settlr-api/internal/settlements"
+	"github.com/settlr-org/settlr-api/internal/users"
 	"github.com/settlr-org/settlr-api/internal/wallet"
 )
 
@@ -68,6 +69,7 @@ func newEnv(t *testing.T, pool *pgxpool.Pool) *env {
 	queries := db.New(pool)
 	(&personal.Handler{Pool: pool, Queries: queries}).RegisterRoutes(mux, authMw)
 	(&search.Handler{Pool: pool, Queries: queries}).RegisterRoutes(mux, authMw)
+	(&users.Handler{Pool: pool, Queries: queries, AuthSvc: authSvc}).RegisterRoutes(mux, authMw)
 	(&wallet.Handler{Pool: pool, Queries: queries, Rates: rates.NewConverter(testRates)}).RegisterRoutes(mux, authMw)
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)

@@ -142,7 +142,7 @@ func (q *Queries) GetEmailVerificationTokenUser(ctx context.Context, tokenHash s
 }
 
 const getOAuthIdentityForUpdate = `-- name: GetOAuthIdentityForUpdate :one
-SELECT u.id, u.name, u.email FROM oauth_identities oi JOIN users u ON u.id = oi.user_id WHERE oi.provider = 'google' AND oi.subject = $1 FOR UPDATE
+SELECT u.id, u.name, u.email FROM oauth_identities oi JOIN users u ON u.id = oi.user_id WHERE oi.provider = 'google' AND oi.subject = $1 AND u.is_anonymous = false FOR UPDATE
 `
 
 type GetOAuthIdentityForUpdateRow struct {
