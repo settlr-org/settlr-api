@@ -127,6 +127,8 @@ type Querier interface {
 	DeleteGroupExpenses(ctx context.Context, groupID uuid.UUID) error
 	DeleteGroupRecurring(ctx context.Context, groupID uuid.UUID) error
 	DeleteGroupSettlements(ctx context.Context, groupID uuid.UUID) error
+	// Pending group invitations addressed to the user's e-mail address.
+	DeletePendingGroupInvitesForEmail(ctx context.Context, lower string) error
 	DeletePlannedPaymentTags(ctx context.Context, plannedPaymentID pgtype.UUID) error
 	DeleteRateOverride(ctx context.Context, arg DeleteRateOverrideParams) (int64, error)
 	DeleteRecurring(ctx context.Context, arg DeleteRecurringParams) (int64, error)
@@ -136,6 +138,31 @@ type Querier interface {
 	DeleteStaleSessions(ctx context.Context) (int64, error)
 	DeleteTag(ctx context.Context, arg DeleteTagParams) (int64, error)
 	DeleteTransactionTags(ctx context.Context, transactionID pgtype.UUID) error
+	DeleteUserAccounts(ctx context.Context, userID uuid.UUID) (int64, error)
+	DeleteUserBudgets(ctx context.Context, userID uuid.UUID) (int64, error)
+	DeleteUserCategoryOrder(ctx context.Context, userID uuid.UUID) error
+	DeleteUserEmailVerificationTokens(ctx context.Context, userID uuid.UUID) error
+	DeleteUserFriendInvites(ctx context.Context, invitedBy uuid.UUID) error
+	DeleteUserLegacyPersonalBudgets(ctx context.Context, userID uuid.UUID) error
+	DeleteUserLegacyPersonalExpenses(ctx context.Context, userID uuid.UUID) (int64, error)
+	DeleteUserLoans(ctx context.Context, userID uuid.UUID) (int64, error)
+	DeleteUserNotificationPreferences(ctx context.Context, userID uuid.UUID) error
+	DeleteUserNotifications(ctx context.Context, userID uuid.UUID) error
+	// The Google link: without this a later Google sign-in would find the old (anonymised) account.
+	DeleteUserOAuthIdentities(ctx context.Context, userID uuid.UUID) error
+	// Categories the user created. Rows in other tables that point at them are set to NULL by their foreign keys.
+	DeleteUserOwnedCategories(ctx context.Context, ownerID uuid.UUID) (int64, error)
+	DeleteUserPasswordResetTokens(ctx context.Context, userID uuid.UUID) error
+	DeleteUserPlannedPayments(ctx context.Context, userID uuid.UUID) (int64, error)
+	DeleteUserRateOverrides(ctx context.Context, userID uuid.UUID) (int64, error)
+	// Sessions hold the device, IP and refresh-token hash.
+	DeleteUserSessions(ctx context.Context, userID uuid.UUID) error
+	DeleteUserSettings(ctx context.Context, userID uuid.UUID) error
+	DeleteUserTags(ctx context.Context, userID uuid.UUID) (int64, error)
+	// Deleting a user's wallet data and, for account deletion, the rest of their personal data (internal/users).
+	// Shared group history (expenses, splits, settlements, comments) is NOT touched: it belongs to the group and
+	// stays attributed to the anonymised "Deleted User" row.
+	DeleteUserTransactions(ctx context.Context, userID uuid.UUID) (int64, error)
 	EnsureFriendship(ctx context.Context, arg EnsureFriendshipParams) error
 	ExportAccounts(ctx context.Context, userID uuid.UUID) ([]Account, error)
 	ExportBudgets(ctx context.Context, userID uuid.UUID) ([]Budget, error)

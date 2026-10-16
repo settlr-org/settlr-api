@@ -51,6 +51,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) h
 	mux.Handle("PATCH /api/v1/me", authMw(http.HandlerFunc(h.UpdateMe)))
 	mux.Handle("PATCH /api/v1/me/password", authMw(http.HandlerFunc(h.ChangePassword)))
 	mux.Handle("DELETE /api/v1/me", authMw(http.HandlerFunc(h.DeleteAccount)))
+	mux.Handle("DELETE /api/v1/me/wallet-data", authMw(http.HandlerFunc(h.DeleteWalletData)))
 	mux.Handle("GET /api/v1/users/search", authMw(http.HandlerFunc(h.SearchUsers)))
 	mux.Handle("GET /api/v1/users/{id}", authMw(http.HandlerFunc(h.GetUser)))
 	mux.Handle("GET /api/v1/me/payment-info", authMw(http.HandlerFunc(h.GetPaymentInfo)))
@@ -260,24 +261,6 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	_ = q.UpdateUserPasswordHash(r.Context(), db.UpdateUserPasswordHashParams{PasswordHash: pgtype.Text{String: newHash, Valid: true}, ID: id})
 	_ = h.AuthSvc.RevokeAllSessions(r.Context(), id)
 	httpx.WriteJSON(w, 200, map[string]any{"message": "password updated"})
-}
-
-func (h *Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
-	uid, _ := httpx.GetUserID(r.Context())
-	id, _ := uuid.Parse(uid)
-	q := h.ensureQueries()
-	if q == nil {
-		httpx.WriteError(w, r, httpx.ErrNotFound)
-		return
-	}
-	anonEmail := "deleted_" + id.String() + "@deleted.local"
-	err := q.SoftDeleteUser(r.Context(), db.SoftDeleteUserParams{Email: anonEmail, ID: id})
-	if err != nil {
-		httpx.WriteError(w, r, err)
-		return
-	}
-	_ = h.AuthSvc.RevokeAllSessions(r.Context(), id)
-	httpx.WriteJSON(w, 200, map[string]any{"message": "account deleted"})
 }
 
 func (h *Handler) SearchUsers(w http.ResponseWriter, r *http.Request) {
