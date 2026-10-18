@@ -418,6 +418,32 @@ type SettlementAccount struct {
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
+type SyncCounter struct {
+	UserID  uuid.UUID `json:"user_id"`
+	NextSeq int64     `json:"next_seq"`
+}
+
+type SyncKey struct {
+	UserID     uuid.UUID          `json:"user_id"`
+	Kdf        string             `json:"kdf"`
+	KdfParams  []byte             `json:"kdf_params"`
+	Salt       []byte             `json:"salt"`
+	WrappedKey []byte             `json:"wrapped_key"`
+	Version    int32              `json:"version"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+}
+
+type SyncRecord struct {
+	UserID     uuid.UUID          `json:"user_id"`
+	ID         uuid.UUID          `json:"id"`
+	Seq        int64              `json:"seq"`
+	Deleted    bool               `json:"deleted"`
+	Nonce      []byte             `json:"nonce"`
+	Ciphertext []byte             `json:"ciphertext"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Tag struct {
 	ID        uuid.UUID          `json:"id"`
 	UserID    uuid.UUID          `json:"user_id"`

@@ -136,6 +136,9 @@ type Querier interface {
 	DeleteSettlementAccountsByAccount(ctx context.Context, accountID pgtype.UUID) error
 	// Rotated/revoked or expired sessions older than 30 days carry no reuse-detection value any more.
 	DeleteStaleSessions(ctx context.Context) (int64, error)
+	DeleteSyncCounter(ctx context.Context, userID uuid.UUID) error
+	DeleteSyncKey(ctx context.Context, userID uuid.UUID) error
+	DeleteSyncRecords(ctx context.Context, userID uuid.UUID) error
 	DeleteTag(ctx context.Context, arg DeleteTagParams) (int64, error)
 	DeleteTransactionTags(ctx context.Context, transactionID pgtype.UUID) error
 	DeleteUserAccounts(ctx context.Context, userID uuid.UUID) (int64, error)
@@ -164,6 +167,7 @@ type Querier interface {
 	// stays attributed to the anonymised "Deleted User" row.
 	DeleteUserTransactions(ctx context.Context, userID uuid.UUID) (int64, error)
 	EnsureFriendship(ctx context.Context, arg EnsureFriendshipParams) error
+	EnsureSyncCounter(ctx context.Context, userID uuid.UUID) error
 	ExportAccounts(ctx context.Context, userID uuid.UUID) ([]Account, error)
 	ExportBudgets(ctx context.Context, userID uuid.UUID) ([]Budget, error)
 	ExportCategoryNames(ctx context.Context, ids []pgtype.UUID) ([]ExportCategoryNamesRow, error)
@@ -291,6 +295,8 @@ type Querier interface {
 	GetStatsMonthlyLast30(ctx context.Context, groupID uuid.UUID) ([]GetStatsMonthlyLast30Row, error)
 	GetStatsMonthlyThisMonth(ctx context.Context, groupID uuid.UUID) ([]GetStatsMonthlyThisMonthRow, error)
 	GetStatsMonthlyThisYear(ctx context.Context, groupID uuid.UUID) ([]GetStatsMonthlyThisYearRow, error)
+	// End-to-end-encrypted sync (internal/syncstore). The server only ever sees ciphertext.
+	GetSyncKey(ctx context.Context, userID uuid.UUID) (GetSyncKeyRow, error)
 	GetTag(ctx context.Context, arg GetTagParams) (Tag, error)
 	GetTransaction(ctx context.Context, arg GetTransactionParams) (Transaction, error)
 	GetUserAvatarByID(ctx context.Context, id uuid.UUID) (string, error)
@@ -327,6 +333,7 @@ type Querier interface {
 	InsertExpenseActivityDeleted(ctx context.Context, arg InsertExpenseActivityDeletedParams) error
 	InsertExpenseActivityUpdated(ctx context.Context, arg InsertExpenseActivityUpdatedParams) error
 	InsertExpenseSplit(ctx context.Context, arg InsertExpenseSplitParams) error
+	InsertSyncKey(ctx context.Context, arg InsertSyncKeyParams) (int64, error)
 	IsExpenseMember(ctx context.Context, arg IsExpenseMemberParams) (bool, error)
 	IsGroupInviteCurrent(ctx context.Context, id uuid.UUID) (bool, error)
 	// Groups domain queries for sqlc with pgx/v5.
@@ -405,6 +412,7 @@ type Querier interface {
 	// from_account_id, receiver side: settlement_accounts), never another user's.
 	ListSettlements(ctx context.Context, arg ListSettlementsParams) ([]ListSettlementsRow, error)
 	ListSettlementsByGroup(ctx context.Context, groupID uuid.UUID) ([]ListSettlementsByGroupRow, error)
+	ListSyncChanges(ctx context.Context, arg ListSyncChangesParams) ([]ListSyncChangesRow, error)
 	ListTags(ctx context.Context, userID uuid.UUID) ([]Tag, error)
 	ListTagsForTransactions(ctx context.Context, transactionIds []pgtype.UUID) ([]ListTagsForTransactionsRow, error)
 	ListTransactions(ctx context.Context, arg ListTransactionsParams) ([]Transaction, error)
@@ -456,6 +464,8 @@ type Querier interface {
 	// expired or whose pending lease went stale (e.g. the server died mid-request).
 	// Returns no row when a live reservation/response already exists.
 	ReserveIdempotencyKey(ctx context.Context, arg ReserveIdempotencyKeyParams) (pgtype.UUID, error)
+	// Reserves n sequence numbers; the first one is returned.
+	ReserveSyncSeqs(ctx context.Context, arg ReserveSyncSeqsParams) (int64, error)
 	RevokeAllUserSessions(ctx context.Context, userID uuid.UUID) error
 	RevokeSessionByHash(ctx context.Context, refreshTokenHash string) error
 	RevokeSessionByID(ctx context.Context, arg RevokeSessionByIDParams) error
@@ -511,6 +521,7 @@ type Querier interface {
 	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) error
 	SumOwedByGroup(ctx context.Context, groupID uuid.UUID) ([]SumOwedByGroupRow, error)
 	SumPaidByGroup(ctx context.Context, groupID uuid.UUID) ([]SumPaidByGroupRow, error)
+	SyncStatus(ctx context.Context, userID uuid.UUID) (SyncStatusRow, error)
 	TopUpRecurringSplit(ctx context.Context, arg TopUpRecurringSplitParams) error
 	UpdateAccount(ctx context.Context, arg UpdateAccountParams) (Account, error)
 	UpdateBudget(ctx context.Context, arg UpdateBudgetParams) (Budget, error)
@@ -531,6 +542,8 @@ type Querier interface {
 	UpdateRecurringActive(ctx context.Context, arg UpdateRecurringActiveParams) (int64, error)
 	UpdateSettlementAmount(ctx context.Context, arg UpdateSettlementAmountParams) error
 	UpdateSettlementNote(ctx context.Context, arg UpdateSettlementNoteParams) error
+	// Changing the passphrase re-wraps the same data key; the caller proves it saw the current version.
+	UpdateSyncKey(ctx context.Context, arg UpdateSyncKeyParams) (int64, error)
 	UpdateTag(ctx context.Context, arg UpdateTagParams) (Tag, error)
 	UpdateTransaction(ctx context.Context, arg UpdateTransactionParams) (Transaction, error)
 	UpdateUserAvatar(ctx context.Context, arg UpdateUserAvatarParams) error
@@ -548,6 +561,7 @@ type Querier interface {
 	UpsertPersonalBudget(ctx context.Context, arg UpsertPersonalBudgetParams) error
 	UpsertRateOverride(ctx context.Context, arg UpsertRateOverrideParams) (UpsertRateOverrideRow, error)
 	UpsertSettlementAccount(ctx context.Context, arg UpsertSettlementAccountParams) error
+	UpsertSyncRecord(ctx context.Context, arg UpsertSyncRecordParams) error
 	UpsertUserSettings(ctx context.Context, arg UpsertUserSettingsParams) (UserSetting, error)
 }
 
