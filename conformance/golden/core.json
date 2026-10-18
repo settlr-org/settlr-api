@@ -1,0 +1,3671 @@
+[
+  {
+    "step": "#0 PATCH /api/v1/me",
+    "status": 200,
+    "body": null
+  },
+  {
+    "step": "a1 POST /api/v1/accounts",
+    "status": 201,
+    "body": {
+      "archived": false,
+      "archived_at": null,
+      "balance": 100000,
+      "balance_base": 100000,
+      "base_currency": "NPR",
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "wallet",
+      "id": "\u003cid:1\u003e",
+      "include_in_balance": true,
+      "is_default": true,
+      "missing_rates": [],
+      "name": "Cash",
+      "sort_order": 0,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "a2 POST /api/v1/accounts",
+    "status": 201,
+    "body": {
+      "archived": false,
+      "archived_at": null,
+      "balance": 5000,
+      "balance_base": 665000,
+      "base_currency": "NPR",
+      "color": "chart2",
+      "created_at": "\u003cts\u003e",
+      "currency": "USD",
+      "icon": "bank",
+      "id": "\u003cid:2\u003e",
+      "include_in_balance": true,
+      "is_default": false,
+      "missing_rates": [],
+      "name": "Savings USD",
+      "sort_order": 1,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "a3 POST /api/v1/accounts",
+    "status": 201,
+    "body": {
+      "archived": false,
+      "archived_at": null,
+      "balance": 0,
+      "balance_base": 0,
+      "base_currency": "NPR",
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "wallet",
+      "id": "\u003cid:3\u003e",
+      "include_in_balance": false,
+      "is_default": false,
+      "missing_rates": [],
+      "name": "Wallet2",
+      "sort_order": 2,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#4 POST /api/v1/accounts",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "name required (max 100)"
+      }
+    }
+  },
+  {
+    "step": "#5 POST /api/v1/accounts",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "unsupported currency"
+      }
+    }
+  },
+  {
+    "step": "#6 GET /api/v1/accounts",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "archived": false,
+          "archived_at": null,
+          "balance": 100000,
+          "balance_base": 100000,
+          "base_currency": "NPR",
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "wallet",
+          "id": "\u003cid:1\u003e",
+          "include_in_balance": true,
+          "is_default": true,
+          "missing_rates": [],
+          "name": "Cash",
+          "sort_order": 0,
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "archived": false,
+          "archived_at": null,
+          "balance": 5000,
+          "balance_base": 665000,
+          "base_currency": "NPR",
+          "color": "chart2",
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "icon": "bank",
+          "id": "\u003cid:2\u003e",
+          "include_in_balance": true,
+          "is_default": false,
+          "missing_rates": [],
+          "name": "Savings USD",
+          "sort_order": 1,
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "archived": false,
+          "archived_at": null,
+          "balance": 0,
+          "balance_base": 0,
+          "base_currency": "NPR",
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "wallet",
+          "id": "\u003cid:3\u003e",
+          "include_in_balance": false,
+          "is_default": false,
+          "missing_rates": [],
+          "name": "Wallet2",
+          "sort_order": 2,
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#7 PUT /api/v1/me/rates/USD/NPR",
+    "status": 200,
+    "body": {
+      "base": "USD",
+      "quote": "NPR",
+      "rate": 133,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#8 PUT /api/v1/me/rates/NPR/NPR",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "base and quote must differ"
+      }
+    }
+  },
+  {
+    "step": "#9 PUT /api/v1/me/rates/USD/NPR",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "rate must be \u003e 0"
+      }
+    }
+  },
+  {
+    "step": "#10 GET /api/v1/me/rates",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "base": "USD",
+          "quote": "NPR",
+          "rate": 133,
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#11 GET /api/v1/accounts",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "archived": false,
+          "archived_at": null,
+          "balance": 100000,
+          "balance_base": 100000,
+          "base_currency": "NPR",
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "wallet",
+          "id": "\u003cid:1\u003e",
+          "include_in_balance": true,
+          "is_default": true,
+          "missing_rates": [],
+          "name": "Cash",
+          "sort_order": 0,
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "archived": false,
+          "archived_at": null,
+          "balance": 5000,
+          "balance_base": 665000,
+          "base_currency": "NPR",
+          "color": "chart2",
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "icon": "bank",
+          "id": "\u003cid:2\u003e",
+          "include_in_balance": true,
+          "is_default": false,
+          "missing_rates": [],
+          "name": "Savings USD",
+          "sort_order": 1,
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "archived": false,
+          "archived_at": null,
+          "balance": 0,
+          "balance_base": 0,
+          "base_currency": "NPR",
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "wallet",
+          "id": "\u003cid:3\u003e",
+          "include_in_balance": false,
+          "is_default": false,
+          "missing_rates": [],
+          "name": "Wallet2",
+          "sort_order": 2,
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#12 GET /api/v1/accounts/{{a2.id}}",
+    "status": 200,
+    "body": {
+      "archived": false,
+      "archived_at": null,
+      "balance": 5000,
+      "balance_base": 665000,
+      "base_currency": "NPR",
+      "color": "chart2",
+      "created_at": "\u003cts\u003e",
+      "currency": "USD",
+      "icon": "bank",
+      "id": "\u003cid:2\u003e",
+      "include_in_balance": true,
+      "is_default": false,
+      "missing_rates": [],
+      "name": "Savings USD",
+      "sort_order": 1,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#13 GET /api/v1/accounts/00000000-0000-0000-0000-000000000099",
+    "status": 404,
+    "body": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "resource not found"
+      }
+    }
+  },
+  {
+    "step": "cat1 POST /api/v1/categories",
+    "status": 201,
+    "body": {
+      "color": "chart1",
+      "grouping": "Uncategorized",
+      "icon": "restaurant",
+      "id": "\u003cid:4\u003e",
+      "is_system": false,
+      "name": "Food",
+      "sort_order": null
+    }
+  },
+  {
+    "step": "cat2 POST /api/v1/categories",
+    "status": 201,
+    "body": {
+      "color": "#6B7280",
+      "grouping": "Uncategorized",
+      "icon": "tag",
+      "id": "\u003cid:5\u003e",
+      "is_system": false,
+      "name": "Salary",
+      "sort_order": null
+    }
+  },
+  {
+    "step": "#16 POST /api/v1/categories",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "name required (max 50)"
+      }
+    }
+  },
+  {
+    "step": "tag1 POST /api/v1/tags",
+    "status": 201,
+    "body": {
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "icon": "tag",
+      "id": "\u003cid:6\u003e",
+      "name": "work",
+      "sort_order": 0,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "tag2 POST /api/v1/tags",
+    "status": 201,
+    "body": {
+      "color": "chart3",
+      "created_at": "\u003cts\u003e",
+      "icon": "tag",
+      "id": "\u003cid:7\u003e",
+      "name": "trip",
+      "sort_order": 1,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#19 POST /api/v1/tags",
+    "status": 409,
+    "body": {
+      "error": {
+        "code": "CONFLICT",
+        "message": "a tag with this name already exists"
+      }
+    }
+  },
+  {
+    "step": "#20 GET /api/v1/tags",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "icon": "tag",
+          "id": "\u003cid:6\u003e",
+          "name": "work",
+          "sort_order": 0,
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "color": "chart3",
+          "created_at": "\u003cts\u003e",
+          "icon": "tag",
+          "id": "\u003cid:7\u003e",
+          "name": "trip",
+          "sort_order": 1,
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "t1 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 2500,
+      "category_id": "\u003cid:4\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "with team",
+      "due_at": null,
+      "id": "\u003cid:8\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-05T12:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:6\u003e",
+          "name": "work"
+        }
+      ],
+      "title": "Lunch",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "t2 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 500000,
+      "category_id": "\u003cid:5\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:9\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-01T00:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Salary",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "INCOME",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "t3 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:2\u003e",
+      "amount": 1200,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "USD",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:10\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-10T08:30:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Coffee",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "t4 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 13300,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:11\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-15T09:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Top up USD",
+      "to_account_id": "\u003cid:2\u003e",
+      "to_amount": 100,
+      "type": "TRANSFER",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "t5 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 1000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:12\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-16T09:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "",
+      "to_account_id": "\u003cid:3\u003e",
+      "to_amount": 1000,
+      "type": "TRANSFER",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "t6 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:3\u003e",
+      "amount": 700,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:13\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-17T09:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Snack",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#27 POST /api/v1/transactions",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "amount must be \u003e 0 (minor units)"
+      }
+    }
+  },
+  {
+    "step": "#28 POST /api/v1/transactions",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "currency must match the account currency (NPR)"
+      }
+    }
+  },
+  {
+    "step": "#29 POST /api/v1/transactions",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "to_amount \u003e 0 required when the accounts' currencies differ"
+      }
+    }
+  },
+  {
+    "step": "#30 POST /api/v1/transactions",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "to_account_id must differ from account_id"
+      }
+    }
+  },
+  {
+    "step": "#31 POST /api/v1/transactions",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "account_id not found"
+      }
+    }
+  },
+  {
+    "step": "#32 POST /api/v1/transactions",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "type must be INCOME, EXPENSE or TRANSFER"
+      }
+    }
+  },
+  {
+    "step": "#33 POST /api/v1/transactions",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "occurred_at: invalid time \"yesterday\" (use RFC 3339 or YYYY-MM-DD)"
+      }
+    }
+  },
+  {
+    "step": "#34 POST /api/v1/transactions",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "tag_ids contains an unknown tag"
+      }
+    }
+  },
+  {
+    "step": "#35 POST /api/v1/transactions",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "category_id not found"
+      }
+    }
+  },
+  {
+    "step": "#36 GET /api/v1/transactions/{{t1.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 2500,
+      "category_id": "\u003cid:4\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "with team",
+      "due_at": null,
+      "id": "\u003cid:8\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-05T12:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:6\u003e",
+          "name": "work"
+        }
+      ],
+      "title": "Lunch",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#37 GET /api/v1/transactions?account={{a1.id}}",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 100000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:14\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "\u003cts\u003e",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "ADJUSTMENT",
+          "tags": [],
+          "title": "Initial balance",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 1000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:12\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-16T09:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "",
+          "to_account_id": "\u003cid:3\u003e",
+          "to_amount": 1000,
+          "type": "TRANSFER",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 13300,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:11\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-15T09:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Top up USD",
+          "to_account_id": "\u003cid:2\u003e",
+          "to_amount": 100,
+          "type": "TRANSFER",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 2500,
+          "category_id": "\u003cid:4\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "with team",
+          "due_at": null,
+          "id": "\u003cid:8\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "icon": "tag",
+              "id": "\u003cid:6\u003e",
+              "name": "work"
+            }
+          ],
+          "title": "Lunch",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 500000,
+          "category_id": "\u003cid:5\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:9\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-01T00:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Salary",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#38 GET /api/v1/transactions?type=EXPENSE",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:3\u003e",
+          "amount": 700,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:13\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-17T09:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Snack",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:2\u003e",
+          "amount": 1200,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:10\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-10T08:30:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Coffee",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 2500,
+          "category_id": "\u003cid:4\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "with team",
+          "due_at": null,
+          "id": "\u003cid:8\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "icon": "tag",
+              "id": "\u003cid:6\u003e",
+              "name": "work"
+            }
+          ],
+          "title": "Lunch",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#39 GET /api/v1/transactions?type=EXPENSE,INCOME\u0026min=1000\u0026max=100000",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:2\u003e",
+          "amount": 5000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:15\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "\u003cts\u003e",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "ADJUSTMENT",
+          "tags": [],
+          "title": "Initial balance",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 100000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:14\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "\u003cts\u003e",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "ADJUSTMENT",
+          "tags": [],
+          "title": "Initial balance",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:2\u003e",
+          "amount": 1200,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:10\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-10T08:30:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Coffee",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 2500,
+          "category_id": "\u003cid:4\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "with team",
+          "due_at": null,
+          "id": "\u003cid:8\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "icon": "tag",
+              "id": "\u003cid:6\u003e",
+              "name": "work"
+            }
+          ],
+          "title": "Lunch",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#40 GET /api/v1/transactions?q=lunch",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 2500,
+          "category_id": "\u003cid:4\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "with team",
+          "due_at": null,
+          "id": "\u003cid:8\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "icon": "tag",
+              "id": "\u003cid:6\u003e",
+              "name": "work"
+            }
+          ],
+          "title": "Lunch",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#41 GET /api/v1/transactions?q=work",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 2500,
+          "category_id": "\u003cid:4\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "with team",
+          "due_at": null,
+          "id": "\u003cid:8\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "icon": "tag",
+              "id": "\u003cid:6\u003e",
+              "name": "work"
+            }
+          ],
+          "title": "Lunch",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#42 GET /api/v1/transactions?excl_q=lunch\u0026from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:3\u003e",
+          "amount": 700,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:13\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-17T09:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Snack",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 1000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:12\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-16T09:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "",
+          "to_account_id": "\u003cid:3\u003e",
+          "to_amount": 1000,
+          "type": "TRANSFER",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 13300,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:11\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-15T09:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Top up USD",
+          "to_account_id": "\u003cid:2\u003e",
+          "to_amount": 100,
+          "type": "TRANSFER",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:2\u003e",
+          "amount": 1200,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:10\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-10T08:30:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Coffee",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 500000,
+          "category_id": "\u003cid:5\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:9\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-01T00:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Salary",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#43 GET /api/v1/transactions?tag={{tag1.id}}",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 2500,
+          "category_id": "\u003cid:4\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "with team",
+          "due_at": null,
+          "id": "\u003cid:8\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "icon": "tag",
+              "id": "\u003cid:6\u003e",
+              "name": "work"
+            }
+          ],
+          "title": "Lunch",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#44 GET /api/v1/transactions?excl_tag={{tag1.id}}\u0026from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:3\u003e",
+          "amount": 700,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:13\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-17T09:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Snack",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 1000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:12\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-16T09:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "",
+          "to_account_id": "\u003cid:3\u003e",
+          "to_amount": 1000,
+          "type": "TRANSFER",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 13300,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:11\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-15T09:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Top up USD",
+          "to_account_id": "\u003cid:2\u003e",
+          "to_amount": 100,
+          "type": "TRANSFER",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:2\u003e",
+          "amount": 1200,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:10\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-10T08:30:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Coffee",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 500000,
+          "category_id": "\u003cid:5\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:9\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-01T00:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Salary",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#45 GET /api/v1/transactions?category=none\u0026from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:3\u003e",
+          "amount": 700,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:13\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-17T09:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Snack",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 1000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:12\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-16T09:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "",
+          "to_account_id": "\u003cid:3\u003e",
+          "to_amount": 1000,
+          "type": "TRANSFER",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 13300,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:11\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-15T09:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Top up USD",
+          "to_account_id": "\u003cid:2\u003e",
+          "to_amount": 100,
+          "type": "TRANSFER",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:2\u003e",
+          "amount": 1200,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:10\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-10T08:30:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Coffee",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#46 GET /api/v1/transactions?category={{cat1.id}}",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 2500,
+          "category_id": "\u003cid:4\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "with team",
+          "due_at": null,
+          "id": "\u003cid:8\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "icon": "tag",
+              "id": "\u003cid:6\u003e",
+              "name": "work"
+            }
+          ],
+          "title": "Lunch",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#47 GET /api/v1/transactions?source=ADJUSTMENT",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:2\u003e",
+          "amount": 5000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:15\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "\u003cts\u003e",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "ADJUSTMENT",
+          "tags": [],
+          "title": "Initial balance",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 100000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:14\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "\u003cts\u003e",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "ADJUSTMENT",
+          "tags": [],
+          "title": "Initial balance",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "p1 GET /api/v1/transactions?hide_adjustments=true\u0026limit=3",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:3\u003e",
+          "amount": 700,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:13\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-17T09:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Snack",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 1000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:12\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-16T09:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "",
+          "to_account_id": "\u003cid:3\u003e",
+          "to_amount": 1000,
+          "type": "TRANSFER",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 13300,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:11\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-15T09:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Top up USD",
+          "to_account_id": "\u003cid:2\u003e",
+          "to_amount": 100,
+          "type": "TRANSFER",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "next_cursor": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#49 GET /api/v1/transactions?hide_adjustments=true\u0026limit=3\u0026cursor={{p1.next_cursor}}",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:2\u003e",
+          "amount": 1200,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:10\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-10T08:30:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Coffee",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 2500,
+          "category_id": "\u003cid:4\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "with team",
+          "due_at": null,
+          "id": "\u003cid:8\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "icon": "tag",
+              "id": "\u003cid:6\u003e",
+              "name": "work"
+            }
+          ],
+          "title": "Lunch",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 500000,
+          "category_id": "\u003cid:5\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:9\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-01T00:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Salary",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#50 GET /api/v1/transactions?type=NOPE",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "type must be a comma list of INCOME, EXPENSE, TRANSFER"
+      }
+    }
+  },
+  {
+    "step": "#51 GET /api/v1/transactions?from=garbage",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "invalid time \"garbage\" (use RFC 3339 or YYYY-MM-DD)"
+      }
+    }
+  },
+  {
+    "step": "#52 GET /api/v1/ledger?from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_amount": -700,
+          "account_id": "\u003cid:3\u003e",
+          "amount": 700,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:13\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-17T09:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Snack",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "EXPENSE"
+        },
+        {
+          "account_amount": -1000,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 1000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:12\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-16T09:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "",
+          "to_account_amount": 1000,
+          "to_account_id": "\u003cid:3\u003e",
+          "to_amount": 1000,
+          "to_currency": "NPR",
+          "total_amount": null,
+          "type": "TRANSFER"
+        },
+        {
+          "account_amount": -13300,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 13300,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:11\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-15T09:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Top up USD",
+          "to_account_amount": 100,
+          "to_account_id": "\u003cid:2\u003e",
+          "to_amount": 100,
+          "to_currency": "USD",
+          "total_amount": null,
+          "type": "TRANSFER"
+        },
+        {
+          "account_amount": -1200,
+          "account_id": "\u003cid:2\u003e",
+          "amount": 1200,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:10\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-10T08:30:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Coffee",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "EXPENSE"
+        },
+        {
+          "account_amount": -2500,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 2500,
+          "category_id": "\u003cid:4\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "with team",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:8\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "icon": "tag",
+              "id": "\u003cid:6\u003e",
+              "name": "work"
+            }
+          ],
+          "title": "Lunch",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "EXPENSE"
+        },
+        {
+          "account_amount": 500000,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 500000,
+          "category_id": "\u003cid:5\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:9\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-01T00:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Salary",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "INCOME"
+        }
+      ]
+    }
+  },
+  {
+    "step": "l1 GET /api/v1/ledger?hide_adjustments=true\u0026limit=2",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_amount": -700,
+          "account_id": "\u003cid:3\u003e",
+          "amount": 700,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:13\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-17T09:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Snack",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "EXPENSE"
+        },
+        {
+          "account_amount": -1000,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 1000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:12\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-16T09:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "",
+          "to_account_amount": 1000,
+          "to_account_id": "\u003cid:3\u003e",
+          "to_amount": 1000,
+          "to_currency": "NPR",
+          "total_amount": null,
+          "type": "TRANSFER"
+        }
+      ],
+      "next_cursor": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#54 GET /api/v1/ledger?hide_adjustments=true\u0026limit=2\u0026cursor={{l1.next_cursor}}",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_amount": -13300,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 13300,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:11\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-15T09:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Top up USD",
+          "to_account_amount": 100,
+          "to_account_id": "\u003cid:2\u003e",
+          "to_amount": 100,
+          "to_currency": "USD",
+          "total_amount": null,
+          "type": "TRANSFER"
+        },
+        {
+          "account_amount": -1200,
+          "account_id": "\u003cid:2\u003e",
+          "amount": 1200,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:10\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-10T08:30:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Coffee",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "EXPENSE"
+        }
+      ],
+      "next_cursor": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#55 GET /api/v1/ledger?planned=all\u0026hide_adjustments=true\u0026kind=TRANSACTION\u0026type=TRANSFER",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_amount": -1000,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 1000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:12\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-16T09:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "",
+          "to_account_amount": 1000,
+          "to_account_id": "\u003cid:3\u003e",
+          "to_amount": 1000,
+          "to_currency": "NPR",
+          "total_amount": null,
+          "type": "TRANSFER"
+        },
+        {
+          "account_amount": -13300,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 13300,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:11\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-15T09:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Top up USD",
+          "to_account_amount": 100,
+          "to_account_id": "\u003cid:2\u003e",
+          "to_amount": 100,
+          "to_currency": "USD",
+          "total_amount": null,
+          "type": "TRANSFER"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#56 GET /api/v1/overview?from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "balance": 1101900,
+      "currency": "NPR",
+      "expense": 162100,
+      "from": "2026-03-01T00:00:00Z",
+      "income": 500000,
+      "missing_rates": [],
+      "overdue": [],
+      "overdue_expense": 0,
+      "overdue_income": 0,
+      "projected_balance": 1101900,
+      "to": "2026-04-01T00:00:00Z",
+      "upcoming": [],
+      "upcoming_expense": 0,
+      "upcoming_income": 0
+    }
+  },
+  {
+    "step": "#57 GET /api/v1/overview?from=2026-03-01T00:00:00Z\u0026to=2026-03-16T00:00:00Z",
+    "status": 200,
+    "body": {
+      "balance": 1101900,
+      "currency": "NPR",
+      "expense": 162100,
+      "from": "2026-03-01T00:00:00Z",
+      "income": 500000,
+      "missing_rates": [],
+      "overdue": [],
+      "overdue_expense": 0,
+      "overdue_income": 0,
+      "projected_balance": 1101900,
+      "to": "2026-03-16T00:00:00Z",
+      "upcoming": [],
+      "upcoming_expense": 0,
+      "upcoming_income": 0
+    }
+  },
+  {
+    "step": "#58 GET /api/v1/accounts/{{a1.id}}/summary?from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "balance": 583200,
+      "currency": "NPR",
+      "entries": [
+        {
+          "account_amount": -1000,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 1000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:12\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-16T09:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "",
+          "to_account_amount": 1000,
+          "to_account_id": "\u003cid:3\u003e",
+          "to_amount": 1000,
+          "to_currency": "NPR",
+          "total_amount": null,
+          "type": "TRANSFER"
+        },
+        {
+          "account_amount": -13300,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 13300,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:11\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-15T09:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Top up USD",
+          "to_account_amount": 100,
+          "to_account_id": "\u003cid:2\u003e",
+          "to_amount": 100,
+          "to_currency": "USD",
+          "total_amount": null,
+          "type": "TRANSFER"
+        },
+        {
+          "account_amount": -2500,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 2500,
+          "category_id": "\u003cid:4\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "with team",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:8\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "icon": "tag",
+              "id": "\u003cid:6\u003e",
+              "name": "work"
+            }
+          ],
+          "title": "Lunch",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "EXPENSE"
+        },
+        {
+          "account_amount": 500000,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 500000,
+          "category_id": "\u003cid:5\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:9\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-01T00:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Salary",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "INCOME"
+        }
+      ],
+      "expense": 2500,
+      "from": "2026-03-01T00:00:00Z",
+      "income": 500000,
+      "inflow": 500000,
+      "missing_rates": [],
+      "outflow": 16800,
+      "overdue": [],
+      "to": "2026-04-01T00:00:00Z",
+      "upcoming": []
+    }
+  },
+  {
+    "step": "s1 GET /api/v1/accounts/{{a2.id}}/summary?from=2026-03-01\u0026to=2026-03-31\u0026limit=1",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:2\u003e",
+      "balance": 3900,
+      "currency": "USD",
+      "entries": [
+        {
+          "account_amount": -13300,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 13300,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:11\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-15T09:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Top up USD",
+          "to_account_amount": 100,
+          "to_account_id": "\u003cid:2\u003e",
+          "to_amount": 100,
+          "to_currency": "USD",
+          "total_amount": null,
+          "type": "TRANSFER"
+        }
+      ],
+      "expense": 1200,
+      "from": "2026-03-01T00:00:00Z",
+      "income": 0,
+      "inflow": 100,
+      "missing_rates": [],
+      "next_cursor": "\u003cts\u003e",
+      "outflow": 1200,
+      "overdue": [],
+      "to": "2026-04-01T00:00:00Z",
+      "upcoming": []
+    }
+  },
+  {
+    "step": "#60 GET /api/v1/accounts/{{a2.id}}/summary?from=2026-03-01\u0026to=2026-03-31\u0026limit=1\u0026cursor={{s1.next_cursor}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:2\u003e",
+      "balance": 3900,
+      "currency": "USD",
+      "entries": [
+        {
+          "account_amount": -1200,
+          "account_id": "\u003cid:2\u003e",
+          "amount": 1200,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:10\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-10T08:30:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Coffee",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "EXPENSE"
+        }
+      ],
+      "expense": 1200,
+      "from": "2026-03-01T00:00:00Z",
+      "income": 0,
+      "inflow": 100,
+      "missing_rates": [],
+      "outflow": 1200,
+      "overdue": [],
+      "to": "2026-04-01T00:00:00Z",
+      "upcoming": []
+    }
+  },
+  {
+    "step": "#61 GET /api/v1/categories/{{cat1.id}}/summary?from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "category_id": "\u003cid:4\u003e",
+      "count": 1,
+      "currency": "NPR",
+      "entries": [
+        {
+          "account_amount": -2500,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 2500,
+          "category_id": "\u003cid:4\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "with team",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:8\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "icon": "tag",
+              "id": "\u003cid:6\u003e",
+              "name": "work"
+            }
+          ],
+          "title": "Lunch",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "EXPENSE"
+        }
+      ],
+      "expense": 2500,
+      "from": "2026-03-01T00:00:00Z",
+      "income": 0,
+      "missing_rates": [],
+      "overdue": [],
+      "to": "2026-04-01T00:00:00Z",
+      "upcoming": []
+    }
+  },
+  {
+    "step": "#62 PATCH /api/v1/transactions/{{t1.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 3000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "with team",
+      "due_at": null,
+      "id": "\u003cid:8\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-05T12:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [
+        {
+          "color": "chart3",
+          "icon": "tag",
+          "id": "\u003cid:7\u003e",
+          "name": "trip"
+        }
+      ],
+      "title": "Lunch+",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#63 PATCH /api/v1/transactions/{{t4.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 26600,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:11\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-15T09:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Top up USD",
+      "to_account_id": "\u003cid:2\u003e",
+      "to_amount": 200,
+      "type": "TRANSFER",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#64 PATCH /api/v1/transactions/{{t5.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 1500,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:12\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-16T09:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "",
+      "to_account_id": "\u003cid:3\u003e",
+      "to_amount": 1500,
+      "type": "TRANSFER",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#65 PATCH /api/v1/transactions/{{t3.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:2\u003e",
+      "amount": 1200,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "USD",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:10\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-10T08:30:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Coffee",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "INCOME",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#66 PATCH /api/v1/transactions/{{t2.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 500000,
+      "category_id": "\u003cid:5\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": "2026-12-01T00:00:00Z",
+      "id": "\u003cid:9\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": null,
+      "planned": true,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Salary",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "INCOME",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#67 PATCH /api/v1/transactions/00000000-0000-0000-0000-000000000099",
+    "status": 404,
+    "body": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "resource not found"
+      }
+    }
+  },
+  {
+    "step": "dup POST /api/v1/transactions/{{t1.id}}/duplicate",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 3000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "with team",
+      "due_at": null,
+      "id": "\u003cid:16\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-05T12:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [
+        {
+          "color": "chart3",
+          "icon": "tag",
+          "id": "\u003cid:7\u003e",
+          "name": "trip"
+        }
+      ],
+      "title": "Lunch+",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#69 DELETE /api/v1/transactions/{{t6.id}}",
+    "status": 200,
+    "body": {
+      "message": "deleted"
+    }
+  },
+  {
+    "step": "#70 DELETE /api/v1/transactions/{{t6.id}}",
+    "status": 404,
+    "body": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "resource not found"
+      }
+    }
+  },
+  {
+    "step": "#71 GET /api/v1/ledger?hide_adjustments=true\u0026from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_amount": -1500,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 1500,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:12\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-16T09:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "",
+          "to_account_amount": 1500,
+          "to_account_id": "\u003cid:3\u003e",
+          "to_amount": 1500,
+          "to_currency": "NPR",
+          "total_amount": null,
+          "type": "TRANSFER"
+        },
+        {
+          "account_amount": -26600,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 26600,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:11\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-15T09:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Top up USD",
+          "to_account_amount": 200,
+          "to_account_id": "\u003cid:2\u003e",
+          "to_amount": 200,
+          "to_currency": "USD",
+          "total_amount": null,
+          "type": "TRANSFER"
+        },
+        {
+          "account_amount": 1200,
+          "account_id": "\u003cid:2\u003e",
+          "amount": 1200,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:10\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-10T08:30:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Coffee",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "INCOME"
+        },
+        {
+          "account_amount": -3000,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 3000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "with team",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:16\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "chart3",
+              "icon": "tag",
+              "id": "\u003cid:7\u003e",
+              "name": "trip"
+            }
+          ],
+          "title": "Lunch+",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "EXPENSE"
+        },
+        {
+          "account_amount": -3000,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 3000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "with team",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:8\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "chart3",
+              "icon": "tag",
+              "id": "\u003cid:7\u003e",
+              "name": "trip"
+            }
+          ],
+          "title": "Lunch+",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "EXPENSE"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#72 POST /api/v1/accounts/{{a1.id}}/adjust",
+    "status": 200,
+    "body": {
+      "account": {
+        "archived": false,
+        "archived_at": null,
+        "balance": 200000,
+        "balance_base": 200000,
+        "base_currency": "NPR",
+        "color": "#6B7280",
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "icon": "wallet",
+        "id": "\u003cid:1\u003e",
+        "include_in_balance": true,
+        "is_default": true,
+        "missing_rates": [],
+        "name": "Cash",
+        "sort_order": 0,
+        "updated_at": "\u003cts\u003e"
+      },
+      "transaction": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 134100,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": null,
+        "id": "\u003cid:17\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": "\u003cts\u003e",
+        "planned": false,
+        "planned_payment_id": null,
+        "source": "ADJUSTMENT",
+        "tags": [],
+        "title": "Recount",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "INCOME",
+        "updated_at": "\u003cts\u003e"
+      }
+    }
+  },
+  {
+    "step": "#73 POST /api/v1/accounts/{{a1.id}}/adjust",
+    "status": 200,
+    "body": {
+      "account": {
+        "archived": false,
+        "archived_at": null,
+        "balance": 200000,
+        "balance_base": 200000,
+        "base_currency": "NPR",
+        "color": "#6B7280",
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "icon": "wallet",
+        "id": "\u003cid:1\u003e",
+        "include_in_balance": true,
+        "is_default": true,
+        "missing_rates": [],
+        "name": "Cash",
+        "sort_order": 0,
+        "updated_at": "\u003cts\u003e"
+      },
+      "transaction": null
+    }
+  },
+  {
+    "step": "#74 POST /api/v1/accounts/{{a1.id}}/adjust",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "balance required (minor units)"
+      }
+    }
+  },
+  {
+    "step": "#75 PATCH /api/v1/accounts/{{a2.id}}",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "currency can only be changed on an account without transactions"
+      }
+    }
+  },
+  {
+    "step": "#76 PATCH /api/v1/accounts/{{a3.id}}",
+    "status": 200,
+    "body": {
+      "archived": true,
+      "archived_at": "\u003cts\u003e",
+      "balance": 1500,
+      "balance_base": 1500,
+      "base_currency": "NPR",
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "wallet",
+      "id": "\u003cid:3\u003e",
+      "include_in_balance": true,
+      "is_default": false,
+      "missing_rates": [],
+      "name": "Spare",
+      "sort_order": 2,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#77 PATCH /api/v1/accounts/{{a2.id}}",
+    "status": 200,
+    "body": {
+      "archived": false,
+      "archived_at": null,
+      "balance": 6400,
+      "balance_base": 851200,
+      "base_currency": "NPR",
+      "color": "chart2",
+      "created_at": "\u003cts\u003e",
+      "currency": "USD",
+      "icon": "bank",
+      "id": "\u003cid:2\u003e",
+      "include_in_balance": true,
+      "is_default": true,
+      "missing_rates": [],
+      "name": "Savings USD",
+      "sort_order": 1,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#78 PATCH /api/v1/accounts/{{a2.id}}",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "mark another account as default instead"
+      }
+    }
+  },
+  {
+    "step": "#79 POST /api/v1/accounts/reorder",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "archived": false,
+          "archived_at": null,
+          "balance": 6400,
+          "balance_base": 851200,
+          "base_currency": "NPR",
+          "color": "chart2",
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "icon": "bank",
+          "id": "\u003cid:2\u003e",
+          "include_in_balance": true,
+          "is_default": true,
+          "missing_rates": [],
+          "name": "Savings USD",
+          "sort_order": 0,
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "archived": false,
+          "archived_at": null,
+          "balance": 200000,
+          "balance_base": 200000,
+          "base_currency": "NPR",
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "wallet",
+          "id": "\u003cid:1\u003e",
+          "include_in_balance": true,
+          "is_default": false,
+          "missing_rates": [],
+          "name": "Cash",
+          "sort_order": 1,
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "archived": true,
+          "archived_at": "\u003cts\u003e",
+          "balance": 1500,
+          "balance_base": 1500,
+          "base_currency": "NPR",
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "wallet",
+          "id": "\u003cid:3\u003e",
+          "include_in_balance": true,
+          "is_default": false,
+          "missing_rates": [],
+          "name": "Spare",
+          "sort_order": 2,
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#80 POST /api/v1/accounts/reorder",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "ids must be a non-empty list of distinct account ids"
+      }
+    }
+  },
+  {
+    "step": "#81 GET /api/v1/me/settings",
+    "status": 200,
+    "body": {
+      "hide_balance": false,
+      "hide_income": false,
+      "month_start_day": 1,
+      "onboarded_at": null,
+      "reminder_enabled": false,
+      "reminder_time": "20:00",
+      "theme": "auto",
+      "treat_transfers_as_flow": false
+    }
+  },
+  {
+    "step": "#82 PATCH /api/v1/me/settings",
+    "status": 200,
+    "body": {
+      "hide_balance": true,
+      "hide_income": false,
+      "month_start_day": 5,
+      "onboarded_at": null,
+      "reminder_enabled": false,
+      "reminder_time": "20:00",
+      "theme": "auto",
+      "treat_transfers_as_flow": true
+    }
+  },
+  {
+    "step": "#83 PATCH /api/v1/me/settings",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "month_start_day must be 1-28"
+      }
+    }
+  },
+  {
+    "step": "#84 PATCH /api/v1/me/settings",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "reminder_time must be HH:MM (24h)"
+      }
+    }
+  },
+  {
+    "step": "#85 GET /api/v1/accounts/{{a1.id}}/summary?from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "balance": 200000,
+      "currency": "NPR",
+      "entries": [
+        {
+          "account_amount": -1500,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 1500,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:12\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-16T09:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "",
+          "to_account_amount": 1500,
+          "to_account_id": "\u003cid:3\u003e",
+          "to_amount": 1500,
+          "to_currency": "NPR",
+          "total_amount": null,
+          "type": "TRANSFER"
+        },
+        {
+          "account_amount": -26600,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 26600,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:11\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-15T09:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Top up USD",
+          "to_account_amount": 200,
+          "to_account_id": "\u003cid:2\u003e",
+          "to_amount": 200,
+          "to_currency": "USD",
+          "total_amount": null,
+          "type": "TRANSFER"
+        },
+        {
+          "account_amount": -3000,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 3000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "with team",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:16\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "chart3",
+              "icon": "tag",
+              "id": "\u003cid:7\u003e",
+              "name": "trip"
+            }
+          ],
+          "title": "Lunch+",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "EXPENSE"
+        },
+        {
+          "account_amount": -3000,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 3000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "with team",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:8\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "chart3",
+              "icon": "tag",
+              "id": "\u003cid:7\u003e",
+              "name": "trip"
+            }
+          ],
+          "title": "Lunch+",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "EXPENSE"
+        }
+      ],
+      "expense": 34100,
+      "from": "2026-03-01T00:00:00Z",
+      "income": 0,
+      "inflow": 0,
+      "missing_rates": [],
+      "outflow": 34100,
+      "overdue": [],
+      "to": "2026-04-01T00:00:00Z",
+      "upcoming": []
+    }
+  },
+  {
+    "step": "#86 GET /api/v1/overview?from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "balance": 1052700,
+      "currency": "NPR",
+      "expense": 6000,
+      "from": "2026-03-01T00:00:00Z",
+      "income": 159600,
+      "missing_rates": [],
+      "overdue": [],
+      "overdue_expense": 0,
+      "overdue_income": 0,
+      "projected_balance": 1052700,
+      "to": "2026-04-01T00:00:00Z",
+      "upcoming": [],
+      "upcoming_expense": 0,
+      "upcoming_income": 0
+    }
+  },
+  {
+    "step": "#87 PATCH /api/v1/categories/{{cat1.id}}",
+    "status": 200,
+    "body": {
+      "color": "chart4",
+      "grouping": "Uncategorized",
+      "icon": "restaurant",
+      "id": "\u003cid:4\u003e",
+      "is_system": false,
+      "name": "Dining"
+    }
+  },
+  {
+    "step": "#88 GET /api/v1/categories",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "color": "chart4",
+          "grouping": "Uncategorized",
+          "icon": "restaurant",
+          "id": "\u003cid:4\u003e",
+          "is_system": false,
+          "name": "Dining",
+          "sort_order": null
+        },
+        {
+          "color": "#6B7280",
+          "grouping": "Uncategorized",
+          "icon": "tag",
+          "id": "\u003cid:5\u003e",
+          "is_system": false,
+          "name": "Salary",
+          "sort_order": null
+        }
+      ]
+    }
+  },
+  {
+    "step": "#89 POST /api/v1/categories/reorder",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "color": "#6B7280",
+          "grouping": "Uncategorized",
+          "icon": "tag",
+          "id": "\u003cid:5\u003e",
+          "is_system": false,
+          "name": "Salary",
+          "sort_order": 0
+        },
+        {
+          "color": "chart4",
+          "grouping": "Uncategorized",
+          "icon": "restaurant",
+          "id": "\u003cid:4\u003e",
+          "is_system": false,
+          "name": "Dining",
+          "sort_order": 1
+        }
+      ]
+    }
+  },
+  {
+    "step": "#90 DELETE /api/v1/categories/{{cat1.id}}",
+    "status": 200,
+    "body": {
+      "message": "deleted"
+    }
+  },
+  {
+    "step": "#91 GET /api/v1/transactions/{{dup.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 3000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "with team",
+      "due_at": null,
+      "id": "\u003cid:16\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-05T12:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [
+        {
+          "color": "chart3",
+          "icon": "tag",
+          "id": "\u003cid:7\u003e",
+          "name": "trip"
+        }
+      ],
+      "title": "Lunch+",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#92 DELETE /api/v1/accounts/{{a3.id}}",
+    "status": 200,
+    "body": {
+      "message": "deleted"
+    }
+  },
+  {
+    "step": "#93 DELETE /api/v1/accounts/{{a3.id}}",
+    "status": 404,
+    "body": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "resource not found"
+      }
+    }
+  },
+  {
+    "step": "#94 GET /api/v1/accounts",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "archived": false,
+          "archived_at": null,
+          "balance": 6400,
+          "balance_base": 851200,
+          "base_currency": "NPR",
+          "color": "chart2",
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "icon": "bank",
+          "id": "\u003cid:2\u003e",
+          "include_in_balance": true,
+          "is_default": true,
+          "missing_rates": [],
+          "name": "Savings USD",
+          "sort_order": 0,
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "archived": false,
+          "archived_at": null,
+          "balance": 201500,
+          "balance_base": 201500,
+          "base_currency": "NPR",
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "wallet",
+          "id": "\u003cid:1\u003e",
+          "include_in_balance": true,
+          "is_default": false,
+          "missing_rates": [],
+          "name": "Cash",
+          "sort_order": 1,
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#95 GET /api/v1/ledger?hide_adjustments=true",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_amount": -26600,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 26600,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:11\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-15T09:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Top up USD",
+          "to_account_amount": 200,
+          "to_account_id": "\u003cid:2\u003e",
+          "to_amount": 200,
+          "to_currency": "USD",
+          "total_amount": null,
+          "type": "TRANSFER"
+        },
+        {
+          "account_amount": 1200,
+          "account_id": "\u003cid:2\u003e",
+          "amount": 1200,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:10\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-10T08:30:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Coffee",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "INCOME"
+        },
+        {
+          "account_amount": -3000,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 3000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "with team",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:16\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "chart3",
+              "icon": "tag",
+              "id": "\u003cid:7\u003e",
+              "name": "trip"
+            }
+          ],
+          "title": "Lunch+",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "EXPENSE"
+        },
+        {
+          "account_amount": -3000,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 3000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "with team",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:8\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "chart3",
+              "icon": "tag",
+              "id": "\u003cid:7\u003e",
+              "name": "trip"
+            }
+          ],
+          "title": "Lunch+",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "EXPENSE"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#96 DELETE /api/v1/tags/{{tag1.id}}",
+    "status": 200,
+    "body": {
+      "message": "deleted"
+    }
+  },
+  {
+    "step": "#97 PATCH /api/v1/tags/{{tag2.id}}",
+    "status": 200,
+    "body": {
+      "color": "chart3",
+      "created_at": "\u003cts\u003e",
+      "icon": "tag",
+      "id": "\u003cid:7\u003e",
+      "name": "journey",
+      "sort_order": 5,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#98 GET /api/v1/tags",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "color": "chart3",
+          "created_at": "\u003cts\u003e",
+          "icon": "tag",
+          "id": "\u003cid:7\u003e",
+          "name": "journey",
+          "sort_order": 5,
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#99 DELETE /api/v1/me/rates/USD/NPR",
+    "status": 200,
+    "body": {
+      "message": "deleted"
+    }
+  },
+  {
+    "step": "#100 DELETE /api/v1/me/rates/USD/NPR",
+    "status": 404,
+    "body": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "resource not found"
+      }
+    }
+  },
+  {
+    "step": "#101 GET /api/v1/accounts",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "archived": false,
+          "archived_at": null,
+          "balance": 6400,
+          "balance_base": 851200,
+          "base_currency": "NPR",
+          "color": "chart2",
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "icon": "bank",
+          "id": "\u003cid:2\u003e",
+          "include_in_balance": true,
+          "is_default": true,
+          "missing_rates": [],
+          "name": "Savings USD",
+          "sort_order": 0,
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "archived": false,
+          "archived_at": null,
+          "balance": 201500,
+          "balance_base": 201500,
+          "base_currency": "NPR",
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "wallet",
+          "id": "\u003cid:1\u003e",
+          "include_in_balance": true,
+          "is_default": false,
+          "missing_rates": [],
+          "name": "Cash",
+          "sort_order": 1,
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#102 GET /api/v1/overview?from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "balance": 1052700,
+      "currency": "NPR",
+      "expense": 6000,
+      "from": "2026-03-01T00:00:00Z",
+      "income": 159600,
+      "missing_rates": [],
+      "overdue": [],
+      "overdue_expense": 0,
+      "overdue_income": 0,
+      "projected_balance": 1052700,
+      "to": "2026-04-01T00:00:00Z",
+      "upcoming": [],
+      "upcoming_expense": 0,
+      "upcoming_income": 0
+    }
+  }
+]
