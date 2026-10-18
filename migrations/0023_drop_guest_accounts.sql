@@ -7,3 +7,4 @@ ALTER TABLE users DROP COLUMN IF EXISTS is_guest;
 
 -- +goose Down
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_guest BOOLEAN NOT NULL DEFAULT FALSE;
+CREATE INDEX IF NOT EXISTS idx_users_stale_guests ON users (created_at) WHERE is_guest;
