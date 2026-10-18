@@ -168,15 +168,7 @@ func main() {
 			slog.Info("pruned stale sessions", "count", n)
 		}
 	}
-	purgeGuests := func() {
-		if n, err := users.PurgeStaleGuests(ctx, pool); err != nil {
-			slog.Warn("purge stale guests", "err", err)
-		} else if n > 0 {
-			slog.Info("purged stale guest accounts", "count", n)
-		}
-	}
 	pruneSessions()
-	purgeGuests()
 	go func() {
 		ticker := time.NewTicker(15 * time.Minute)
 		defer ticker.Stop()
@@ -188,7 +180,6 @@ func main() {
 				recurringHandler.RunDue(ctx)
 				idempotency.Cleanup(ctx, queries)
 				pruneSessions()
-				purgeGuests()
 			}
 		}
 	}()
@@ -228,7 +219,6 @@ func main() {
 		}
 		muxWithPrefix.ServeHTTP(w, r)
 	})
-	handler = auth.BlockGuests(authSvc, handler)
 	handler = httpx.SecurityHeaders(handler)
 	handler = httpx.CORS(cfg.CORSOrigins)(handler)
 	handler = httpx.RequestSizeLimit(handler)

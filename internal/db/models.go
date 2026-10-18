@@ -473,7 +473,6 @@ type User struct {
 	BankQrUrl       pgtype.Text        `json:"bank_qr_url"`
 	BankName        pgtype.Text        `json:"bank_name"`
 	PaymentHandle   pgtype.Text        `json:"payment_handle"`
-	IsGuest         bool               `json:"is_guest"`
 }
 
 type UserSetting struct {

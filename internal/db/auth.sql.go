@@ -12,24 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const completeGuestUpgradeGoogle = `-- name: CompleteGuestUpgradeGoogle :execrows
-UPDATE users SET name = $2, email = $3, email_verified_at = now(), is_guest = false, updated_at = now() WHERE id = $1 AND is_guest
-`
-
-type CompleteGuestUpgradeGoogleParams struct {
-	ID    uuid.UUID `json:"id"`
-	Name  string    `json:"name"`
-	Email string    `json:"email"`
-}
-
-func (q *Queries) CompleteGuestUpgradeGoogle(ctx context.Context, arg CompleteGuestUpgradeGoogleParams) (int64, error) {
-	result, err := q.db.Exec(ctx, completeGuestUpgradeGoogle, arg.ID, arg.Name, arg.Email)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
-}
-
 const createEmailVerificationToken = `-- name: CreateEmailVerificationToken :exec
 INSERT INTO email_verification_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, now() + interval '24 hours')
 `
@@ -41,21 +23,6 @@ type CreateEmailVerificationTokenParams struct {
 
 func (q *Queries) CreateEmailVerificationToken(ctx context.Context, arg CreateEmailVerificationTokenParams) error {
 	_, err := q.db.Exec(ctx, createEmailVerificationToken, arg.UserID, arg.TokenHash)
-	return err
-}
-
-const createGuestUser = `-- name: CreateGuestUser :exec
-INSERT INTO users (id, name, email, password_hash, default_currency, is_guest) VALUES ($1, 'Guest', $2, NULL, $3, true)
-`
-
-type CreateGuestUserParams struct {
-	ID              uuid.UUID `json:"id"`
-	Email           string    `json:"email"`
-	DefaultCurrency string    `json:"default_currency"`
-}
-
-func (q *Queries) CreateGuestUser(ctx context.Context, arg CreateGuestUserParams) error {
-	_, err := q.db.Exec(ctx, createGuestUser, arg.ID, arg.Email, arg.DefaultCurrency)
 	return err
 }
 
@@ -161,15 +128,6 @@ func (q *Queries) DeleteStaleSessions(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return result.RowsAffected(), nil
-}
-
-const deleteUserRow = `-- name: DeleteUserRow :exec
-DELETE FROM users WHERE id = $1
-`
-
-func (q *Queries) DeleteUserRow(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteUserRow, id)
-	return err
 }
 
 const getEmailVerificationTokenUser = `-- name: GetEmailVerificationTokenUser :one
@@ -345,17 +303,6 @@ func (q *Queries) GetUserVerificationByID(ctx context.Context, id uuid.UUID) (Ge
 	return i, err
 }
 
-const isGuestUser = `-- name: IsGuestUser :one
-SELECT is_guest FROM users WHERE id = $1
-`
-
-func (q *Queries) IsGuestUser(ctx context.Context, id uuid.UUID) (bool, error) {
-	row := q.db.QueryRow(ctx, isGuestUser, id)
-	var is_guest bool
-	err := row.Scan(&is_guest)
-	return is_guest, err
-}
-
 const listSessionsByUser = `-- name: ListSessionsByUser :many
 SELECT id, user_agent, ip, created_at, last_used_at, expires_at, revoked_at FROM sessions
 WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > now()
@@ -394,34 +341,6 @@ func (q *Queries) ListSessionsByUser(ctx context.Context, userID uuid.UUID) ([]L
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listStaleGuests = `-- name: ListStaleGuests :many
-SELECT u.id FROM users u
-WHERE u.is_guest AND u.created_at < now() - interval '30 days'
-  AND NOT EXISTS (SELECT 1 FROM sessions s WHERE s.user_id = u.id AND s.revoked_at IS NULL AND s.expires_at > now())
-LIMIT 100
-`
-
-// Guests that can never be signed in to again (no live session) and are older than the grace period.
-func (q *Queries) ListStaleGuests(ctx context.Context) ([]uuid.UUID, error) {
-	rows, err := q.db.Query(ctx, listStaleGuests)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -519,10 +438,9 @@ func (q *Queries) RotateSession(ctx context.Context, arg RotateSessionParams) (u
 }
 
 const setEmailVerified = `-- name: SetEmailVerified :exec
-UPDATE users SET email_verified_at = now(), is_guest = false, updated_at = now() WHERE id = $1
+UPDATE users SET email_verified_at = now(), updated_at = now() WHERE id = $1
 `
 
-// Verifying the address also completes a guest upgrade started with an e-mail and password.
 func (q *Queries) SetEmailVerified(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, setEmailVerified, id)
 	return err
@@ -535,31 +453,6 @@ UPDATE users SET email_verified_at = COALESCE(email_verified_at, now()), updated
 func (q *Queries) SetUserEmailVerifiedIfNull(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, setUserEmailVerifiedIfNull, id)
 	return err
-}
-
-const startGuestUpgrade = `-- name: StartGuestUpgrade :execrows
-UPDATE users SET name = $2, email = $3, password_hash = $4, updated_at = now() WHERE id = $1 AND is_guest
-`
-
-type StartGuestUpgradeParams struct {
-	ID           uuid.UUID   `json:"id"`
-	Name         string      `json:"name"`
-	Email        string      `json:"email"`
-	PasswordHash pgtype.Text `json:"password_hash"`
-}
-
-// Starts an upgrade by e-mail: the account keeps is_guest until the address is verified.
-func (q *Queries) StartGuestUpgrade(ctx context.Context, arg StartGuestUpgradeParams) (int64, error) {
-	result, err := q.db.Exec(ctx, startGuestUpgrade,
-		arg.ID,
-		arg.Name,
-		arg.Email,
-		arg.PasswordHash,
-	)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
 }
 
 const updateUserPassword = `-- name: UpdateUserPassword :exec
