@@ -5376,11 +5376,7 @@
             "description": "Unauthorized"
           }
         },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
+        "security": [],
         "parameters": [
           {
             "name": "base",
@@ -5401,7 +5397,7 @@
             "description": "YYYY-MM-DD for historical (Frankfurter) rates"
           }
         ],
-        "description": "1 base = rates[quote] quote. Frankfurter (ECB) rates merged with exchangerate-api for currencies ECB lacks (e.g. NPR); remaining gaps are crossed via EUR/USD, so ?base=USD includes NPR and ?base=NPR includes USD. Cached for an hour."
+        "description": "1 base = rates[quote] quote. Frankfurter (ECB) rates merged with exchangerate-api for currencies ECB lacks (e.g. NPR); remaining gaps are crossed via EUR/USD, so ?base=USD includes NPR and ?base=NPR includes USD. Cached for an hour. Public: no sign-in needed (the app's on-device wallet fetches rates before any account exists). Limited to 60 requests per minute per IP."
       }
     },
     "/api/v1/recurring/{id}": {

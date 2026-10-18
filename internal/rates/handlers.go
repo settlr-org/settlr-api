@@ -32,8 +32,10 @@ type cached struct {
 
 const cacheTTL = time.Hour
 
-func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMw func(http.Handler) http.Handler) {
-	mux.Handle("GET /api/v1/rates", authMw(http.HandlerFunc(h.GetRates)))
+// RegisterRoutes serves GET /rates without authentication: the exchange-rate table is public data and the app's
+// on-device wallet (no account) needs it. The caller rate-limits it per IP (cmd/settlr/main.go).
+func (h *Handler) RegisterRoutes(mux *http.ServeMux, _ func(http.Handler) http.Handler) {
+	mux.Handle("GET /api/v1/rates", http.HandlerFunc(h.GetRates))
 }
 
 func (h *Handler) source() Source {
