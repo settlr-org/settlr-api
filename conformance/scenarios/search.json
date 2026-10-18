@@ -1,0 +1,223 @@
+{
+ "name": "search",
+ "steps": [
+  {
+   "method": "PATCH",
+   "path": "/api/v1/me",
+   "body": {
+    "default_currency": "NPR"
+   },
+   "quiet": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/accounts",
+   "id": "a1",
+   "body": {
+    "name": "Bank Savings",
+    "currency": "NPR",
+    "initial_balance": 100000
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/accounts",
+   "id": "a2",
+   "body": {
+    "name": "Wallet cash",
+    "currency": "NPR"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/tags",
+   "id": "t1",
+   "body": {
+    "name": "worklunch"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/tags",
+   "id": "t2",
+   "body": {
+    "name": "holiday"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/categories",
+   "id": "c1",
+   "body": {
+    "name": "Dining club"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "id": "x1",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 2500,
+    "title": "Team lunch",
+    "description": "pizza place",
+    "occurred_at": "2026-03-05T12:00:00Z",
+    "tag_ids": [
+     "{{t1.id}}"
+    ]
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 900,
+    "title": "Coffee",
+    "description": "100% arabica_beans",
+    "occurred_at": "2026-03-06T12:00:00Z",
+    "tag_ids": [
+     "{{t2.id}}"
+    ]
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "INCOME",
+    "account_id": "{{a1.id}}",
+    "amount": 5000,
+    "title": "Refund",
+    "description": "lunch refund",
+    "occurred_at": "2026-03-07T12:00:00Z"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 700,
+    "title": "Later lunch",
+    "due_at": "2099-01-01"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/planned",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 1200,
+    "title": "Lunch club",
+    "description": "monthly",
+    "start_at": "2099-02-01",
+    "interval_n": 1,
+    "interval_unit": "MONTH",
+    "tag_ids": [
+     "{{t1.id}}"
+    ]
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/budgets",
+   "body": {
+    "name": "Lunch budget",
+    "amount": 10000,
+    "category_ids": [
+     "{{c1.id}}"
+    ]
+   },
+   "quiet": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans",
+   "body": {
+    "name": "Lunch loan",
+    "type": "LEND",
+    "amount": 5000,
+    "account_id": "{{a1.id}}",
+    "note": "owed for lunch",
+    "occurred_at": "2026-03-01T00:00:00Z"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/search?q=lunch"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/search?q=LUNCH"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/search?q=bank"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/search?q=work"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/search?q=hol"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/search?q=100%25"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/search?q=arabica_"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/search?q=_"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/search?q=%25"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/search?q=dining"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/search?q=club"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/search?q=cash"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/search?q=zzz"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/search?q=%2520%2520lunch%2520%2520"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/search?q=lunch%20club"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/search?q=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/search"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/search?q="
+  }
+ ]
+}

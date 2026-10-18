@@ -1,0 +1,486 @@
+{
+ "name": "loans",
+ "steps": [
+  {
+   "method": "PATCH",
+   "path": "/api/v1/me",
+   "body": {
+    "default_currency": "NPR"
+   },
+   "quiet": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/accounts",
+   "id": "a1",
+   "body": {
+    "name": "Cash",
+    "currency": "NPR",
+    "initial_balance": 500000
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/accounts",
+   "id": "a2",
+   "body": {
+    "name": "Dollars",
+    "currency": "USD",
+    "initial_balance": 10000
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans",
+   "id": "l1",
+   "body": {
+    "name": "Ram",
+    "type": "LEND",
+    "amount": 100000,
+    "account_id": "{{a1.id}}",
+    "occurred_at": "2026-03-01T10:00:00Z",
+    "note": "for rent"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans",
+   "id": "l2",
+   "body": {
+    "name": "Bank",
+    "type": "BORROW",
+    "amount": 200000,
+    "occurred_at": "2026-03-02T10:00:00Z",
+    "color": "chart3",
+    "icon": "bank"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans",
+   "id": "l3",
+   "body": {
+    "name": "Friend USD",
+    "type": "lend",
+    "amount": 5000,
+    "currency": "USD",
+    "account_id": "{{a1.id}}",
+    "occurred_at": "2026-03-03T10:00:00Z"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans",
+   "id": "l4",
+   "body": {
+    "name": "Explicit",
+    "type": "BORROW",
+    "amount": 5000,
+    "currency": "USD",
+    "account_id": "{{a1.id}}",
+    "account_amount": 650000,
+    "occurred_at": "2026-03-04T10:00:00Z"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans",
+   "body": {
+    "name": "",
+    "type": "LEND",
+    "amount": 100
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans",
+   "body": {
+    "name": "Bad",
+    "type": "GIFT",
+    "amount": 100
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans",
+   "body": {
+    "name": "Bad",
+    "type": "LEND",
+    "amount": 0
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans",
+   "body": {
+    "name": "Bad",
+    "type": "LEND",
+    "amount": 100,
+    "currency": "ZZZ"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans",
+   "body": {
+    "name": "Bad",
+    "type": "LEND",
+    "amount": 100,
+    "account_id": "00000000-0000-0000-0000-000000000099"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans",
+   "body": {
+    "name": "Bad",
+    "type": "LEND",
+    "amount": 100,
+    "occurred_at": "soon"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/loans"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/loans?type=lend"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/loans?include_paid_off=false"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/loans?include_paid_off=maybe"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/loans/{{l1.id}}"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/loans/00000000-0000-0000-0000-000000000099"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/accounts/{{a1.id}}"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/transactions?source=LOAN&from=2026-03-01&to=2026-03-31"
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans/{{l1.id}}/records",
+   "id": "r1",
+   "body": {
+    "type": "DECREASE",
+    "amount": 40000,
+    "occurred_at": "2026-03-10T10:00:00Z",
+    "account_id": "{{a1.id}}",
+    "note": "part payment"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans/{{l1.id}}/records",
+   "id": "r2",
+   "body": {
+    "type": "INCREASE",
+    "amount": 10000,
+    "occurred_at": "2026-03-11T10:00:00Z"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans/{{l2.id}}/records",
+   "id": "r3",
+   "body": {
+    "type": "DECREASE",
+    "amount": 50000,
+    "occurred_at": "2026-03-12T10:00:00Z",
+    "account_id": "{{a2.id}}"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans/{{l2.id}}/records",
+   "body": {
+    "type": "DECREASE",
+    "amount": 1,
+    "occurred_at": "2026-03-12T10:00:00Z",
+    "account_id": "{{a2.id}}",
+    "account_amount": 0
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans/{{l1.id}}/records",
+   "body": {
+    "type": "OTHER",
+    "amount": 100
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans/{{l1.id}}/records",
+   "body": {
+    "type": "DECREASE",
+    "amount": 0
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/loan-records/{{r1.id}}",
+   "body": {
+    "account_id": "00000000-0000-0000-0000-000000000099"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans/{{l1.id}}/records",
+   "body": {
+    "type": "DECREASE",
+    "amount": 100,
+    "account_id": "00000000-0000-0000-0000-000000000099"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans/00000000-0000-0000-0000-000000000099/records",
+   "body": {
+    "type": "DECREASE",
+    "amount": 100
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/loans/{{l1.id}}/records"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/loans/{{l1.id}}"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/loans"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/accounts"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/transactions/{{l1.transaction_id}}"
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/transactions/{{l1.transaction_id}}",
+   "body": {
+    "amount": 1
+   }
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/transactions/{{l1.transaction_id}}"
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions/{{l1.transaction_id}}/duplicate"
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions/{{l1.transaction_id}}/pay"
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/loan-records/{{r1.id}}",
+   "body": {
+    "amount": 60000,
+    "note": "bigger"
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/loan-records/{{r2.id}}",
+   "body": {
+    "account_id": "{{a1.id}}"
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/loan-records/{{r1.id}}",
+   "body": {
+    "type": "WRONG"
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/loan-records/00000000-0000-0000-0000-000000000099",
+   "body": {
+    "amount": 1
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/loans/{{l1.id}}",
+   "body": {
+    "name": "Ram K",
+    "amount": 150000,
+    "note": "updated"
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/loans/{{l1.id}}",
+   "body": {
+    "type": "BORROW"
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/loans/{{l1.id}}",
+   "body": {
+    "type": "LEND",
+    "currency": "USD"
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/loans/{{l1.id}}",
+   "body": {
+    "currency": "NPR",
+    "amount": 150000
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/loans/{{l1.id}}",
+   "body": {
+    "account_id": "{{a2.id}}"
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/loans/{{l1.id}}",
+   "body": {
+    "account_id": null
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/loans/{{l1.id}}",
+   "body": {
+    "account_id": "{{a1.id}}"
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/loans/{{l2.id}}",
+   "body": {
+    "account_id": "{{a1.id}}",
+    "account_amount": 210000
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/loans/{{l1.id}}",
+   "body": {
+    "name": ""
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/loans/00000000-0000-0000-0000-000000000099",
+   "body": {
+    "name": "x"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/loans/{{l1.id}}/records"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/transactions?source=LOAN&from=2026-03-01&to=2026-03-31"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/accounts"
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans/reorder",
+   "body": {
+    "ids": [
+     "{{l4.id}}",
+     "{{l3.id}}",
+     "{{l2.id}}",
+     "{{l1.id}}"
+    ]
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans/reorder",
+   "body": {
+    "ids": [
+     "{{l4.id}}",
+     "{{l4.id}}"
+    ]
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans/reorder",
+   "body": {
+    "ids": [
+     "{{l4.id}}",
+     "00000000-0000-0000-0000-000000000099"
+    ]
+   }
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/loan-records/{{r2.id}}"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/loan-records/{{r2.id}}"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/loans/{{l3.id}}"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/loans/{{l3.id}}"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/loans"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/accounts"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/accounts/{{a1.id}}"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/loans"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/loans/{{l1.id}}/records"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/ledger?hide_adjustments=false&from=2026-01-01&to=2026-12-31"
+  }
+ ]
+}

@@ -1,0 +1,372 @@
+{
+ "name": "budgets",
+ "steps": [
+  {
+   "method": "PATCH",
+   "path": "/api/v1/me",
+   "body": {
+    "default_currency": "NPR"
+   },
+   "quiet": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/accounts",
+   "id": "a1",
+   "body": {
+    "name": "Cash",
+    "currency": "NPR"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/accounts",
+   "id": "a2",
+   "body": {
+    "name": "Hidden",
+    "currency": "NPR",
+    "include_in_balance": false
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/accounts",
+   "id": "a3",
+   "body": {
+    "name": "Dollars",
+    "currency": "USD"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/categories",
+   "id": "c1",
+   "body": {
+    "name": "Food"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/categories",
+   "id": "c2",
+   "body": {
+    "name": "Fun"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 20000,
+    "occurred_at": "2026-03-02T10:00:00Z",
+    "title": "Groceries",
+    "category_id": "{{c1.id}}"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 5000,
+    "occurred_at": "2026-03-12T10:00:00Z",
+    "title": "Snacks",
+    "category_id": "{{c1.id}}"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 7000,
+    "occurred_at": "2026-03-15T10:00:00Z",
+    "title": "Cinema",
+    "category_id": "{{c2.id}}"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 3000,
+    "occurred_at": "2026-03-20T10:00:00Z",
+    "title": "Misc"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a2.id}}",
+    "amount": 9000,
+    "occurred_at": "2026-03-05T10:00:00Z",
+    "title": "Hidden food",
+    "category_id": "{{c1.id}}"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a3.id}}",
+    "amount": 1000,
+    "occurred_at": "2026-03-06T10:00:00Z",
+    "title": "Dollar food",
+    "category_id": "{{c1.id}}"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "INCOME",
+    "account_id": "{{a1.id}}",
+    "amount": 50000,
+    "occurred_at": "2026-03-01T00:00:00Z",
+    "title": "Salary"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 4000,
+    "occurred_at": "2026-04-02T10:00:00Z",
+    "title": "April food",
+    "category_id": "{{c1.id}}"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/budgets?from=2026-03-01&to=2026-03-31",
+   "id": "b1",
+   "body": {
+    "name": "Food",
+    "amount": 40000,
+    "category_ids": [
+     "{{c1.id}}"
+    ]
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/budgets?from=2026-03-01&to=2026-03-31",
+   "id": "b2",
+   "body": {
+    "name": "Everything",
+    "amount": 100000,
+    "currency": "NPR"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/budgets?from=2026-03-01&to=2026-03-31",
+   "id": "b3",
+   "body": {
+    "name": "Hidden only",
+    "amount": 20000,
+    "account_ids": [
+     "{{a2.id}}"
+    ]
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/budgets?from=2026-03-01&to=2026-03-31",
+   "id": "b4",
+   "body": {
+    "name": "USD food",
+    "amount": 5000,
+    "currency": "USD",
+    "category_ids": [
+     "{{c1.id}}"
+    ]
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/budgets?from=2026-03-01&to=2026-03-31",
+   "body": {
+    "name": "",
+    "amount": 100
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/budgets?from=2026-03-01&to=2026-03-31",
+   "body": {
+    "name": "Bad",
+    "amount": 0
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/budgets?from=2026-03-01&to=2026-03-31",
+   "body": {
+    "name": "Bad",
+    "amount": 100,
+    "currency": "ZZZ"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/budgets?from=2026-03-01&to=2026-03-31",
+   "body": {
+    "name": "Bad",
+    "amount": 100,
+    "category_ids": [
+     "00000000-0000-0000-0000-000000000099"
+    ]
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/budgets?from=2026-03-01&to=2026-03-31",
+   "body": {
+    "name": "Bad",
+    "amount": 100,
+    "account_ids": [
+     "00000000-0000-0000-0000-000000000099"
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/budgets?from=2026-03-01&to=2026-03-31"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/budgets?from=2026-04-01&to=2026-04-30"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/budgets?from=2026-03-01"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/budgets?from=2026-03-31&to=2026-03-01"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/budgets/{{b1.id}}?from=2026-03-01&to=2026-03-31"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/budgets/00000000-0000-0000-0000-000000000099?from=2026-03-01&to=2026-03-31"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/v1/me/rates/USD/NPR",
+   "body": {
+    "rate": 100
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/budgets?from=2026-03-01&to=2026-03-31"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/me/rates/USD/NPR"
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/budgets/{{b1.id}}?from=2026-03-01&to=2026-03-31",
+   "body": {
+    "amount": 60000,
+    "category_ids": [
+     "{{c1.id}}",
+     "{{c2.id}}"
+    ],
+    "name": "Food & fun"
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/budgets/{{b1.id}}?from=2026-03-01&to=2026-03-31",
+   "body": {
+    "category_ids": []
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/budgets/{{b3.id}}?from=2026-03-01&to=2026-03-31",
+   "body": {
+    "account_ids": [
+     "{{a1.id}}",
+     "{{a2.id}}"
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/budgets?from=2026-03-01&to=2026-03-31"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/categories/{{c2.id}}"
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/budgets/{{b1.id}}?from=2026-03-01&to=2026-03-31",
+   "body": {
+    "amount": 61000
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/budgets/reorder?from=2026-03-01&to=2026-03-31",
+   "body": {
+    "ids": [
+     "{{b4.id}}",
+     "{{b3.id}}",
+     "{{b2.id}}",
+     "{{b1.id}}"
+    ]
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/budgets/reorder?from=2026-03-01&to=2026-03-31",
+   "body": {
+    "ids": [
+     "{{b4.id}}",
+     "{{b4.id}}"
+    ]
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/budgets/reorder?from=2026-03-01&to=2026-03-31",
+   "body": {
+    "ids": [
+     "{{b4.id}}",
+     "00000000-0000-0000-0000-000000000099"
+    ]
+   }
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/budgets/{{b2.id}}"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/budgets/{{b2.id}}"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/budgets?from=2026-03-01&to=2026-03-31"
+  }
+ ]
+}

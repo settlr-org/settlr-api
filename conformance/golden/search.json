@@ -1,0 +1,1101 @@
+[
+  {
+    "step": "#0 PATCH /api/v1/me",
+    "status": 200,
+    "body": null
+  },
+  {
+    "step": "a1 POST /api/v1/accounts",
+    "status": 201,
+    "body": {
+      "archived": false,
+      "archived_at": null,
+      "balance": 100000,
+      "balance_base": 100000,
+      "base_currency": "NPR",
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "wallet",
+      "id": "\u003cid:1\u003e",
+      "include_in_balance": true,
+      "is_default": true,
+      "missing_rates": [],
+      "name": "Bank Savings",
+      "sort_order": 0,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "a2 POST /api/v1/accounts",
+    "status": 201,
+    "body": {
+      "archived": false,
+      "archived_at": null,
+      "balance": 0,
+      "balance_base": 0,
+      "base_currency": "NPR",
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "wallet",
+      "id": "\u003cid:2\u003e",
+      "include_in_balance": true,
+      "is_default": false,
+      "missing_rates": [],
+      "name": "Wallet cash",
+      "sort_order": 1,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "t1 POST /api/v1/tags",
+    "status": 201,
+    "body": {
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "icon": "tag",
+      "id": "\u003cid:3\u003e",
+      "name": "worklunch",
+      "sort_order": 0,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "t2 POST /api/v1/tags",
+    "status": 201,
+    "body": {
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "icon": "tag",
+      "id": "\u003cid:4\u003e",
+      "name": "holiday",
+      "sort_order": 1,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "c1 POST /api/v1/categories",
+    "status": 201,
+    "body": {
+      "color": "#6B7280",
+      "grouping": "Uncategorized",
+      "icon": "tag",
+      "id": "\u003cid:5\u003e",
+      "is_system": false,
+      "name": "Dining club",
+      "sort_order": null
+    }
+  },
+  {
+    "step": "x1 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 2500,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "pizza place",
+      "due_at": null,
+      "id": "\u003cid:6\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-05T12:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:3\u003e",
+          "name": "worklunch"
+        }
+      ],
+      "title": "Team lunch",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#7 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 900,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "100% arabica_beans",
+      "due_at": null,
+      "id": "\u003cid:7\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-06T12:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:4\u003e",
+          "name": "holiday"
+        }
+      ],
+      "title": "Coffee",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#8 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 5000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "lunch refund",
+      "due_at": null,
+      "id": "\u003cid:8\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-07T12:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Refund",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "INCOME",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#9 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 700,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": "2099-01-01T00:00:00Z",
+      "id": "\u003cid:9\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": null,
+      "planned": true,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Later lunch",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#10 POST /api/v1/planned",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "active": true,
+      "amount": 1200,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "monthly",
+      "id": "\u003cid:10\u003e",
+      "interval_n": 1,
+      "interval_unit": "MONTH",
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 1200,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "monthly",
+        "due_at": "2099-02-01T00:00:00Z",
+        "id": "\u003cid:11\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:10\u003e",
+        "source": "MANUAL",
+        "tags": [
+          {
+            "color": "#6B7280",
+            "icon": "tag",
+            "id": "\u003cid:3\u003e",
+            "name": "worklunch"
+          }
+        ],
+        "title": "Lunch club",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "EXPENSE",
+        "updated_at": "\u003cts\u003e"
+      },
+      "next_due_at": "2099-02-01T00:00:00Z",
+      "one_time": false,
+      "start_at": "2099-02-01T00:00:00Z",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:3\u003e",
+          "name": "worklunch"
+        }
+      ],
+      "title": "Lunch club",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#11 POST /api/v1/budgets",
+    "status": 201,
+    "body": null
+  },
+  {
+    "step": "#12 POST /api/v1/loans",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 5000,
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "loan",
+      "id": "\u003cid:12\u003e",
+      "name": "Lunch loan",
+      "note": "owed for lunch",
+      "occurred_at": "2026-03-01T00:00:00Z",
+      "paid": 0,
+      "paid_off": false,
+      "percent": 0,
+      "records_count": 0,
+      "remaining": 5000,
+      "sort_order": 0,
+      "total": 5000,
+      "transaction_id": "\u003cid:13\u003e",
+      "type": "LEND",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#13 GET /api/v1/search?q=lunch",
+    "status": 200,
+    "body": {
+      "accounts": [],
+      "budgets": [
+        {
+          "amount": 10000,
+          "currency": "NPR",
+          "id": "\u003cid:14\u003e",
+          "name": "Lunch budget"
+        }
+      ],
+      "categories": [],
+      "expenses": [],
+      "groups": [],
+      "loans": [
+        {
+          "amount": 5000,
+          "currency": "NPR",
+          "id": "\u003cid:12\u003e",
+          "name": "Lunch loan",
+          "paid_off": false,
+          "remaining": 5000,
+          "type": "LEND"
+        }
+      ],
+      "planned": [
+        {
+          "active": true,
+          "amount": 1200,
+          "currency": "NPR",
+          "id": "\u003cid:10\u003e",
+          "interval_n": 1,
+          "interval_unit": "MONTH",
+          "next_due_at": "2099-02-01T00:00:00Z",
+          "one_time": false,
+          "title": "Lunch club",
+          "type": "EXPENSE"
+        }
+      ],
+      "tags": [
+        {
+          "color": "#6B7280",
+          "id": "\u003cid:3\u003e",
+          "name": "worklunch"
+        }
+      ],
+      "transactions": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "account_name": "Bank Savings",
+          "amount": 1200,
+          "category_id": null,
+          "currency": "NPR",
+          "description": "monthly",
+          "due_at": "2099-02-01T00:00:00Z",
+          "id": "\u003cid:11\u003e",
+          "occurred_at": null,
+          "planned": true,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "id": "\u003cid:3\u003e",
+              "name": "worklunch"
+            }
+          ],
+          "title": "Lunch club",
+          "type": "EXPENSE"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "account_name": "Bank Savings",
+          "amount": 700,
+          "category_id": null,
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2099-01-01T00:00:00Z",
+          "id": "\u003cid:9\u003e",
+          "occurred_at": null,
+          "planned": true,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Later lunch",
+          "type": "EXPENSE"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "account_name": "Bank Savings",
+          "amount": 5000,
+          "category_id": null,
+          "currency": "NPR",
+          "description": "lunch refund",
+          "due_at": null,
+          "id": "\u003cid:8\u003e",
+          "occurred_at": "2026-03-07T12:00:00Z",
+          "planned": false,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Refund",
+          "type": "INCOME"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "account_name": "Bank Savings",
+          "amount": 2500,
+          "category_id": null,
+          "currency": "NPR",
+          "description": "pizza place",
+          "due_at": null,
+          "id": "\u003cid:6\u003e",
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned": false,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "id": "\u003cid:3\u003e",
+              "name": "worklunch"
+            }
+          ],
+          "title": "Team lunch",
+          "type": "EXPENSE"
+        }
+      ],
+      "users": []
+    }
+  },
+  {
+    "step": "#14 GET /api/v1/search?q=LUNCH",
+    "status": 200,
+    "body": {
+      "accounts": [],
+      "budgets": [
+        {
+          "amount": 10000,
+          "currency": "NPR",
+          "id": "\u003cid:14\u003e",
+          "name": "Lunch budget"
+        }
+      ],
+      "categories": [],
+      "expenses": [],
+      "groups": [],
+      "loans": [
+        {
+          "amount": 5000,
+          "currency": "NPR",
+          "id": "\u003cid:12\u003e",
+          "name": "Lunch loan",
+          "paid_off": false,
+          "remaining": 5000,
+          "type": "LEND"
+        }
+      ],
+      "planned": [
+        {
+          "active": true,
+          "amount": 1200,
+          "currency": "NPR",
+          "id": "\u003cid:10\u003e",
+          "interval_n": 1,
+          "interval_unit": "MONTH",
+          "next_due_at": "2099-02-01T00:00:00Z",
+          "one_time": false,
+          "title": "Lunch club",
+          "type": "EXPENSE"
+        }
+      ],
+      "tags": [
+        {
+          "color": "#6B7280",
+          "id": "\u003cid:3\u003e",
+          "name": "worklunch"
+        }
+      ],
+      "transactions": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "account_name": "Bank Savings",
+          "amount": 1200,
+          "category_id": null,
+          "currency": "NPR",
+          "description": "monthly",
+          "due_at": "2099-02-01T00:00:00Z",
+          "id": "\u003cid:11\u003e",
+          "occurred_at": null,
+          "planned": true,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "id": "\u003cid:3\u003e",
+              "name": "worklunch"
+            }
+          ],
+          "title": "Lunch club",
+          "type": "EXPENSE"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "account_name": "Bank Savings",
+          "amount": 700,
+          "category_id": null,
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2099-01-01T00:00:00Z",
+          "id": "\u003cid:9\u003e",
+          "occurred_at": null,
+          "planned": true,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Later lunch",
+          "type": "EXPENSE"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "account_name": "Bank Savings",
+          "amount": 5000,
+          "category_id": null,
+          "currency": "NPR",
+          "description": "lunch refund",
+          "due_at": null,
+          "id": "\u003cid:8\u003e",
+          "occurred_at": "2026-03-07T12:00:00Z",
+          "planned": false,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Refund",
+          "type": "INCOME"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "account_name": "Bank Savings",
+          "amount": 2500,
+          "category_id": null,
+          "currency": "NPR",
+          "description": "pizza place",
+          "due_at": null,
+          "id": "\u003cid:6\u003e",
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned": false,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "id": "\u003cid:3\u003e",
+              "name": "worklunch"
+            }
+          ],
+          "title": "Team lunch",
+          "type": "EXPENSE"
+        }
+      ],
+      "users": []
+    }
+  },
+  {
+    "step": "#15 GET /api/v1/search?q=bank",
+    "status": 200,
+    "body": {
+      "accounts": [
+        {
+          "color": "#6B7280",
+          "currency": "NPR",
+          "icon": "wallet",
+          "id": "\u003cid:1\u003e",
+          "name": "Bank Savings"
+        }
+      ],
+      "budgets": [],
+      "categories": [],
+      "expenses": [],
+      "groups": [],
+      "loans": [],
+      "planned": [],
+      "tags": [],
+      "transactions": [],
+      "users": []
+    }
+  },
+  {
+    "step": "#16 GET /api/v1/search?q=work",
+    "status": 200,
+    "body": {
+      "accounts": [],
+      "budgets": [],
+      "categories": [],
+      "expenses": [],
+      "groups": [],
+      "loans": [],
+      "planned": [
+        {
+          "active": true,
+          "amount": 1200,
+          "currency": "NPR",
+          "id": "\u003cid:10\u003e",
+          "interval_n": 1,
+          "interval_unit": "MONTH",
+          "next_due_at": "2099-02-01T00:00:00Z",
+          "one_time": false,
+          "title": "Lunch club",
+          "type": "EXPENSE"
+        }
+      ],
+      "tags": [
+        {
+          "color": "#6B7280",
+          "id": "\u003cid:3\u003e",
+          "name": "worklunch"
+        }
+      ],
+      "transactions": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "account_name": "Bank Savings",
+          "amount": 1200,
+          "category_id": null,
+          "currency": "NPR",
+          "description": "monthly",
+          "due_at": "2099-02-01T00:00:00Z",
+          "id": "\u003cid:11\u003e",
+          "occurred_at": null,
+          "planned": true,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "id": "\u003cid:3\u003e",
+              "name": "worklunch"
+            }
+          ],
+          "title": "Lunch club",
+          "type": "EXPENSE"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "account_name": "Bank Savings",
+          "amount": 2500,
+          "category_id": null,
+          "currency": "NPR",
+          "description": "pizza place",
+          "due_at": null,
+          "id": "\u003cid:6\u003e",
+          "occurred_at": "2026-03-05T12:00:00Z",
+          "planned": false,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "id": "\u003cid:3\u003e",
+              "name": "worklunch"
+            }
+          ],
+          "title": "Team lunch",
+          "type": "EXPENSE"
+        }
+      ],
+      "users": []
+    }
+  },
+  {
+    "step": "#17 GET /api/v1/search?q=hol",
+    "status": 200,
+    "body": {
+      "accounts": [],
+      "budgets": [],
+      "categories": [],
+      "expenses": [],
+      "groups": [],
+      "loans": [],
+      "planned": [],
+      "tags": [
+        {
+          "color": "#6B7280",
+          "id": "\u003cid:4\u003e",
+          "name": "holiday"
+        }
+      ],
+      "transactions": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "account_name": "Bank Savings",
+          "amount": 900,
+          "category_id": null,
+          "currency": "NPR",
+          "description": "100% arabica_beans",
+          "due_at": null,
+          "id": "\u003cid:7\u003e",
+          "occurred_at": "2026-03-06T12:00:00Z",
+          "planned": false,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "id": "\u003cid:4\u003e",
+              "name": "holiday"
+            }
+          ],
+          "title": "Coffee",
+          "type": "EXPENSE"
+        }
+      ],
+      "users": []
+    }
+  },
+  {
+    "step": "#18 GET /api/v1/search?q=100%25",
+    "status": 200,
+    "body": {
+      "accounts": [],
+      "budgets": [],
+      "categories": [],
+      "expenses": [],
+      "groups": [],
+      "loans": [],
+      "planned": [],
+      "tags": [],
+      "transactions": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "account_name": "Bank Savings",
+          "amount": 900,
+          "category_id": null,
+          "currency": "NPR",
+          "description": "100% arabica_beans",
+          "due_at": null,
+          "id": "\u003cid:7\u003e",
+          "occurred_at": "2026-03-06T12:00:00Z",
+          "planned": false,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "id": "\u003cid:4\u003e",
+              "name": "holiday"
+            }
+          ],
+          "title": "Coffee",
+          "type": "EXPENSE"
+        }
+      ],
+      "users": []
+    }
+  },
+  {
+    "step": "#19 GET /api/v1/search?q=arabica_",
+    "status": 200,
+    "body": {
+      "accounts": [],
+      "budgets": [],
+      "categories": [],
+      "expenses": [],
+      "groups": [],
+      "loans": [],
+      "planned": [],
+      "tags": [],
+      "transactions": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "account_name": "Bank Savings",
+          "amount": 900,
+          "category_id": null,
+          "currency": "NPR",
+          "description": "100% arabica_beans",
+          "due_at": null,
+          "id": "\u003cid:7\u003e",
+          "occurred_at": "2026-03-06T12:00:00Z",
+          "planned": false,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "id": "\u003cid:4\u003e",
+              "name": "holiday"
+            }
+          ],
+          "title": "Coffee",
+          "type": "EXPENSE"
+        }
+      ],
+      "users": []
+    }
+  },
+  {
+    "step": "#20 GET /api/v1/search?q=_",
+    "status": 200,
+    "body": {
+      "accounts": [],
+      "budgets": [],
+      "categories": [],
+      "expenses": [],
+      "groups": [],
+      "loans": [],
+      "planned": [],
+      "tags": [],
+      "transactions": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "account_name": "Bank Savings",
+          "amount": 900,
+          "category_id": null,
+          "currency": "NPR",
+          "description": "100% arabica_beans",
+          "due_at": null,
+          "id": "\u003cid:7\u003e",
+          "occurred_at": "2026-03-06T12:00:00Z",
+          "planned": false,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "id": "\u003cid:4\u003e",
+              "name": "holiday"
+            }
+          ],
+          "title": "Coffee",
+          "type": "EXPENSE"
+        }
+      ],
+      "users": []
+    }
+  },
+  {
+    "step": "#21 GET /api/v1/search?q=%25",
+    "status": 200,
+    "body": {
+      "accounts": [],
+      "budgets": [],
+      "categories": [],
+      "expenses": [],
+      "groups": [],
+      "loans": [],
+      "planned": [],
+      "tags": [],
+      "transactions": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "account_name": "Bank Savings",
+          "amount": 900,
+          "category_id": null,
+          "currency": "NPR",
+          "description": "100% arabica_beans",
+          "due_at": null,
+          "id": "\u003cid:7\u003e",
+          "occurred_at": "2026-03-06T12:00:00Z",
+          "planned": false,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "id": "\u003cid:4\u003e",
+              "name": "holiday"
+            }
+          ],
+          "title": "Coffee",
+          "type": "EXPENSE"
+        }
+      ],
+      "users": []
+    }
+  },
+  {
+    "step": "#22 GET /api/v1/search?q=dining",
+    "status": 200,
+    "body": {
+      "accounts": [],
+      "budgets": [],
+      "categories": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:5\u003e",
+          "name": "Dining club"
+        }
+      ],
+      "expenses": [],
+      "groups": [],
+      "loans": [],
+      "planned": [],
+      "tags": [],
+      "transactions": [],
+      "users": []
+    }
+  },
+  {
+    "step": "#23 GET /api/v1/search?q=club",
+    "status": 200,
+    "body": {
+      "accounts": [],
+      "budgets": [],
+      "categories": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:5\u003e",
+          "name": "Dining club"
+        }
+      ],
+      "expenses": [],
+      "groups": [],
+      "loans": [],
+      "planned": [
+        {
+          "active": true,
+          "amount": 1200,
+          "currency": "NPR",
+          "id": "\u003cid:10\u003e",
+          "interval_n": 1,
+          "interval_unit": "MONTH",
+          "next_due_at": "2099-02-01T00:00:00Z",
+          "one_time": false,
+          "title": "Lunch club",
+          "type": "EXPENSE"
+        }
+      ],
+      "tags": [],
+      "transactions": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "account_name": "Bank Savings",
+          "amount": 1200,
+          "category_id": null,
+          "currency": "NPR",
+          "description": "monthly",
+          "due_at": "2099-02-01T00:00:00Z",
+          "id": "\u003cid:11\u003e",
+          "occurred_at": null,
+          "planned": true,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "id": "\u003cid:3\u003e",
+              "name": "worklunch"
+            }
+          ],
+          "title": "Lunch club",
+          "type": "EXPENSE"
+        }
+      ],
+      "users": []
+    }
+  },
+  {
+    "step": "#24 GET /api/v1/search?q=cash",
+    "status": 200,
+    "body": {
+      "accounts": [
+        {
+          "color": "#6B7280",
+          "currency": "NPR",
+          "icon": "wallet",
+          "id": "\u003cid:2\u003e",
+          "name": "Wallet cash"
+        }
+      ],
+      "budgets": [],
+      "categories": [],
+      "expenses": [],
+      "groups": [],
+      "loans": [],
+      "planned": [],
+      "tags": [],
+      "transactions": [],
+      "users": []
+    }
+  },
+  {
+    "step": "#25 GET /api/v1/search?q=zzz",
+    "status": 200,
+    "body": {
+      "accounts": [],
+      "budgets": [],
+      "categories": [],
+      "expenses": [],
+      "groups": [],
+      "loans": [],
+      "planned": [],
+      "tags": [],
+      "transactions": [],
+      "users": []
+    }
+  },
+  {
+    "step": "#26 GET /api/v1/search?q=%2520%2520lunch%2520%2520",
+    "status": 200,
+    "body": {
+      "accounts": [],
+      "budgets": [],
+      "categories": [],
+      "expenses": [],
+      "groups": [],
+      "loans": [],
+      "planned": [],
+      "tags": [],
+      "transactions": [],
+      "users": []
+    }
+  },
+  {
+    "step": "#27 GET /api/v1/search?q=lunch%20club",
+    "status": 200,
+    "body": {
+      "accounts": [],
+      "budgets": [],
+      "categories": [],
+      "expenses": [],
+      "groups": [],
+      "loans": [],
+      "planned": [
+        {
+          "active": true,
+          "amount": 1200,
+          "currency": "NPR",
+          "id": "\u003cid:10\u003e",
+          "interval_n": 1,
+          "interval_unit": "MONTH",
+          "next_due_at": "2099-02-01T00:00:00Z",
+          "one_time": false,
+          "title": "Lunch club",
+          "type": "EXPENSE"
+        }
+      ],
+      "tags": [],
+      "transactions": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "account_name": "Bank Savings",
+          "amount": 1200,
+          "category_id": null,
+          "currency": "NPR",
+          "description": "monthly",
+          "due_at": "2099-02-01T00:00:00Z",
+          "id": "\u003cid:11\u003e",
+          "occurred_at": null,
+          "planned": true,
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "id": "\u003cid:3\u003e",
+              "name": "worklunch"
+            }
+          ],
+          "title": "Lunch club",
+          "type": "EXPENSE"
+        }
+      ],
+      "users": []
+    }
+  },
+  {
+    "step": "#28 GET /api/v1/search?q=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "status": 200,
+    "body": {
+      "accounts": [],
+      "budgets": [],
+      "categories": [],
+      "expenses": [],
+      "groups": [],
+      "loans": [],
+      "planned": [],
+      "tags": [],
+      "transactions": [],
+      "users": []
+    }
+  },
+  {
+    "step": "#29 GET /api/v1/search",
+    "status": 200,
+    "body": {
+      "accounts": [],
+      "budgets": [],
+      "categories": [],
+      "expenses": [],
+      "groups": [],
+      "loans": [],
+      "planned": [],
+      "tags": [],
+      "transactions": [],
+      "users": []
+    }
+  },
+  {
+    "step": "#30 GET /api/v1/search?q=",
+    "status": 200,
+    "body": {
+      "accounts": [],
+      "budgets": [],
+      "categories": [],
+      "expenses": [],
+      "groups": [],
+      "loans": [],
+      "planned": [],
+      "tags": [],
+      "transactions": [],
+      "users": []
+    }
+  }
+]

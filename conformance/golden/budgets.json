@@ -1,0 +1,1165 @@
+[
+  {
+    "step": "#0 PATCH /api/v1/me",
+    "status": 200,
+    "body": null
+  },
+  {
+    "step": "a1 POST /api/v1/accounts",
+    "status": 201,
+    "body": {
+      "archived": false,
+      "archived_at": null,
+      "balance": 0,
+      "balance_base": 0,
+      "base_currency": "NPR",
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "wallet",
+      "id": "\u003cid:1\u003e",
+      "include_in_balance": true,
+      "is_default": true,
+      "missing_rates": [],
+      "name": "Cash",
+      "sort_order": 0,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "a2 POST /api/v1/accounts",
+    "status": 201,
+    "body": {
+      "archived": false,
+      "archived_at": null,
+      "balance": 0,
+      "balance_base": 0,
+      "base_currency": "NPR",
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "wallet",
+      "id": "\u003cid:2\u003e",
+      "include_in_balance": false,
+      "is_default": false,
+      "missing_rates": [],
+      "name": "Hidden",
+      "sort_order": 1,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "a3 POST /api/v1/accounts",
+    "status": 201,
+    "body": {
+      "archived": false,
+      "archived_at": null,
+      "balance": 0,
+      "balance_base": 0,
+      "base_currency": "NPR",
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "USD",
+      "icon": "wallet",
+      "id": "\u003cid:3\u003e",
+      "include_in_balance": true,
+      "is_default": false,
+      "missing_rates": [],
+      "name": "Dollars",
+      "sort_order": 2,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "c1 POST /api/v1/categories",
+    "status": 201,
+    "body": {
+      "color": "#6B7280",
+      "grouping": "Uncategorized",
+      "icon": "tag",
+      "id": "\u003cid:4\u003e",
+      "is_system": false,
+      "name": "Food",
+      "sort_order": null
+    }
+  },
+  {
+    "step": "c2 POST /api/v1/categories",
+    "status": 201,
+    "body": {
+      "color": "#6B7280",
+      "grouping": "Uncategorized",
+      "icon": "tag",
+      "id": "\u003cid:5\u003e",
+      "is_system": false,
+      "name": "Fun",
+      "sort_order": null
+    }
+  },
+  {
+    "step": "#6 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 20000,
+      "category_id": "\u003cid:4\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:6\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-02T10:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Groceries",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#7 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 5000,
+      "category_id": "\u003cid:4\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:7\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-12T10:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Snacks",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#8 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 7000,
+      "category_id": "\u003cid:5\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:8\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-15T10:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Cinema",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#9 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 3000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:9\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-20T10:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Misc",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#10 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:2\u003e",
+      "amount": 9000,
+      "category_id": "\u003cid:4\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:10\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-05T10:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Hidden food",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#11 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:3\u003e",
+      "amount": 1000,
+      "category_id": "\u003cid:4\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "USD",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:11\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-06T10:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Dollar food",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#12 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 50000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:12\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-01T00:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Salary",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "INCOME",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#13 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 4000,
+      "category_id": "\u003cid:4\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:13\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-04-02T10:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "April food",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "b1 POST /api/v1/budgets?from=2026-03-01\u0026to=2026-03-31",
+    "status": 201,
+    "body": {
+      "account_ids": [],
+      "amount": 40000,
+      "category_ids": [
+        "\u003cid:4\u003e"
+      ],
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "from": "2026-03-01T00:00:00Z",
+      "id": "\u003cid:14\u003e",
+      "missing_rates": [],
+      "name": "Food",
+      "percent": 395,
+      "remaining": -118000,
+      "sort_order": 0,
+      "spent": 158000,
+      "to": "2026-04-01T00:00:00Z",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "b2 POST /api/v1/budgets?from=2026-03-01\u0026to=2026-03-31",
+    "status": 201,
+    "body": {
+      "account_ids": [],
+      "amount": 100000,
+      "category_ids": [],
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "from": "2026-03-01T00:00:00Z",
+      "id": "\u003cid:15\u003e",
+      "missing_rates": [],
+      "name": "Everything",
+      "percent": 168,
+      "remaining": -68000,
+      "sort_order": 1,
+      "spent": 168000,
+      "to": "2026-04-01T00:00:00Z",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "b3 POST /api/v1/budgets?from=2026-03-01\u0026to=2026-03-31",
+    "status": 201,
+    "body": {
+      "account_ids": [
+        "\u003cid:2\u003e"
+      ],
+      "amount": 20000,
+      "category_ids": [],
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "from": "2026-03-01T00:00:00Z",
+      "id": "\u003cid:16\u003e",
+      "missing_rates": [],
+      "name": "Hidden only",
+      "percent": 45,
+      "remaining": 11000,
+      "sort_order": 2,
+      "spent": 9000,
+      "to": "2026-04-01T00:00:00Z",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "b4 POST /api/v1/budgets?from=2026-03-01\u0026to=2026-03-31",
+    "status": 201,
+    "body": {
+      "account_ids": [],
+      "amount": 5000,
+      "category_ids": [
+        "\u003cid:4\u003e"
+      ],
+      "created_at": "\u003cts\u003e",
+      "currency": "USD",
+      "from": "2026-03-01T00:00:00Z",
+      "id": "\u003cid:17\u003e",
+      "missing_rates": [],
+      "name": "USD food",
+      "percent": 23.76,
+      "remaining": 3812,
+      "sort_order": 3,
+      "spent": 1188,
+      "to": "2026-04-01T00:00:00Z",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#18 POST /api/v1/budgets?from=2026-03-01\u0026to=2026-03-31",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "name required (max 100)"
+      }
+    }
+  },
+  {
+    "step": "#19 POST /api/v1/budgets?from=2026-03-01\u0026to=2026-03-31",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "amount must be \u003e 0 (minor units)"
+      }
+    }
+  },
+  {
+    "step": "#20 POST /api/v1/budgets?from=2026-03-01\u0026to=2026-03-31",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "unsupported currency"
+      }
+    }
+  },
+  {
+    "step": "#21 POST /api/v1/budgets?from=2026-03-01\u0026to=2026-03-31",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "category_ids contains an unknown category"
+      }
+    }
+  },
+  {
+    "step": "#22 POST /api/v1/budgets?from=2026-03-01\u0026to=2026-03-31",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "account_ids contains an unknown account"
+      }
+    }
+  },
+  {
+    "step": "#23 GET /api/v1/budgets?from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "currency": "NPR",
+      "data": [
+        {
+          "account_ids": [],
+          "amount": 40000,
+          "category_ids": [
+            "\u003cid:4\u003e"
+          ],
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "from": "2026-03-01T00:00:00Z",
+          "id": "\u003cid:14\u003e",
+          "missing_rates": [],
+          "name": "Food",
+          "percent": 395,
+          "remaining": -118000,
+          "sort_order": 0,
+          "spent": 158000,
+          "to": "2026-04-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_ids": [],
+          "amount": 100000,
+          "category_ids": [],
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "from": "2026-03-01T00:00:00Z",
+          "id": "\u003cid:15\u003e",
+          "missing_rates": [],
+          "name": "Everything",
+          "percent": 168,
+          "remaining": -68000,
+          "sort_order": 1,
+          "spent": 168000,
+          "to": "2026-04-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_ids": [
+            "\u003cid:2\u003e"
+          ],
+          "amount": 20000,
+          "category_ids": [],
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "from": "2026-03-01T00:00:00Z",
+          "id": "\u003cid:16\u003e",
+          "missing_rates": [],
+          "name": "Hidden only",
+          "percent": 45,
+          "remaining": 11000,
+          "sort_order": 2,
+          "spent": 9000,
+          "to": "2026-04-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_ids": [],
+          "amount": 5000,
+          "category_ids": [
+            "\u003cid:4\u003e"
+          ],
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "from": "2026-03-01T00:00:00Z",
+          "id": "\u003cid:17\u003e",
+          "missing_rates": [],
+          "name": "USD food",
+          "percent": 23.76,
+          "remaining": 3812,
+          "sort_order": 3,
+          "spent": 1188,
+          "to": "2026-04-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "from": "2026-03-01T00:00:00Z",
+      "missing_rates": [],
+      "to": "2026-04-01T00:00:00Z",
+      "total_amount": 825000,
+      "total_remaining": 331996,
+      "total_spent": 493004
+    }
+  },
+  {
+    "step": "#24 GET /api/v1/budgets?from=2026-04-01\u0026to=2026-04-30",
+    "status": 200,
+    "body": {
+      "currency": "NPR",
+      "data": [
+        {
+          "account_ids": [],
+          "amount": 40000,
+          "category_ids": [
+            "\u003cid:4\u003e"
+          ],
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "from": "2026-04-01T00:00:00Z",
+          "id": "\u003cid:14\u003e",
+          "missing_rates": [],
+          "name": "Food",
+          "percent": 10,
+          "remaining": 36000,
+          "sort_order": 0,
+          "spent": 4000,
+          "to": "2026-05-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_ids": [],
+          "amount": 100000,
+          "category_ids": [],
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "from": "2026-04-01T00:00:00Z",
+          "id": "\u003cid:15\u003e",
+          "missing_rates": [],
+          "name": "Everything",
+          "percent": 4,
+          "remaining": 96000,
+          "sort_order": 1,
+          "spent": 4000,
+          "to": "2026-05-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_ids": [
+            "\u003cid:2\u003e"
+          ],
+          "amount": 20000,
+          "category_ids": [],
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "from": "2026-04-01T00:00:00Z",
+          "id": "\u003cid:16\u003e",
+          "missing_rates": [],
+          "name": "Hidden only",
+          "percent": 0,
+          "remaining": 20000,
+          "sort_order": 2,
+          "spent": 0,
+          "to": "2026-05-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_ids": [],
+          "amount": 5000,
+          "category_ids": [
+            "\u003cid:4\u003e"
+          ],
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "from": "2026-04-01T00:00:00Z",
+          "id": "\u003cid:17\u003e",
+          "missing_rates": [],
+          "name": "USD food",
+          "percent": 0.6,
+          "remaining": 4970,
+          "sort_order": 3,
+          "spent": 30,
+          "to": "2026-05-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "from": "2026-04-01T00:00:00Z",
+      "missing_rates": [],
+      "to": "2026-05-01T00:00:00Z",
+      "total_amount": 825000,
+      "total_remaining": 813010,
+      "total_spent": 11990
+    }
+  },
+  {
+    "step": "#25 GET /api/v1/budgets?from=2026-03-01",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "from and to must be given together"
+      }
+    }
+  },
+  {
+    "step": "#26 GET /api/v1/budgets?from=2026-03-31\u0026to=2026-03-01",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "to must be after from"
+      }
+    }
+  },
+  {
+    "step": "#27 GET /api/v1/budgets/{{b1.id}}?from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "account_ids": [],
+      "amount": 40000,
+      "category_ids": [
+        "\u003cid:4\u003e"
+      ],
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "from": "2026-03-01T00:00:00Z",
+      "id": "\u003cid:14\u003e",
+      "missing_rates": [],
+      "name": "Food",
+      "percent": 395,
+      "remaining": -118000,
+      "sort_order": 0,
+      "spent": 158000,
+      "to": "2026-04-01T00:00:00Z",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#28 GET /api/v1/budgets/00000000-0000-0000-0000-000000000099?from=2026-03-01\u0026to=2026-03-31",
+    "status": 404,
+    "body": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "resource not found"
+      }
+    }
+  },
+  {
+    "step": "#29 PUT /api/v1/me/rates/USD/NPR",
+    "status": 200,
+    "body": {
+      "base": "USD",
+      "quote": "NPR",
+      "rate": 100,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#30 GET /api/v1/budgets?from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "currency": "NPR",
+      "data": [
+        {
+          "account_ids": [],
+          "amount": 40000,
+          "category_ids": [
+            "\u003cid:4\u003e"
+          ],
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "from": "2026-03-01T00:00:00Z",
+          "id": "\u003cid:14\u003e",
+          "missing_rates": [],
+          "name": "Food",
+          "percent": 312.5,
+          "remaining": -85000,
+          "sort_order": 0,
+          "spent": 125000,
+          "to": "2026-04-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_ids": [],
+          "amount": 100000,
+          "category_ids": [],
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "from": "2026-03-01T00:00:00Z",
+          "id": "\u003cid:15\u003e",
+          "missing_rates": [],
+          "name": "Everything",
+          "percent": 135,
+          "remaining": -35000,
+          "sort_order": 1,
+          "spent": 135000,
+          "to": "2026-04-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_ids": [
+            "\u003cid:2\u003e"
+          ],
+          "amount": 20000,
+          "category_ids": [],
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "from": "2026-03-01T00:00:00Z",
+          "id": "\u003cid:16\u003e",
+          "missing_rates": [],
+          "name": "Hidden only",
+          "percent": 45,
+          "remaining": 11000,
+          "sort_order": 2,
+          "spent": 9000,
+          "to": "2026-04-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_ids": [],
+          "amount": 5000,
+          "category_ids": [
+            "\u003cid:4\u003e"
+          ],
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "from": "2026-03-01T00:00:00Z",
+          "id": "\u003cid:17\u003e",
+          "missing_rates": [],
+          "name": "USD food",
+          "percent": 25,
+          "remaining": 3750,
+          "sort_order": 3,
+          "spent": 1250,
+          "to": "2026-04-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "from": "2026-03-01T00:00:00Z",
+      "missing_rates": [],
+      "to": "2026-04-01T00:00:00Z",
+      "total_amount": 660000,
+      "total_remaining": 266000,
+      "total_spent": 394000
+    }
+  },
+  {
+    "step": "#31 DELETE /api/v1/me/rates/USD/NPR",
+    "status": 200,
+    "body": {
+      "message": "deleted"
+    }
+  },
+  {
+    "step": "#32 PATCH /api/v1/budgets/{{b1.id}}?from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "account_ids": [],
+      "amount": 60000,
+      "category_ids": [
+        "\u003cid:4\u003e",
+        "\u003cid:5\u003e"
+      ],
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "from": "2026-03-01T00:00:00Z",
+      "id": "\u003cid:14\u003e",
+      "missing_rates": [],
+      "name": "Food \u0026 fun",
+      "percent": 275,
+      "remaining": -105000,
+      "sort_order": 0,
+      "spent": 165000,
+      "to": "2026-04-01T00:00:00Z",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#33 PATCH /api/v1/budgets/{{b1.id}}?from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "account_ids": [],
+      "amount": 60000,
+      "category_ids": [],
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "from": "2026-03-01T00:00:00Z",
+      "id": "\u003cid:14\u003e",
+      "missing_rates": [],
+      "name": "Food \u0026 fun",
+      "percent": 280,
+      "remaining": -108000,
+      "sort_order": 0,
+      "spent": 168000,
+      "to": "2026-04-01T00:00:00Z",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#34 PATCH /api/v1/budgets/{{b3.id}}?from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "account_ids": [
+        "\u003cid:1\u003e",
+        "\u003cid:2\u003e"
+      ],
+      "amount": 20000,
+      "category_ids": [],
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "from": "2026-03-01T00:00:00Z",
+      "id": "\u003cid:16\u003e",
+      "missing_rates": [],
+      "name": "Hidden only",
+      "percent": 220,
+      "remaining": -24000,
+      "sort_order": 2,
+      "spent": 44000,
+      "to": "2026-04-01T00:00:00Z",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#35 GET /api/v1/budgets?from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "currency": "NPR",
+      "data": [
+        {
+          "account_ids": [],
+          "amount": 60000,
+          "category_ids": [],
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "from": "2026-03-01T00:00:00Z",
+          "id": "\u003cid:14\u003e",
+          "missing_rates": [],
+          "name": "Food \u0026 fun",
+          "percent": 280,
+          "remaining": -108000,
+          "sort_order": 0,
+          "spent": 168000,
+          "to": "2026-04-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_ids": [],
+          "amount": 100000,
+          "category_ids": [],
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "from": "2026-03-01T00:00:00Z",
+          "id": "\u003cid:15\u003e",
+          "missing_rates": [],
+          "name": "Everything",
+          "percent": 168,
+          "remaining": -68000,
+          "sort_order": 1,
+          "spent": 168000,
+          "to": "2026-04-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_ids": [
+            "\u003cid:1\u003e",
+            "\u003cid:2\u003e"
+          ],
+          "amount": 20000,
+          "category_ids": [],
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "from": "2026-03-01T00:00:00Z",
+          "id": "\u003cid:16\u003e",
+          "missing_rates": [],
+          "name": "Hidden only",
+          "percent": 220,
+          "remaining": -24000,
+          "sort_order": 2,
+          "spent": 44000,
+          "to": "2026-04-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_ids": [],
+          "amount": 5000,
+          "category_ids": [
+            "\u003cid:4\u003e"
+          ],
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "from": "2026-03-01T00:00:00Z",
+          "id": "\u003cid:17\u003e",
+          "missing_rates": [],
+          "name": "USD food",
+          "percent": 23.76,
+          "remaining": 3812,
+          "sort_order": 3,
+          "spent": 1188,
+          "to": "2026-04-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "from": "2026-03-01T00:00:00Z",
+      "missing_rates": [],
+      "to": "2026-04-01T00:00:00Z",
+      "total_amount": 845000,
+      "total_remaining": 306996,
+      "total_spent": 538004
+    }
+  },
+  {
+    "step": "#36 DELETE /api/v1/categories/{{c2.id}}",
+    "status": 200,
+    "body": {
+      "message": "deleted"
+    }
+  },
+  {
+    "step": "#37 PATCH /api/v1/budgets/{{b1.id}}?from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "account_ids": [],
+      "amount": 61000,
+      "category_ids": [],
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "from": "2026-03-01T00:00:00Z",
+      "id": "\u003cid:14\u003e",
+      "missing_rates": [],
+      "name": "Food \u0026 fun",
+      "percent": 275.41,
+      "remaining": -107000,
+      "sort_order": 0,
+      "spent": 168000,
+      "to": "2026-04-01T00:00:00Z",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#38 POST /api/v1/budgets/reorder?from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "currency": "NPR",
+      "data": [
+        {
+          "account_ids": [],
+          "amount": 5000,
+          "category_ids": [
+            "\u003cid:4\u003e"
+          ],
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "from": "2026-03-01T00:00:00Z",
+          "id": "\u003cid:17\u003e",
+          "missing_rates": [],
+          "name": "USD food",
+          "percent": 23.76,
+          "remaining": 3812,
+          "sort_order": 0,
+          "spent": 1188,
+          "to": "2026-04-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_ids": [
+            "\u003cid:1\u003e",
+            "\u003cid:2\u003e"
+          ],
+          "amount": 20000,
+          "category_ids": [],
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "from": "2026-03-01T00:00:00Z",
+          "id": "\u003cid:16\u003e",
+          "missing_rates": [],
+          "name": "Hidden only",
+          "percent": 220,
+          "remaining": -24000,
+          "sort_order": 1,
+          "spent": 44000,
+          "to": "2026-04-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_ids": [],
+          "amount": 100000,
+          "category_ids": [],
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "from": "2026-03-01T00:00:00Z",
+          "id": "\u003cid:15\u003e",
+          "missing_rates": [],
+          "name": "Everything",
+          "percent": 168,
+          "remaining": -68000,
+          "sort_order": 2,
+          "spent": 168000,
+          "to": "2026-04-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_ids": [],
+          "amount": 61000,
+          "category_ids": [],
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "from": "2026-03-01T00:00:00Z",
+          "id": "\u003cid:14\u003e",
+          "missing_rates": [],
+          "name": "Food \u0026 fun",
+          "percent": 275.41,
+          "remaining": -107000,
+          "sort_order": 3,
+          "spent": 168000,
+          "to": "2026-04-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "from": "2026-03-01T00:00:00Z",
+      "missing_rates": [],
+      "to": "2026-04-01T00:00:00Z",
+      "total_amount": 846000,
+      "total_remaining": 307996,
+      "total_spent": 538004
+    }
+  },
+  {
+    "step": "#39 POST /api/v1/budgets/reorder?from=2026-03-01\u0026to=2026-03-31",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "ids must be a non-empty list of distinct budget ids"
+      }
+    }
+  },
+  {
+    "step": "#40 POST /api/v1/budgets/reorder?from=2026-03-01\u0026to=2026-03-31",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "unknown budget id 00000000-0000-0000-0000-000000000099"
+      }
+    }
+  },
+  {
+    "step": "#41 DELETE /api/v1/budgets/{{b2.id}}",
+    "status": 200,
+    "body": {
+      "message": "deleted"
+    }
+  },
+  {
+    "step": "#42 DELETE /api/v1/budgets/{{b2.id}}",
+    "status": 404,
+    "body": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "resource not found"
+      }
+    }
+  },
+  {
+    "step": "#43 GET /api/v1/budgets?from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "currency": "NPR",
+      "data": [
+        {
+          "account_ids": [],
+          "amount": 5000,
+          "category_ids": [
+            "\u003cid:4\u003e"
+          ],
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "from": "2026-03-01T00:00:00Z",
+          "id": "\u003cid:17\u003e",
+          "missing_rates": [],
+          "name": "USD food",
+          "percent": 23.76,
+          "remaining": 3812,
+          "sort_order": 0,
+          "spent": 1188,
+          "to": "2026-04-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_ids": [
+            "\u003cid:1\u003e",
+            "\u003cid:2\u003e"
+          ],
+          "amount": 20000,
+          "category_ids": [],
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "from": "2026-03-01T00:00:00Z",
+          "id": "\u003cid:16\u003e",
+          "missing_rates": [],
+          "name": "Hidden only",
+          "percent": 220,
+          "remaining": -24000,
+          "sort_order": 1,
+          "spent": 44000,
+          "to": "2026-04-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_ids": [],
+          "amount": 61000,
+          "category_ids": [],
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "from": "2026-03-01T00:00:00Z",
+          "id": "\u003cid:14\u003e",
+          "missing_rates": [],
+          "name": "Food \u0026 fun",
+          "percent": 275.41,
+          "remaining": -107000,
+          "sort_order": 3,
+          "spent": 168000,
+          "to": "2026-04-01T00:00:00Z",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "from": "2026-03-01T00:00:00Z",
+      "missing_rates": [],
+      "to": "2026-04-01T00:00:00Z",
+      "total_amount": 746000,
+      "total_remaining": 375996,
+      "total_spent": 370004
+    }
+  }
+]
