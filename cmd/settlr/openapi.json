@@ -10535,6 +10535,244 @@
           }
         ]
       }
+    },
+    "/api/v1/sync/status": {
+      "get": {
+        "summary": "Sync status",
+        "description": "Whether an encrypted copy exists and how much is stored (ciphertext only).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "has_key, records, bytes, latest_seq"
+          },
+          "401": {
+            "description": "Not authenticated"
+          }
+        }
+      }
+    },
+    "/api/v1/sync/key": {
+      "get": {
+        "summary": "Get the wrapped sync key",
+        "description": "The data key, wrapped on the client with the user's recovery passphrase (KDF name, parameters, salt, wrapped key, version). The server cannot unwrap it.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The wrapped key"
+          },
+          "404": {
+            "description": "Sync was never enabled"
+          },
+          "401": {
+            "description": "Not authenticated"
+          }
+        }
+      },
+      "put": {
+        "summary": "Store the wrapped sync key",
+        "description": "expected_version 0 creates it (409 when one exists); a positive version replaces it only if it is still current (a passphrase change).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "version"
+          },
+          "409": {
+            "description": "CONFLICT: the key changed or already exists"
+          },
+          "422": {
+            "description": "Invalid key material"
+          },
+          "401": {
+            "description": "Not authenticated"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "kdf",
+                  "kdf_params",
+                  "salt",
+                  "wrapped_key"
+                ],
+                "properties": {
+                  "kdf": {
+                    "type": "string"
+                  },
+                  "kdf_params": {
+                    "type": "object"
+                  },
+                  "salt": {
+                    "type": "string",
+                    "description": "base64, 16-64 bytes"
+                  },
+                  "wrapped_key": {
+                    "type": "string",
+                    "description": "base64"
+                  },
+                  "expected_version": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sync/changes": {
+      "get": {
+        "summary": "Pull encrypted records",
+        "description": "Records with seq > since, oldest first (limit 1..1000, default 500). Follow next_seq while has_more.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "records[{id, seq, deleted, nonce, ciphertext}], next_seq, has_more"
+          },
+          "422": {
+            "description": "Bad cursor"
+          },
+          "401": {
+            "description": "Not authenticated"
+          }
+        },
+        "parameters": [
+          {
+            "name": "since",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/sync/records": {
+      "post": {
+        "summary": "Push encrypted records",
+        "description": "Upserts up to 200 records (AES-GCM nonce 12 bytes, ciphertext 16 bytes to 64 KiB, both base64) and numbers them in order. The key must exist. 413 SYNC_QUOTA at the per-user limits.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "accepted, latest_seq"
+          },
+          "413": {
+            "description": "SYNC_QUOTA"
+          },
+          "422": {
+            "description": "Invalid record"
+          },
+          "401": {
+            "description": "Not authenticated"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "records"
+                ],
+                "properties": {
+                  "records": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "nonce",
+                        "ciphertext"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "deleted": {
+                          "type": "boolean"
+                        },
+                        "nonce": {
+                          "type": "string"
+                        },
+                        "ciphertext": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sync": {
+      "delete": {
+        "summary": "Delete the encrypted copy",
+        "description": "Erases the wrapped key and every record. Requires confirm=DELETE. The device copies are untouched.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted"
+          },
+          "422": {
+            "description": "confirm missing"
+          },
+          "401": {
+            "description": "Not authenticated"
+          }
+        },
+        "parameters": [
+          {
+            "name": "confirm",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DELETE"
+              ]
+            }
+          }
+        ]
+      }
     }
   }
 }

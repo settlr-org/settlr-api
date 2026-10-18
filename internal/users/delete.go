@@ -147,6 +147,9 @@ func (h *Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 		func() error { return q.DeleteUserPasswordResetTokens(ctx, id) },
 		func() error { return q.DeleteUserFriendInvites(ctx, id) },
 		func() error { return q.DeleteUserSessions(ctx, id) },
+		func() error { return q.DeleteSyncRecords(ctx, id) },
+		func() error { return q.DeleteSyncCounter(ctx, id) },
+		func() error { return q.DeleteSyncKey(ctx, id) },
 		func() error {
 			return q.SoftDeleteUser(ctx, db.SoftDeleteUserParams{Email: "deleted_" + id.String() + "@deleted.local", ID: id})
 		},

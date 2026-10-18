@@ -24,6 +24,7 @@ var walletTables = map[string]string{
 var personalTables = map[string]string{
 	"notifications": "user_id", "notification_preferences": "user_id", "oauth_identities": "user_id",
 	"sessions": "user_id", "email_verification_tokens": "user_id", "password_reset_tokens": "user_id",
+	"sync_keys": "user_id", "sync_records": "user_id", "sync_counters": "user_id",
 }
 
 func rows(t *testing.T, pool *pgxpool.Pool, table, col string, id uuid.UUID) int {
@@ -165,6 +166,16 @@ func TestIntegration_DeleteAccount(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := pool.Exec(ctx, `UPDATE users SET email_verified_at = now() WHERE id=$1`, alice.id); err != nil {
+		t.Fatal(err)
+	}
+	// The end-to-end-encrypted copy of the wallet goes with the account.
+	if _, err := pool.Exec(ctx, `INSERT INTO sync_keys (user_id, kdf, kdf_params, salt, wrapped_key) VALUES ($1, 'argon2id', '{}', '\x00112233445566778899aabbccddeeff', '\x00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff')`, alice.id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `INSERT INTO sync_counters (user_id, next_seq) VALUES ($1, 2)`, alice.id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `INSERT INTO sync_records (user_id, id, seq, nonce, ciphertext) VALUES ($1, gen_random_uuid(), 1, '\x000000000000000000000000', '\x00112233445566778899aabbccddeeff')`, alice.id); err != nil {
 		t.Fatal(err)
 	}
 	login := e.must(200, "POST", "/api/v1/auth/login", user{}, map[string]any{"email": "alice-del-acct@test.local", "password": "password123"})

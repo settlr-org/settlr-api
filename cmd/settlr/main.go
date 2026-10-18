@@ -35,6 +35,7 @@ import (
 	"github.com/settlr-org/settlr-api/internal/search"
 	"github.com/settlr-org/settlr-api/internal/settlements"
 	"github.com/settlr-org/settlr-api/internal/stats"
+	"github.com/settlr-org/settlr-api/internal/syncstore"
 	"github.com/settlr-org/settlr-api/internal/users"
 	"github.com/settlr-org/settlr-api/internal/wallet"
 )
@@ -135,6 +136,7 @@ func main() {
 	exportHandler := &export.Handler{Pool: pool, Queries: queries}
 	personalHandler := &personal.Handler{Pool: pool, Queries: queries}
 	ratesHandler := &rates.Handler{}
+	syncHandler := &syncstore.Handler{Pool: pool, Queries: queries}
 	walletHandler := &wallet.Handler{Pool: pool, Queries: queries, Rates: rates.NewConverter(&rates.HTTPProvider{})}
 
 	authMw := auth.Middleware(authSvc)
@@ -156,6 +158,7 @@ func main() {
 	personalHandler.RegisterRoutes(mux, authMw)
 	ratesHandler.RegisterRoutes(mux, authMw)
 	walletHandler.RegisterRoutes(mux, authMw)
+	syncHandler.RegisterRoutes(mux, authMw)
 
 	// Materialize due recurring expenses and purge expired Idempotency-Key
 	// records on startup and every 15 minutes.
