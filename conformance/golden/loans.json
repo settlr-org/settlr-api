@@ -1,0 +1,1956 @@
+[
+  {
+    "step": "#0 PATCH /api/v1/me",
+    "status": 200,
+    "body": null
+  },
+  {
+    "step": "a1 POST /api/v1/accounts",
+    "status": 201,
+    "body": {
+      "archived": false,
+      "archived_at": null,
+      "balance": 500000,
+      "balance_base": 500000,
+      "base_currency": "NPR",
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "wallet",
+      "id": "\u003cid:1\u003e",
+      "include_in_balance": true,
+      "is_default": true,
+      "missing_rates": [],
+      "name": "Cash",
+      "sort_order": 0,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "a2 POST /api/v1/accounts",
+    "status": 201,
+    "body": {
+      "archived": false,
+      "archived_at": null,
+      "balance": 10000,
+      "balance_base": 1330000,
+      "base_currency": "NPR",
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "USD",
+      "icon": "wallet",
+      "id": "\u003cid:2\u003e",
+      "include_in_balance": true,
+      "is_default": false,
+      "missing_rates": [],
+      "name": "Dollars",
+      "sort_order": 1,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "l1 POST /api/v1/loans",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 100000,
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "loan",
+      "id": "\u003cid:3\u003e",
+      "name": "Ram",
+      "note": "for rent",
+      "occurred_at": "2026-03-01T10:00:00Z",
+      "paid": 0,
+      "paid_off": false,
+      "percent": 0,
+      "records_count": 0,
+      "remaining": 100000,
+      "sort_order": 0,
+      "total": 100000,
+      "transaction_id": "\u003cid:4\u003e",
+      "type": "LEND",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "l2 POST /api/v1/loans",
+    "status": 201,
+    "body": {
+      "account_id": null,
+      "amount": 200000,
+      "color": "chart3",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "bank",
+      "id": "\u003cid:5\u003e",
+      "name": "Bank",
+      "note": "",
+      "occurred_at": "2026-03-02T10:00:00Z",
+      "paid": 0,
+      "paid_off": false,
+      "percent": 0,
+      "records_count": 0,
+      "remaining": 200000,
+      "sort_order": 1,
+      "total": 200000,
+      "transaction_id": null,
+      "type": "BORROW",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "l3 POST /api/v1/loans",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 5000,
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "USD",
+      "icon": "loan",
+      "id": "\u003cid:6\u003e",
+      "name": "Friend USD",
+      "note": "",
+      "occurred_at": "2026-03-03T10:00:00Z",
+      "paid": 0,
+      "paid_off": false,
+      "percent": 0,
+      "records_count": 0,
+      "remaining": 5000,
+      "sort_order": 2,
+      "total": 5000,
+      "transaction_id": "\u003cid:7\u003e",
+      "type": "LEND",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "l4 POST /api/v1/loans",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 5000,
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "USD",
+      "icon": "loan",
+      "id": "\u003cid:8\u003e",
+      "name": "Explicit",
+      "note": "",
+      "occurred_at": "2026-03-04T10:00:00Z",
+      "paid": 0,
+      "paid_off": false,
+      "percent": 0,
+      "records_count": 0,
+      "remaining": 5000,
+      "sort_order": 3,
+      "total": 5000,
+      "transaction_id": "\u003cid:9\u003e",
+      "type": "BORROW",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#7 POST /api/v1/loans",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "name required (max 100)"
+      }
+    }
+  },
+  {
+    "step": "#8 POST /api/v1/loans",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "type must be LEND or BORROW"
+      }
+    }
+  },
+  {
+    "step": "#9 POST /api/v1/loans",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "amount must be \u003e 0 (minor units)"
+      }
+    }
+  },
+  {
+    "step": "#10 POST /api/v1/loans",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "unsupported currency"
+      }
+    }
+  },
+  {
+    "step": "#11 POST /api/v1/loans",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "account_id not found"
+      }
+    }
+  },
+  {
+    "step": "#12 POST /api/v1/loans",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "occurred_at: invalid time \"soon\" (use RFC 3339 or YYYY-MM-DD)"
+      }
+    }
+  },
+  {
+    "step": "#13 GET /api/v1/loans",
+    "status": 200,
+    "body": {
+      "borrow_remaining": 865000,
+      "currency": "NPR",
+      "data": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 100000,
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "loan",
+          "id": "\u003cid:3\u003e",
+          "name": "Ram",
+          "note": "for rent",
+          "occurred_at": "2026-03-01T10:00:00Z",
+          "paid": 0,
+          "paid_off": false,
+          "percent": 0,
+          "records_count": 0,
+          "remaining": 100000,
+          "sort_order": 0,
+          "total": 100000,
+          "transaction_id": "\u003cid:4\u003e",
+          "type": "LEND",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": null,
+          "amount": 200000,
+          "color": "chart3",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "bank",
+          "id": "\u003cid:5\u003e",
+          "name": "Bank",
+          "note": "",
+          "occurred_at": "2026-03-02T10:00:00Z",
+          "paid": 0,
+          "paid_off": false,
+          "percent": 0,
+          "records_count": 0,
+          "remaining": 200000,
+          "sort_order": 1,
+          "total": 200000,
+          "transaction_id": null,
+          "type": "BORROW",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 5000,
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "icon": "loan",
+          "id": "\u003cid:6\u003e",
+          "name": "Friend USD",
+          "note": "",
+          "occurred_at": "2026-03-03T10:00:00Z",
+          "paid": 0,
+          "paid_off": false,
+          "percent": 0,
+          "records_count": 0,
+          "remaining": 5000,
+          "sort_order": 2,
+          "total": 5000,
+          "transaction_id": "\u003cid:7\u003e",
+          "type": "LEND",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 5000,
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "icon": "loan",
+          "id": "\u003cid:8\u003e",
+          "name": "Explicit",
+          "note": "",
+          "occurred_at": "2026-03-04T10:00:00Z",
+          "paid": 0,
+          "paid_off": false,
+          "percent": 0,
+          "records_count": 0,
+          "remaining": 5000,
+          "sort_order": 3,
+          "total": 5000,
+          "transaction_id": "\u003cid:9\u003e",
+          "type": "BORROW",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "lend_remaining": 765000,
+      "missing_rates": []
+    }
+  },
+  {
+    "step": "#14 GET /api/v1/loans?type=lend",
+    "status": 200,
+    "body": {
+      "borrow_remaining": 0,
+      "currency": "NPR",
+      "data": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 100000,
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "loan",
+          "id": "\u003cid:3\u003e",
+          "name": "Ram",
+          "note": "for rent",
+          "occurred_at": "2026-03-01T10:00:00Z",
+          "paid": 0,
+          "paid_off": false,
+          "percent": 0,
+          "records_count": 0,
+          "remaining": 100000,
+          "sort_order": 0,
+          "total": 100000,
+          "transaction_id": "\u003cid:4\u003e",
+          "type": "LEND",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 5000,
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "icon": "loan",
+          "id": "\u003cid:6\u003e",
+          "name": "Friend USD",
+          "note": "",
+          "occurred_at": "2026-03-03T10:00:00Z",
+          "paid": 0,
+          "paid_off": false,
+          "percent": 0,
+          "records_count": 0,
+          "remaining": 5000,
+          "sort_order": 2,
+          "total": 5000,
+          "transaction_id": "\u003cid:7\u003e",
+          "type": "LEND",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "lend_remaining": 765000,
+      "missing_rates": []
+    }
+  },
+  {
+    "step": "#15 GET /api/v1/loans?include_paid_off=false",
+    "status": 200,
+    "body": {
+      "borrow_remaining": 865000,
+      "currency": "NPR",
+      "data": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 100000,
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "loan",
+          "id": "\u003cid:3\u003e",
+          "name": "Ram",
+          "note": "for rent",
+          "occurred_at": "2026-03-01T10:00:00Z",
+          "paid": 0,
+          "paid_off": false,
+          "percent": 0,
+          "records_count": 0,
+          "remaining": 100000,
+          "sort_order": 0,
+          "total": 100000,
+          "transaction_id": "\u003cid:4\u003e",
+          "type": "LEND",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": null,
+          "amount": 200000,
+          "color": "chart3",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "bank",
+          "id": "\u003cid:5\u003e",
+          "name": "Bank",
+          "note": "",
+          "occurred_at": "2026-03-02T10:00:00Z",
+          "paid": 0,
+          "paid_off": false,
+          "percent": 0,
+          "records_count": 0,
+          "remaining": 200000,
+          "sort_order": 1,
+          "total": 200000,
+          "transaction_id": null,
+          "type": "BORROW",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 5000,
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "icon": "loan",
+          "id": "\u003cid:6\u003e",
+          "name": "Friend USD",
+          "note": "",
+          "occurred_at": "2026-03-03T10:00:00Z",
+          "paid": 0,
+          "paid_off": false,
+          "percent": 0,
+          "records_count": 0,
+          "remaining": 5000,
+          "sort_order": 2,
+          "total": 5000,
+          "transaction_id": "\u003cid:7\u003e",
+          "type": "LEND",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 5000,
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "icon": "loan",
+          "id": "\u003cid:8\u003e",
+          "name": "Explicit",
+          "note": "",
+          "occurred_at": "2026-03-04T10:00:00Z",
+          "paid": 0,
+          "paid_off": false,
+          "percent": 0,
+          "records_count": 0,
+          "remaining": 5000,
+          "sort_order": 3,
+          "total": 5000,
+          "transaction_id": "\u003cid:9\u003e",
+          "type": "BORROW",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "lend_remaining": 765000,
+      "missing_rates": []
+    }
+  },
+  {
+    "step": "#16 GET /api/v1/loans?include_paid_off=maybe",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "include_paid_off must be true or false"
+      }
+    }
+  },
+  {
+    "step": "#17 GET /api/v1/loans/{{l1.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 100000,
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "loan",
+      "id": "\u003cid:3\u003e",
+      "name": "Ram",
+      "note": "for rent",
+      "occurred_at": "2026-03-01T10:00:00Z",
+      "paid": 0,
+      "paid_off": false,
+      "percent": 0,
+      "records_count": 0,
+      "remaining": 100000,
+      "sort_order": 0,
+      "total": 100000,
+      "transaction_id": "\u003cid:4\u003e",
+      "type": "LEND",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#18 GET /api/v1/loans/00000000-0000-0000-0000-000000000099",
+    "status": 404,
+    "body": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "resource not found"
+      }
+    }
+  },
+  {
+    "step": "#19 GET /api/v1/accounts/{{a1.id}}",
+    "status": 200,
+    "body": {
+      "archived": false,
+      "archived_at": null,
+      "balance": 385000,
+      "balance_base": 385000,
+      "base_currency": "NPR",
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "wallet",
+      "id": "\u003cid:1\u003e",
+      "include_in_balance": true,
+      "is_default": true,
+      "missing_rates": [],
+      "name": "Cash",
+      "sort_order": 0,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#20 GET /api/v1/transactions?source=LOAN\u0026from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 650000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:9\u003e",
+          "loan_id": "\u003cid:8\u003e",
+          "loan_record_id": null,
+          "occurred_at": "2026-03-04T10:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "LOAN",
+          "tags": [],
+          "title": "Explicit",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 665000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:7\u003e",
+          "loan_id": "\u003cid:6\u003e",
+          "loan_record_id": null,
+          "occurred_at": "2026-03-03T10:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "LOAN",
+          "tags": [],
+          "title": "Friend USD",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 100000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "for rent",
+          "due_at": null,
+          "id": "\u003cid:4\u003e",
+          "loan_id": "\u003cid:3\u003e",
+          "loan_record_id": null,
+          "occurred_at": "2026-03-01T10:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "LOAN",
+          "tags": [],
+          "title": "Ram",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "r1 POST /api/v1/loans/{{l1.id}}/records",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 40000,
+      "created_at": "\u003cts\u003e",
+      "id": "\u003cid:10\u003e",
+      "loan_id": "\u003cid:3\u003e",
+      "note": "part payment",
+      "occurred_at": "2026-03-10T10:00:00Z",
+      "transaction_id": "\u003cid:11\u003e",
+      "type": "DECREASE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "r2 POST /api/v1/loans/{{l1.id}}/records",
+    "status": 201,
+    "body": {
+      "account_id": null,
+      "amount": 10000,
+      "created_at": "\u003cts\u003e",
+      "id": "\u003cid:12\u003e",
+      "loan_id": "\u003cid:3\u003e",
+      "note": "",
+      "occurred_at": "2026-03-11T10:00:00Z",
+      "transaction_id": null,
+      "type": "INCREASE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "r3 POST /api/v1/loans/{{l2.id}}/records",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:2\u003e",
+      "amount": 50000,
+      "created_at": "\u003cts\u003e",
+      "id": "\u003cid:13\u003e",
+      "loan_id": "\u003cid:5\u003e",
+      "note": "",
+      "occurred_at": "2026-03-12T10:00:00Z",
+      "transaction_id": "\u003cid:14\u003e",
+      "type": "DECREASE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#24 POST /api/v1/loans/{{l2.id}}/records",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "account_amount must be \u003e 0 (minor units)"
+      }
+    }
+  },
+  {
+    "step": "#25 POST /api/v1/loans/{{l1.id}}/records",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "type must be INCREASE or DECREASE"
+      }
+    }
+  },
+  {
+    "step": "#26 POST /api/v1/loans/{{l1.id}}/records",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "amount must be \u003e 0 (minor units)"
+      }
+    }
+  },
+  {
+    "step": "#27 PATCH /api/v1/loan-records/{{r1.id}}",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "account_id not found"
+      }
+    }
+  },
+  {
+    "step": "#28 POST /api/v1/loans/{{l1.id}}/records",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "account_id not found"
+      }
+    }
+  },
+  {
+    "step": "#29 POST /api/v1/loans/00000000-0000-0000-0000-000000000099/records",
+    "status": 404,
+    "body": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "resource not found"
+      }
+    }
+  },
+  {
+    "step": "#30 GET /api/v1/loans/{{l1.id}}/records",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": null,
+          "amount": 10000,
+          "created_at": "\u003cts\u003e",
+          "id": "\u003cid:12\u003e",
+          "loan_id": "\u003cid:3\u003e",
+          "note": "",
+          "occurred_at": "2026-03-11T10:00:00Z",
+          "transaction_id": null,
+          "type": "INCREASE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 40000,
+          "created_at": "\u003cts\u003e",
+          "id": "\u003cid:10\u003e",
+          "loan_id": "\u003cid:3\u003e",
+          "note": "part payment",
+          "occurred_at": "2026-03-10T10:00:00Z",
+          "transaction_id": "\u003cid:11\u003e",
+          "type": "DECREASE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#31 GET /api/v1/loans/{{l1.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 100000,
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "loan",
+      "id": "\u003cid:3\u003e",
+      "name": "Ram",
+      "note": "for rent",
+      "occurred_at": "2026-03-01T10:00:00Z",
+      "paid": 40000,
+      "paid_off": false,
+      "percent": 36.36,
+      "records_count": 2,
+      "remaining": 70000,
+      "sort_order": 0,
+      "total": 110000,
+      "transaction_id": "\u003cid:4\u003e",
+      "type": "LEND",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#32 GET /api/v1/loans",
+    "status": 200,
+    "body": {
+      "borrow_remaining": 815000,
+      "currency": "NPR",
+      "data": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 100000,
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "loan",
+          "id": "\u003cid:3\u003e",
+          "name": "Ram",
+          "note": "for rent",
+          "occurred_at": "2026-03-01T10:00:00Z",
+          "paid": 40000,
+          "paid_off": false,
+          "percent": 36.36,
+          "records_count": 2,
+          "remaining": 70000,
+          "sort_order": 0,
+          "total": 110000,
+          "transaction_id": "\u003cid:4\u003e",
+          "type": "LEND",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": null,
+          "amount": 200000,
+          "color": "chart3",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "bank",
+          "id": "\u003cid:5\u003e",
+          "name": "Bank",
+          "note": "",
+          "occurred_at": "2026-03-02T10:00:00Z",
+          "paid": 50000,
+          "paid_off": false,
+          "percent": 25,
+          "records_count": 1,
+          "remaining": 150000,
+          "sort_order": 1,
+          "total": 200000,
+          "transaction_id": null,
+          "type": "BORROW",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 5000,
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "icon": "loan",
+          "id": "\u003cid:6\u003e",
+          "name": "Friend USD",
+          "note": "",
+          "occurred_at": "2026-03-03T10:00:00Z",
+          "paid": 0,
+          "paid_off": false,
+          "percent": 0,
+          "records_count": 0,
+          "remaining": 5000,
+          "sort_order": 2,
+          "total": 5000,
+          "transaction_id": "\u003cid:7\u003e",
+          "type": "LEND",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 5000,
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "icon": "loan",
+          "id": "\u003cid:8\u003e",
+          "name": "Explicit",
+          "note": "",
+          "occurred_at": "2026-03-04T10:00:00Z",
+          "paid": 0,
+          "paid_off": false,
+          "percent": 0,
+          "records_count": 0,
+          "remaining": 5000,
+          "sort_order": 3,
+          "total": 5000,
+          "transaction_id": "\u003cid:9\u003e",
+          "type": "BORROW",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "lend_remaining": 735000,
+      "missing_rates": []
+    }
+  },
+  {
+    "step": "#33 GET /api/v1/accounts",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "archived": false,
+          "archived_at": null,
+          "balance": 425000,
+          "balance_base": 425000,
+          "base_currency": "NPR",
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "wallet",
+          "id": "\u003cid:1\u003e",
+          "include_in_balance": true,
+          "is_default": true,
+          "missing_rates": [],
+          "name": "Cash",
+          "sort_order": 0,
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "archived": false,
+          "archived_at": null,
+          "balance": 9624,
+          "balance_base": 1279992,
+          "base_currency": "NPR",
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "icon": "wallet",
+          "id": "\u003cid:2\u003e",
+          "include_in_balance": true,
+          "is_default": false,
+          "missing_rates": [],
+          "name": "Dollars",
+          "sort_order": 1,
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#34 GET /api/v1/transactions/{{l1.transaction_id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 100000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "for rent",
+      "due_at": null,
+      "id": "\u003cid:4\u003e",
+      "loan_id": "\u003cid:3\u003e",
+      "loan_record_id": null,
+      "occurred_at": "2026-03-01T10:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "LOAN",
+      "tags": [],
+      "title": "Ram",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#35 PATCH /api/v1/transactions/{{l1.transaction_id}}",
+    "status": 409,
+    "body": {
+      "error": {
+        "code": "LOAN_MANAGED",
+        "message": "this transaction belongs to a loan; change it through the loan endpoints"
+      }
+    }
+  },
+  {
+    "step": "#36 DELETE /api/v1/transactions/{{l1.transaction_id}}",
+    "status": 409,
+    "body": {
+      "error": {
+        "code": "LOAN_MANAGED",
+        "message": "this transaction belongs to a loan; change it through the loan endpoints"
+      }
+    }
+  },
+  {
+    "step": "#37 POST /api/v1/transactions/{{l1.transaction_id}}/duplicate",
+    "status": 409,
+    "body": {
+      "error": {
+        "code": "LOAN_MANAGED",
+        "message": "this transaction belongs to a loan; change it through the loan endpoints"
+      }
+    }
+  },
+  {
+    "step": "#38 POST /api/v1/transactions/{{l1.transaction_id}}/pay",
+    "status": 409,
+    "body": {
+      "error": {
+        "code": "LOAN_MANAGED",
+        "message": "this transaction belongs to a loan; change it through the loan endpoints"
+      }
+    }
+  },
+  {
+    "step": "#39 PATCH /api/v1/loan-records/{{r1.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 60000,
+      "created_at": "\u003cts\u003e",
+      "id": "\u003cid:10\u003e",
+      "loan_id": "\u003cid:3\u003e",
+      "note": "bigger",
+      "occurred_at": "2026-03-10T10:00:00Z",
+      "transaction_id": "\u003cid:11\u003e",
+      "type": "DECREASE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#40 PATCH /api/v1/loan-records/{{r2.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 10000,
+      "created_at": "\u003cts\u003e",
+      "id": "\u003cid:12\u003e",
+      "loan_id": "\u003cid:3\u003e",
+      "note": "",
+      "occurred_at": "2026-03-11T10:00:00Z",
+      "transaction_id": "\u003cid:15\u003e",
+      "type": "INCREASE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#41 PATCH /api/v1/loan-records/{{r1.id}}",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "type must be INCREASE or DECREASE"
+      }
+    }
+  },
+  {
+    "step": "#42 PATCH /api/v1/loan-records/00000000-0000-0000-0000-000000000099",
+    "status": 404,
+    "body": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "resource not found"
+      }
+    }
+  },
+  {
+    "step": "#43 PATCH /api/v1/loans/{{l1.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 150000,
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "loan",
+      "id": "\u003cid:3\u003e",
+      "name": "Ram K",
+      "note": "updated",
+      "occurred_at": "2026-03-01T10:00:00Z",
+      "paid": 60000,
+      "paid_off": false,
+      "percent": 37.5,
+      "records_count": 2,
+      "remaining": 100000,
+      "sort_order": 0,
+      "total": 160000,
+      "transaction_id": "\u003cid:4\u003e",
+      "type": "LEND",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#44 PATCH /api/v1/loans/{{l1.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 150000,
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "loan",
+      "id": "\u003cid:3\u003e",
+      "name": "Ram K",
+      "note": "updated",
+      "occurred_at": "2026-03-01T10:00:00Z",
+      "paid": 60000,
+      "paid_off": false,
+      "percent": 37.5,
+      "records_count": 2,
+      "remaining": 100000,
+      "sort_order": 0,
+      "total": 160000,
+      "transaction_id": "\u003cid:4\u003e",
+      "type": "BORROW",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#45 PATCH /api/v1/loans/{{l1.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 150000,
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "USD",
+      "icon": "loan",
+      "id": "\u003cid:3\u003e",
+      "name": "Ram K",
+      "note": "updated",
+      "occurred_at": "2026-03-01T10:00:00Z",
+      "paid": 60000,
+      "paid_off": false,
+      "percent": 37.5,
+      "records_count": 2,
+      "remaining": 100000,
+      "sort_order": 0,
+      "total": 160000,
+      "transaction_id": "\u003cid:4\u003e",
+      "type": "LEND",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#46 PATCH /api/v1/loans/{{l1.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 150000,
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "loan",
+      "id": "\u003cid:3\u003e",
+      "name": "Ram K",
+      "note": "updated",
+      "occurred_at": "2026-03-01T10:00:00Z",
+      "paid": 60000,
+      "paid_off": false,
+      "percent": 37.5,
+      "records_count": 2,
+      "remaining": 100000,
+      "sort_order": 0,
+      "total": 160000,
+      "transaction_id": "\u003cid:4\u003e",
+      "type": "LEND",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#47 PATCH /api/v1/loans/{{l1.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:2\u003e",
+      "amount": 150000,
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "loan",
+      "id": "\u003cid:3\u003e",
+      "name": "Ram K",
+      "note": "updated",
+      "occurred_at": "2026-03-01T10:00:00Z",
+      "paid": 60000,
+      "paid_off": false,
+      "percent": 37.5,
+      "records_count": 2,
+      "remaining": 100000,
+      "sort_order": 0,
+      "total": 160000,
+      "transaction_id": "\u003cid:4\u003e",
+      "type": "LEND",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#48 PATCH /api/v1/loans/{{l1.id}}",
+    "status": 200,
+    "body": {
+      "account_id": null,
+      "amount": 150000,
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "loan",
+      "id": "\u003cid:3\u003e",
+      "name": "Ram K",
+      "note": "updated",
+      "occurred_at": "2026-03-01T10:00:00Z",
+      "paid": 60000,
+      "paid_off": false,
+      "percent": 37.5,
+      "records_count": 2,
+      "remaining": 100000,
+      "sort_order": 0,
+      "total": 160000,
+      "transaction_id": null,
+      "type": "LEND",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#49 PATCH /api/v1/loans/{{l1.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 150000,
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "loan",
+      "id": "\u003cid:3\u003e",
+      "name": "Ram K",
+      "note": "updated",
+      "occurred_at": "2026-03-01T10:00:00Z",
+      "paid": 60000,
+      "paid_off": false,
+      "percent": 37.5,
+      "records_count": 2,
+      "remaining": 100000,
+      "sort_order": 0,
+      "total": 160000,
+      "transaction_id": "\u003cid:16\u003e",
+      "type": "LEND",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#50 PATCH /api/v1/loans/{{l2.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 200000,
+      "color": "chart3",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "bank",
+      "id": "\u003cid:5\u003e",
+      "name": "Bank",
+      "note": "",
+      "occurred_at": "2026-03-02T10:00:00Z",
+      "paid": 50000,
+      "paid_off": false,
+      "percent": 25,
+      "records_count": 1,
+      "remaining": 150000,
+      "sort_order": 1,
+      "total": 200000,
+      "transaction_id": "\u003cid:17\u003e",
+      "type": "BORROW",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#51 PATCH /api/v1/loans/{{l1.id}}",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "name required (max 100)"
+      }
+    }
+  },
+  {
+    "step": "#52 PATCH /api/v1/loans/00000000-0000-0000-0000-000000000099",
+    "status": 404,
+    "body": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "resource not found"
+      }
+    }
+  },
+  {
+    "step": "#53 GET /api/v1/loans/{{l1.id}}/records",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 10000,
+          "created_at": "\u003cts\u003e",
+          "id": "\u003cid:12\u003e",
+          "loan_id": "\u003cid:3\u003e",
+          "note": "",
+          "occurred_at": "2026-03-11T10:00:00Z",
+          "transaction_id": "\u003cid:15\u003e",
+          "type": "INCREASE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 60000,
+          "created_at": "\u003cts\u003e",
+          "id": "\u003cid:10\u003e",
+          "loan_id": "\u003cid:3\u003e",
+          "note": "bigger",
+          "occurred_at": "2026-03-10T10:00:00Z",
+          "transaction_id": "\u003cid:11\u003e",
+          "type": "DECREASE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#54 GET /api/v1/transactions?source=LOAN\u0026from=2026-03-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:2\u003e",
+          "amount": 376,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:14\u003e",
+          "loan_id": "\u003cid:5\u003e",
+          "loan_record_id": "\u003cid:13\u003e",
+          "occurred_at": "2026-03-12T10:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "LOAN",
+          "tags": [],
+          "title": "Bank",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 10000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:15\u003e",
+          "loan_id": "\u003cid:3\u003e",
+          "loan_record_id": "\u003cid:12\u003e",
+          "occurred_at": "2026-03-11T10:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "LOAN",
+          "tags": [],
+          "title": "Ram K",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 60000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "bigger",
+          "due_at": null,
+          "id": "\u003cid:11\u003e",
+          "loan_id": "\u003cid:3\u003e",
+          "loan_record_id": "\u003cid:10\u003e",
+          "occurred_at": "2026-03-10T10:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "LOAN",
+          "tags": [],
+          "title": "Ram K",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 650000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:9\u003e",
+          "loan_id": "\u003cid:8\u003e",
+          "loan_record_id": null,
+          "occurred_at": "2026-03-04T10:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "LOAN",
+          "tags": [],
+          "title": "Explicit",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 665000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:7\u003e",
+          "loan_id": "\u003cid:6\u003e",
+          "loan_record_id": null,
+          "occurred_at": "2026-03-03T10:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "LOAN",
+          "tags": [],
+          "title": "Friend USD",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 210000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": null,
+          "id": "\u003cid:17\u003e",
+          "loan_id": "\u003cid:5\u003e",
+          "loan_record_id": null,
+          "occurred_at": "2026-03-02T10:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "LOAN",
+          "tags": [],
+          "title": "Bank",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 150000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "updated",
+          "due_at": null,
+          "id": "\u003cid:16\u003e",
+          "loan_id": "\u003cid:3\u003e",
+          "loan_record_id": null,
+          "occurred_at": "2026-03-01T10:00:00Z",
+          "planned": false,
+          "planned_payment_id": null,
+          "source": "LOAN",
+          "tags": [],
+          "title": "Ram K",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#55 GET /api/v1/accounts",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "archived": false,
+          "archived_at": null,
+          "balance": 595000,
+          "balance_base": 595000,
+          "base_currency": "NPR",
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "wallet",
+          "id": "\u003cid:1\u003e",
+          "include_in_balance": true,
+          "is_default": true,
+          "missing_rates": [],
+          "name": "Cash",
+          "sort_order": 0,
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "archived": false,
+          "archived_at": null,
+          "balance": 9624,
+          "balance_base": 1279992,
+          "base_currency": "NPR",
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "icon": "wallet",
+          "id": "\u003cid:2\u003e",
+          "include_in_balance": true,
+          "is_default": false,
+          "missing_rates": [],
+          "name": "Dollars",
+          "sort_order": 1,
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#56 POST /api/v1/loans/reorder",
+    "status": 200,
+    "body": {
+      "borrow_remaining": 815000,
+      "currency": "NPR",
+      "data": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 5000,
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "icon": "loan",
+          "id": "\u003cid:8\u003e",
+          "name": "Explicit",
+          "note": "",
+          "occurred_at": "2026-03-04T10:00:00Z",
+          "paid": 0,
+          "paid_off": false,
+          "percent": 0,
+          "records_count": 0,
+          "remaining": 5000,
+          "sort_order": 0,
+          "total": 5000,
+          "transaction_id": "\u003cid:9\u003e",
+          "type": "BORROW",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 5000,
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "icon": "loan",
+          "id": "\u003cid:6\u003e",
+          "name": "Friend USD",
+          "note": "",
+          "occurred_at": "2026-03-03T10:00:00Z",
+          "paid": 0,
+          "paid_off": false,
+          "percent": 0,
+          "records_count": 0,
+          "remaining": 5000,
+          "sort_order": 1,
+          "total": 5000,
+          "transaction_id": "\u003cid:7\u003e",
+          "type": "LEND",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 200000,
+          "color": "chart3",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "bank",
+          "id": "\u003cid:5\u003e",
+          "name": "Bank",
+          "note": "",
+          "occurred_at": "2026-03-02T10:00:00Z",
+          "paid": 50000,
+          "paid_off": false,
+          "percent": 25,
+          "records_count": 1,
+          "remaining": 150000,
+          "sort_order": 2,
+          "total": 200000,
+          "transaction_id": "\u003cid:17\u003e",
+          "type": "BORROW",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 150000,
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "loan",
+          "id": "\u003cid:3\u003e",
+          "name": "Ram K",
+          "note": "updated",
+          "occurred_at": "2026-03-01T10:00:00Z",
+          "paid": 60000,
+          "paid_off": false,
+          "percent": 37.5,
+          "records_count": 2,
+          "remaining": 100000,
+          "sort_order": 3,
+          "total": 160000,
+          "transaction_id": "\u003cid:16\u003e",
+          "type": "LEND",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "lend_remaining": 765000,
+      "missing_rates": []
+    }
+  },
+  {
+    "step": "#57 POST /api/v1/loans/reorder",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "ids must be a non-empty list of distinct loan ids"
+      }
+    }
+  },
+  {
+    "step": "#58 POST /api/v1/loans/reorder",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "unknown loan id 00000000-0000-0000-0000-000000000099"
+      }
+    }
+  },
+  {
+    "step": "#59 DELETE /api/v1/loan-records/{{r2.id}}",
+    "status": 200,
+    "body": {
+      "message": "deleted"
+    }
+  },
+  {
+    "step": "#60 DELETE /api/v1/loan-records/{{r2.id}}",
+    "status": 404,
+    "body": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "resource not found"
+      }
+    }
+  },
+  {
+    "step": "#61 DELETE /api/v1/loans/{{l3.id}}",
+    "status": 200,
+    "body": {
+      "message": "deleted"
+    }
+  },
+  {
+    "step": "#62 DELETE /api/v1/loans/{{l3.id}}",
+    "status": 404,
+    "body": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "resource not found"
+      }
+    }
+  },
+  {
+    "step": "#63 GET /api/v1/loans",
+    "status": 200,
+    "body": {
+      "borrow_remaining": 815000,
+      "currency": "NPR",
+      "data": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 5000,
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "icon": "loan",
+          "id": "\u003cid:8\u003e",
+          "name": "Explicit",
+          "note": "",
+          "occurred_at": "2026-03-04T10:00:00Z",
+          "paid": 0,
+          "paid_off": false,
+          "percent": 0,
+          "records_count": 0,
+          "remaining": 5000,
+          "sort_order": 0,
+          "total": 5000,
+          "transaction_id": "\u003cid:9\u003e",
+          "type": "BORROW",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 200000,
+          "color": "chart3",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "bank",
+          "id": "\u003cid:5\u003e",
+          "name": "Bank",
+          "note": "",
+          "occurred_at": "2026-03-02T10:00:00Z",
+          "paid": 50000,
+          "paid_off": false,
+          "percent": 25,
+          "records_count": 1,
+          "remaining": 150000,
+          "sort_order": 2,
+          "total": 200000,
+          "transaction_id": "\u003cid:17\u003e",
+          "type": "BORROW",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 150000,
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "loan",
+          "id": "\u003cid:3\u003e",
+          "name": "Ram K",
+          "note": "updated",
+          "occurred_at": "2026-03-01T10:00:00Z",
+          "paid": 60000,
+          "paid_off": false,
+          "percent": 40,
+          "records_count": 1,
+          "remaining": 90000,
+          "sort_order": 3,
+          "total": 150000,
+          "transaction_id": "\u003cid:16\u003e",
+          "type": "LEND",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "lend_remaining": 90000,
+      "missing_rates": []
+    }
+  },
+  {
+    "step": "#64 GET /api/v1/accounts",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "archived": false,
+          "archived_at": null,
+          "balance": 1270000,
+          "balance_base": 1270000,
+          "base_currency": "NPR",
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "wallet",
+          "id": "\u003cid:1\u003e",
+          "include_in_balance": true,
+          "is_default": true,
+          "missing_rates": [],
+          "name": "Cash",
+          "sort_order": 0,
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "archived": false,
+          "archived_at": null,
+          "balance": 9624,
+          "balance_base": 1279992,
+          "base_currency": "NPR",
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "icon": "wallet",
+          "id": "\u003cid:2\u003e",
+          "include_in_balance": true,
+          "is_default": false,
+          "missing_rates": [],
+          "name": "Dollars",
+          "sort_order": 1,
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#65 DELETE /api/v1/accounts/{{a1.id}}",
+    "status": 200,
+    "body": {
+      "message": "deleted"
+    }
+  },
+  {
+    "step": "#66 GET /api/v1/loans",
+    "status": 200,
+    "body": {
+      "borrow_remaining": 815000,
+      "currency": "NPR",
+      "data": [
+        {
+          "account_id": null,
+          "amount": 5000,
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "icon": "loan",
+          "id": "\u003cid:8\u003e",
+          "name": "Explicit",
+          "note": "",
+          "occurred_at": "2026-03-04T10:00:00Z",
+          "paid": 0,
+          "paid_off": false,
+          "percent": 0,
+          "records_count": 0,
+          "remaining": 5000,
+          "sort_order": 0,
+          "total": 5000,
+          "transaction_id": null,
+          "type": "BORROW",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": null,
+          "amount": 200000,
+          "color": "chart3",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "bank",
+          "id": "\u003cid:5\u003e",
+          "name": "Bank",
+          "note": "",
+          "occurred_at": "2026-03-02T10:00:00Z",
+          "paid": 50000,
+          "paid_off": false,
+          "percent": 25,
+          "records_count": 1,
+          "remaining": 150000,
+          "sort_order": 2,
+          "total": 200000,
+          "transaction_id": null,
+          "type": "BORROW",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": null,
+          "amount": 150000,
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "loan",
+          "id": "\u003cid:3\u003e",
+          "name": "Ram K",
+          "note": "updated",
+          "occurred_at": "2026-03-01T10:00:00Z",
+          "paid": 60000,
+          "paid_off": false,
+          "percent": 40,
+          "records_count": 1,
+          "remaining": 90000,
+          "sort_order": 3,
+          "total": 150000,
+          "transaction_id": null,
+          "type": "LEND",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "lend_remaining": 90000,
+      "missing_rates": []
+    }
+  },
+  {
+    "step": "#67 GET /api/v1/loans/{{l1.id}}/records",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": null,
+          "amount": 60000,
+          "created_at": "\u003cts\u003e",
+          "id": "\u003cid:10\u003e",
+          "loan_id": "\u003cid:3\u003e",
+          "note": "bigger",
+          "occurred_at": "2026-03-10T10:00:00Z",
+          "transaction_id": null,
+          "type": "DECREASE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#68 GET /api/v1/ledger?hide_adjustments=false\u0026from=2026-01-01\u0026to=2026-12-31",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_amount": 10000,
+          "account_id": "\u003cid:2\u003e",
+          "amount": 10000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:18\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": "\u003cts\u003e",
+          "planned_payment_id": null,
+          "read_only": false,
+          "settlement_id": null,
+          "source": "ADJUSTMENT",
+          "tags": [],
+          "title": "Initial balance",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "INCOME"
+        },
+        {
+          "account_amount": -376,
+          "account_id": "\u003cid:2\u003e",
+          "amount": 376,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "description": "",
+          "due_at": null,
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:14\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": "\u003cid:5\u003e",
+          "loan_record_id": "\u003cid:13\u003e",
+          "occurred_at": "2026-03-12T10:00:00Z",
+          "planned_payment_id": null,
+          "read_only": true,
+          "settlement_id": null,
+          "source": "LOAN",
+          "tags": [],
+          "title": "Bank",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "EXPENSE"
+        }
+      ]
+    }
+  }
+]

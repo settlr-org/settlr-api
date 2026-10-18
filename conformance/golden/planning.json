@@ -1,0 +1,3074 @@
+[
+  {
+    "step": "#0 PATCH /api/v1/me",
+    "status": 200,
+    "body": null
+  },
+  {
+    "step": "a1 POST /api/v1/accounts",
+    "status": 201,
+    "body": {
+      "archived": false,
+      "archived_at": null,
+      "balance": 100000,
+      "balance_base": 100000,
+      "base_currency": "NPR",
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "wallet",
+      "id": "\u003cid:1\u003e",
+      "include_in_balance": true,
+      "is_default": true,
+      "missing_rates": [],
+      "name": "Cash",
+      "sort_order": 0,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "a2 POST /api/v1/accounts",
+    "status": 201,
+    "body": {
+      "archived": false,
+      "archived_at": null,
+      "balance": 0,
+      "balance_base": 0,
+      "base_currency": "NPR",
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "USD",
+      "icon": "wallet",
+      "id": "\u003cid:2\u003e",
+      "include_in_balance": true,
+      "is_default": false,
+      "missing_rates": [],
+      "name": "Savings USD",
+      "sort_order": 1,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "cat1 POST /api/v1/categories",
+    "status": 201,
+    "body": {
+      "color": "chart2",
+      "grouping": "Uncategorized",
+      "icon": "home",
+      "id": "\u003cid:3\u003e",
+      "is_system": false,
+      "name": "Bills",
+      "sort_order": null
+    }
+  },
+  {
+    "step": "tag1 POST /api/v1/tags",
+    "status": 201,
+    "body": {
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "icon": "tag",
+      "id": "\u003cid:4\u003e",
+      "name": "fixed",
+      "sort_order": 0,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "p1 POST /api/v1/planned",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "active": true,
+      "amount": 5000,
+      "category_id": "\u003cid:3\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "id": "\u003cid:5\u003e",
+      "interval_n": null,
+      "interval_unit": null,
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 5000,
+        "category_id": "\u003cid:3\u003e",
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2020-01-10T00:00:00Z",
+        "id": "\u003cid:6\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:5\u003e",
+        "source": "MANUAL",
+        "tags": [
+          {
+            "color": "#6B7280",
+            "icon": "tag",
+            "id": "\u003cid:4\u003e",
+            "name": "fixed"
+          }
+        ],
+        "title": "Old bill",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "EXPENSE",
+        "updated_at": "\u003cts\u003e"
+      },
+      "next_due_at": "2020-01-10T00:00:00Z",
+      "one_time": true,
+      "start_at": "2020-01-10T00:00:00Z",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:4\u003e",
+          "name": "fixed"
+        }
+      ],
+      "title": "Old bill",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "p2 POST /api/v1/planned",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "active": true,
+      "amount": 300000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "id": "\u003cid:7\u003e",
+      "interval_n": 1,
+      "interval_unit": "MONTH",
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 300000,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2026-01-31T09:00:00Z",
+        "id": "\u003cid:8\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:7\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "Salary",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "INCOME",
+        "updated_at": "\u003cts\u003e"
+      },
+      "next_due_at": "2026-01-31T09:00:00Z",
+      "one_time": false,
+      "start_at": "2026-01-31T09:00:00Z",
+      "tags": [],
+      "title": "Salary",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "INCOME",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "p3 POST /api/v1/planned",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "active": true,
+      "amount": 1500,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "id": "\u003cid:9\u003e",
+      "interval_n": 2,
+      "interval_unit": "WEEK",
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 1500,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2099-01-05T08:00:00Z",
+        "id": "\u003cid:10\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:9\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "Gym",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "EXPENSE",
+        "updated_at": "\u003cts\u003e"
+      },
+      "next_due_at": "2099-01-05T08:00:00Z",
+      "one_time": false,
+      "start_at": "2099-01-05T08:00:00Z",
+      "tags": [],
+      "title": "Gym",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "p4 POST /api/v1/planned",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "active": true,
+      "amount": 13300,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "id": "\u003cid:11\u003e",
+      "interval_n": 1,
+      "interval_unit": "YEAR",
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 13300,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2096-02-29T00:00:00Z",
+        "id": "\u003cid:12\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:11\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "Yearly USD",
+        "to_account_id": "\u003cid:2\u003e",
+        "to_amount": 100,
+        "type": "TRANSFER",
+        "updated_at": "\u003cts\u003e"
+      },
+      "next_due_at": "2096-02-29T00:00:00Z",
+      "one_time": false,
+      "start_at": "2096-02-29T00:00:00Z",
+      "tags": [],
+      "title": "Yearly USD",
+      "to_account_id": "\u003cid:2\u003e",
+      "to_amount": 100,
+      "type": "TRANSFER",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "p5 POST /api/v1/planned",
+    "status": 201,
+    "body": {
+      "account_id": null,
+      "active": true,
+      "amount": 100,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "id": "\u003cid:13\u003e",
+      "interval_n": null,
+      "interval_unit": null,
+      "next": {
+        "account_id": null,
+        "amount": 100,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2099-03-01T00:00:00Z",
+        "id": "\u003cid:14\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:13\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "No account",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "EXPENSE",
+        "updated_at": "\u003cts\u003e"
+      },
+      "next_due_at": "2099-03-01T00:00:00Z",
+      "one_time": true,
+      "start_at": "2099-03-01T00:00:00Z",
+      "tags": [],
+      "title": "No account",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#10 POST /api/v1/planned",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "start_at required"
+      }
+    }
+  },
+  {
+    "step": "#11 POST /api/v1/planned",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "interval_unit must be DAY, WEEK, MONTH or YEAR (or set one_time)"
+      }
+    }
+  },
+  {
+    "step": "#12 POST /api/v1/planned",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "interval_unit must be DAY, WEEK, MONTH or YEAR (or set one_time)"
+      }
+    }
+  },
+  {
+    "step": "#13 POST /api/v1/planned",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "interval_n must be between 1 and 1000"
+      }
+    }
+  },
+  {
+    "step": "#14 POST /api/v1/planned",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "to_amount \u003e 0 required when the accounts' currencies differ"
+      }
+    }
+  },
+  {
+    "step": "#15 POST /api/v1/planned",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "currency required for a planned item without account"
+      }
+    }
+  },
+  {
+    "step": "#16 POST /api/v1/planned",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "tag_ids contains an unknown tag"
+      }
+    }
+  },
+  {
+    "step": "#17 GET /api/v1/planned",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "active": true,
+          "amount": 5000,
+          "category_id": "\u003cid:3\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "id": "\u003cid:5\u003e",
+          "interval_n": null,
+          "interval_unit": null,
+          "next": {
+            "account_id": "\u003cid:1\u003e",
+            "amount": 5000,
+            "category_id": "\u003cid:3\u003e",
+            "created_at": "\u003cts\u003e",
+            "currency": "NPR",
+            "description": "",
+            "due_at": "2020-01-10T00:00:00Z",
+            "id": "\u003cid:6\u003e",
+            "loan_id": null,
+            "loan_record_id": null,
+            "occurred_at": null,
+            "planned": true,
+            "planned_payment_id": "\u003cid:5\u003e",
+            "source": "MANUAL",
+            "tags": [
+              {
+                "color": "#6B7280",
+                "icon": "tag",
+                "id": "\u003cid:4\u003e",
+                "name": "fixed"
+              }
+            ],
+            "title": "Old bill",
+            "to_account_id": null,
+            "to_amount": null,
+            "type": "EXPENSE",
+            "updated_at": "\u003cts\u003e"
+          },
+          "next_due_at": "2020-01-10T00:00:00Z",
+          "one_time": true,
+          "start_at": "2020-01-10T00:00:00Z",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "icon": "tag",
+              "id": "\u003cid:4\u003e",
+              "name": "fixed"
+            }
+          ],
+          "title": "Old bill",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "active": true,
+          "amount": 300000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "id": "\u003cid:7\u003e",
+          "interval_n": 1,
+          "interval_unit": "MONTH",
+          "next": {
+            "account_id": "\u003cid:1\u003e",
+            "amount": 300000,
+            "category_id": null,
+            "created_at": "\u003cts\u003e",
+            "currency": "NPR",
+            "description": "",
+            "due_at": "2026-01-31T09:00:00Z",
+            "id": "\u003cid:8\u003e",
+            "loan_id": null,
+            "loan_record_id": null,
+            "occurred_at": null,
+            "planned": true,
+            "planned_payment_id": "\u003cid:7\u003e",
+            "source": "MANUAL",
+            "tags": [],
+            "title": "Salary",
+            "to_account_id": null,
+            "to_amount": null,
+            "type": "INCOME",
+            "updated_at": "\u003cts\u003e"
+          },
+          "next_due_at": "2026-01-31T09:00:00Z",
+          "one_time": false,
+          "start_at": "2026-01-31T09:00:00Z",
+          "tags": [],
+          "title": "Salary",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "active": true,
+          "amount": 13300,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "id": "\u003cid:11\u003e",
+          "interval_n": 1,
+          "interval_unit": "YEAR",
+          "next": {
+            "account_id": "\u003cid:1\u003e",
+            "amount": 13300,
+            "category_id": null,
+            "created_at": "\u003cts\u003e",
+            "currency": "NPR",
+            "description": "",
+            "due_at": "2096-02-29T00:00:00Z",
+            "id": "\u003cid:12\u003e",
+            "loan_id": null,
+            "loan_record_id": null,
+            "occurred_at": null,
+            "planned": true,
+            "planned_payment_id": "\u003cid:11\u003e",
+            "source": "MANUAL",
+            "tags": [],
+            "title": "Yearly USD",
+            "to_account_id": "\u003cid:2\u003e",
+            "to_amount": 100,
+            "type": "TRANSFER",
+            "updated_at": "\u003cts\u003e"
+          },
+          "next_due_at": "2096-02-29T00:00:00Z",
+          "one_time": false,
+          "start_at": "2096-02-29T00:00:00Z",
+          "tags": [],
+          "title": "Yearly USD",
+          "to_account_id": "\u003cid:2\u003e",
+          "to_amount": 100,
+          "type": "TRANSFER",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "active": true,
+          "amount": 1500,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "id": "\u003cid:9\u003e",
+          "interval_n": 2,
+          "interval_unit": "WEEK",
+          "next": {
+            "account_id": "\u003cid:1\u003e",
+            "amount": 1500,
+            "category_id": null,
+            "created_at": "\u003cts\u003e",
+            "currency": "NPR",
+            "description": "",
+            "due_at": "2099-01-05T08:00:00Z",
+            "id": "\u003cid:10\u003e",
+            "loan_id": null,
+            "loan_record_id": null,
+            "occurred_at": null,
+            "planned": true,
+            "planned_payment_id": "\u003cid:9\u003e",
+            "source": "MANUAL",
+            "tags": [],
+            "title": "Gym",
+            "to_account_id": null,
+            "to_amount": null,
+            "type": "EXPENSE",
+            "updated_at": "\u003cts\u003e"
+          },
+          "next_due_at": "2099-01-05T08:00:00Z",
+          "one_time": false,
+          "start_at": "2099-01-05T08:00:00Z",
+          "tags": [],
+          "title": "Gym",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": null,
+          "active": true,
+          "amount": 100,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "id": "\u003cid:13\u003e",
+          "interval_n": null,
+          "interval_unit": null,
+          "next": {
+            "account_id": null,
+            "amount": 100,
+            "category_id": null,
+            "created_at": "\u003cts\u003e",
+            "currency": "NPR",
+            "description": "",
+            "due_at": "2099-03-01T00:00:00Z",
+            "id": "\u003cid:14\u003e",
+            "loan_id": null,
+            "loan_record_id": null,
+            "occurred_at": null,
+            "planned": true,
+            "planned_payment_id": "\u003cid:13\u003e",
+            "source": "MANUAL",
+            "tags": [],
+            "title": "No account",
+            "to_account_id": null,
+            "to_amount": null,
+            "type": "EXPENSE",
+            "updated_at": "\u003cts\u003e"
+          },
+          "next_due_at": "2099-03-01T00:00:00Z",
+          "one_time": true,
+          "start_at": "2099-03-01T00:00:00Z",
+          "tags": [],
+          "title": "No account",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#18 GET /api/v1/planned?active=true\u0026type=INCOME,EXPENSE",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "active": true,
+          "amount": 5000,
+          "category_id": "\u003cid:3\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "id": "\u003cid:5\u003e",
+          "interval_n": null,
+          "interval_unit": null,
+          "next": {
+            "account_id": "\u003cid:1\u003e",
+            "amount": 5000,
+            "category_id": "\u003cid:3\u003e",
+            "created_at": "\u003cts\u003e",
+            "currency": "NPR",
+            "description": "",
+            "due_at": "2020-01-10T00:00:00Z",
+            "id": "\u003cid:6\u003e",
+            "loan_id": null,
+            "loan_record_id": null,
+            "occurred_at": null,
+            "planned": true,
+            "planned_payment_id": "\u003cid:5\u003e",
+            "source": "MANUAL",
+            "tags": [
+              {
+                "color": "#6B7280",
+                "icon": "tag",
+                "id": "\u003cid:4\u003e",
+                "name": "fixed"
+              }
+            ],
+            "title": "Old bill",
+            "to_account_id": null,
+            "to_amount": null,
+            "type": "EXPENSE",
+            "updated_at": "\u003cts\u003e"
+          },
+          "next_due_at": "2020-01-10T00:00:00Z",
+          "one_time": true,
+          "start_at": "2020-01-10T00:00:00Z",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "icon": "tag",
+              "id": "\u003cid:4\u003e",
+              "name": "fixed"
+            }
+          ],
+          "title": "Old bill",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "active": true,
+          "amount": 300000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "id": "\u003cid:7\u003e",
+          "interval_n": 1,
+          "interval_unit": "MONTH",
+          "next": {
+            "account_id": "\u003cid:1\u003e",
+            "amount": 300000,
+            "category_id": null,
+            "created_at": "\u003cts\u003e",
+            "currency": "NPR",
+            "description": "",
+            "due_at": "2026-01-31T09:00:00Z",
+            "id": "\u003cid:8\u003e",
+            "loan_id": null,
+            "loan_record_id": null,
+            "occurred_at": null,
+            "planned": true,
+            "planned_payment_id": "\u003cid:7\u003e",
+            "source": "MANUAL",
+            "tags": [],
+            "title": "Salary",
+            "to_account_id": null,
+            "to_amount": null,
+            "type": "INCOME",
+            "updated_at": "\u003cts\u003e"
+          },
+          "next_due_at": "2026-01-31T09:00:00Z",
+          "one_time": false,
+          "start_at": "2026-01-31T09:00:00Z",
+          "tags": [],
+          "title": "Salary",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "active": true,
+          "amount": 1500,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "id": "\u003cid:9\u003e",
+          "interval_n": 2,
+          "interval_unit": "WEEK",
+          "next": {
+            "account_id": "\u003cid:1\u003e",
+            "amount": 1500,
+            "category_id": null,
+            "created_at": "\u003cts\u003e",
+            "currency": "NPR",
+            "description": "",
+            "due_at": "2099-01-05T08:00:00Z",
+            "id": "\u003cid:10\u003e",
+            "loan_id": null,
+            "loan_record_id": null,
+            "occurred_at": null,
+            "planned": true,
+            "planned_payment_id": "\u003cid:9\u003e",
+            "source": "MANUAL",
+            "tags": [],
+            "title": "Gym",
+            "to_account_id": null,
+            "to_amount": null,
+            "type": "EXPENSE",
+            "updated_at": "\u003cts\u003e"
+          },
+          "next_due_at": "2099-01-05T08:00:00Z",
+          "one_time": false,
+          "start_at": "2099-01-05T08:00:00Z",
+          "tags": [],
+          "title": "Gym",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": null,
+          "active": true,
+          "amount": 100,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "id": "\u003cid:13\u003e",
+          "interval_n": null,
+          "interval_unit": null,
+          "next": {
+            "account_id": null,
+            "amount": 100,
+            "category_id": null,
+            "created_at": "\u003cts\u003e",
+            "currency": "NPR",
+            "description": "",
+            "due_at": "2099-03-01T00:00:00Z",
+            "id": "\u003cid:14\u003e",
+            "loan_id": null,
+            "loan_record_id": null,
+            "occurred_at": null,
+            "planned": true,
+            "planned_payment_id": "\u003cid:13\u003e",
+            "source": "MANUAL",
+            "tags": [],
+            "title": "No account",
+            "to_account_id": null,
+            "to_amount": null,
+            "type": "EXPENSE",
+            "updated_at": "\u003cts\u003e"
+          },
+          "next_due_at": "2099-03-01T00:00:00Z",
+          "one_time": true,
+          "start_at": "2099-03-01T00:00:00Z",
+          "tags": [],
+          "title": "No account",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#19 GET /api/v1/planned?active=false",
+    "status": 200,
+    "body": {
+      "data": []
+    }
+  },
+  {
+    "step": "#20 GET /api/v1/planned?active=maybe",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "active must be true, false or all"
+      }
+    }
+  },
+  {
+    "step": "#21 GET /api/v1/planned/{{p1.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "active": true,
+      "amount": 5000,
+      "category_id": "\u003cid:3\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "id": "\u003cid:5\u003e",
+      "interval_n": null,
+      "interval_unit": null,
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 5000,
+        "category_id": "\u003cid:3\u003e",
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2020-01-10T00:00:00Z",
+        "id": "\u003cid:6\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:5\u003e",
+        "source": "MANUAL",
+        "tags": [
+          {
+            "color": "#6B7280",
+            "icon": "tag",
+            "id": "\u003cid:4\u003e",
+            "name": "fixed"
+          }
+        ],
+        "title": "Old bill",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "EXPENSE",
+        "updated_at": "\u003cts\u003e"
+      },
+      "next_due_at": "2020-01-10T00:00:00Z",
+      "one_time": true,
+      "start_at": "2020-01-10T00:00:00Z",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:4\u003e",
+          "name": "fixed"
+        }
+      ],
+      "title": "Old bill",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#22 GET /api/v1/planned/00000000-0000-0000-0000-000000000099",
+    "status": 404,
+    "body": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "resource not found"
+      }
+    }
+  },
+  {
+    "step": "#23 GET /api/v1/transactions?planned=only\u0026from=2020-01-01\u0026to=2100-01-01",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": null,
+          "amount": 100,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2099-03-01T00:00:00Z",
+          "id": "\u003cid:14\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "planned": true,
+          "planned_payment_id": "\u003cid:13\u003e",
+          "source": "MANUAL",
+          "tags": [],
+          "title": "No account",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 1500,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2099-01-05T08:00:00Z",
+          "id": "\u003cid:10\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "planned": true,
+          "planned_payment_id": "\u003cid:9\u003e",
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Gym",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 13300,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2096-02-29T00:00:00Z",
+          "id": "\u003cid:12\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "planned": true,
+          "planned_payment_id": "\u003cid:11\u003e",
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Yearly USD",
+          "to_account_id": "\u003cid:2\u003e",
+          "to_amount": 100,
+          "type": "TRANSFER",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 300000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2026-01-31T09:00:00Z",
+          "id": "\u003cid:8\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "planned": true,
+          "planned_payment_id": "\u003cid:7\u003e",
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Salary",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 5000,
+          "category_id": "\u003cid:3\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2020-01-10T00:00:00Z",
+          "id": "\u003cid:6\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "planned": true,
+          "planned_payment_id": "\u003cid:5\u003e",
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "icon": "tag",
+              "id": "\u003cid:4\u003e",
+              "name": "fixed"
+            }
+          ],
+          "title": "Old bill",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#24 GET /api/v1/transactions?planned=all\u0026type=TRANSFER\u0026from=2090-01-01",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 13300,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2096-02-29T00:00:00Z",
+          "id": "\u003cid:12\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "planned": true,
+          "planned_payment_id": "\u003cid:11\u003e",
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Yearly USD",
+          "to_account_id": "\u003cid:2\u003e",
+          "to_amount": 100,
+          "type": "TRANSFER",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#25 GET /api/v1/overview?from=2099-01-01\u0026to=2099-12-31",
+    "status": 200,
+    "body": {
+      "balance": 100000,
+      "currency": "NPR",
+      "expense": 0,
+      "from": "2099-01-01T00:00:00Z",
+      "income": 0,
+      "missing_rates": [],
+      "overdue": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 5000,
+          "category_id": "\u003cid:3\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2020-01-10T00:00:00Z",
+          "id": "\u003cid:6\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "plan": {
+            "active": true,
+            "id": "\u003cid:5\u003e",
+            "interval_n": null,
+            "interval_unit": null,
+            "one_time": true,
+            "start_at": "2020-01-10T00:00:00Z",
+            "title": "Old bill"
+          },
+          "planned": true,
+          "planned_payment_id": "\u003cid:5\u003e",
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "icon": "tag",
+              "id": "\u003cid:4\u003e",
+              "name": "fixed"
+            }
+          ],
+          "title": "Old bill",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 300000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2026-01-31T09:00:00Z",
+          "id": "\u003cid:8\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "plan": {
+            "active": true,
+            "id": "\u003cid:7\u003e",
+            "interval_n": 1,
+            "interval_unit": "MONTH",
+            "one_time": false,
+            "start_at": "2026-01-31T09:00:00Z",
+            "title": "Salary"
+          },
+          "planned": true,
+          "planned_payment_id": "\u003cid:7\u003e",
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Salary",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "overdue_expense": 5000,
+      "overdue_income": 300000,
+      "projected_balance": 393400,
+      "to": "2100-01-01T00:00:00Z",
+      "upcoming": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 1500,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2099-01-05T08:00:00Z",
+          "id": "\u003cid:10\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "plan": {
+            "active": true,
+            "id": "\u003cid:9\u003e",
+            "interval_n": 2,
+            "interval_unit": "WEEK",
+            "one_time": false,
+            "start_at": "2099-01-05T08:00:00Z",
+            "title": "Gym"
+          },
+          "planned": true,
+          "planned_payment_id": "\u003cid:9\u003e",
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Gym",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": null,
+          "amount": 100,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2099-03-01T00:00:00Z",
+          "id": "\u003cid:14\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "plan": {
+            "active": true,
+            "id": "\u003cid:13\u003e",
+            "interval_n": null,
+            "interval_unit": null,
+            "one_time": true,
+            "start_at": "2099-03-01T00:00:00Z",
+            "title": "No account"
+          },
+          "planned": true,
+          "planned_payment_id": "\u003cid:13\u003e",
+          "source": "MANUAL",
+          "tags": [],
+          "title": "No account",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "upcoming_expense": 1600,
+      "upcoming_income": 0
+    }
+  },
+  {
+    "step": "#26 GET /api/v1/accounts/{{a1.id}}/summary?from=2099-01-01\u0026to=2099-12-31",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "balance": 100000,
+      "currency": "NPR",
+      "entries": [],
+      "expense": 0,
+      "from": "2099-01-01T00:00:00Z",
+      "income": 0,
+      "inflow": 0,
+      "missing_rates": [],
+      "outflow": 0,
+      "overdue": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 5000,
+          "category_id": "\u003cid:3\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2020-01-10T00:00:00Z",
+          "id": "\u003cid:6\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "plan": {
+            "active": true,
+            "id": "\u003cid:5\u003e",
+            "interval_n": null,
+            "interval_unit": null,
+            "one_time": true,
+            "start_at": "2020-01-10T00:00:00Z",
+            "title": "Old bill"
+          },
+          "planned": true,
+          "planned_payment_id": "\u003cid:5\u003e",
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "icon": "tag",
+              "id": "\u003cid:4\u003e",
+              "name": "fixed"
+            }
+          ],
+          "title": "Old bill",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 300000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2026-01-31T09:00:00Z",
+          "id": "\u003cid:8\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "plan": {
+            "active": true,
+            "id": "\u003cid:7\u003e",
+            "interval_n": 1,
+            "interval_unit": "MONTH",
+            "one_time": false,
+            "start_at": "2026-01-31T09:00:00Z",
+            "title": "Salary"
+          },
+          "planned": true,
+          "planned_payment_id": "\u003cid:7\u003e",
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Salary",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "to": "2100-01-01T00:00:00Z",
+      "upcoming": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 1500,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2099-01-05T08:00:00Z",
+          "id": "\u003cid:10\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "plan": {
+            "active": true,
+            "id": "\u003cid:9\u003e",
+            "interval_n": 2,
+            "interval_unit": "WEEK",
+            "one_time": false,
+            "start_at": "2099-01-05T08:00:00Z",
+            "title": "Gym"
+          },
+          "planned": true,
+          "planned_payment_id": "\u003cid:9\u003e",
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Gym",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#27 GET /api/v1/categories/{{cat1.id}}/summary?from=2099-01-01\u0026to=2099-12-31",
+    "status": 200,
+    "body": {
+      "category_id": "\u003cid:3\u003e",
+      "count": 0,
+      "currency": "NPR",
+      "entries": [],
+      "expense": 0,
+      "from": "2099-01-01T00:00:00Z",
+      "income": 0,
+      "missing_rates": [],
+      "overdue": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 5000,
+          "category_id": "\u003cid:3\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2020-01-10T00:00:00Z",
+          "id": "\u003cid:6\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "plan": {
+            "active": true,
+            "id": "\u003cid:5\u003e",
+            "interval_n": null,
+            "interval_unit": null,
+            "one_time": true,
+            "start_at": "2020-01-10T00:00:00Z",
+            "title": "Old bill"
+          },
+          "planned": true,
+          "planned_payment_id": "\u003cid:5\u003e",
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "icon": "tag",
+              "id": "\u003cid:4\u003e",
+              "name": "fixed"
+            }
+          ],
+          "title": "Old bill",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "to": "2100-01-01T00:00:00Z",
+      "upcoming": []
+    }
+  },
+  {
+    "step": "pay1 POST /api/v1/transactions/{{p2.next.id}}/pay",
+    "status": 200,
+    "body": {
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 300000,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2026-02-28T09:00:00Z",
+        "id": "\u003cid:15\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:7\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "Salary",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "INCOME",
+        "updated_at": "\u003cts\u003e"
+      },
+      "transaction": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 300000,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2026-01-31T09:00:00Z",
+        "id": "\u003cid:8\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": "2026-02-01T10:00:00Z",
+        "planned": false,
+        "planned_payment_id": "\u003cid:7\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "Salary",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "INCOME",
+        "updated_at": "\u003cts\u003e"
+      }
+    }
+  },
+  {
+    "step": "#29 GET /api/v1/planned/{{p2.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "active": true,
+      "amount": 300000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "id": "\u003cid:7\u003e",
+      "interval_n": 1,
+      "interval_unit": "MONTH",
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 300000,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2026-02-28T09:00:00Z",
+        "id": "\u003cid:15\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:7\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "Salary",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "INCOME",
+        "updated_at": "\u003cts\u003e"
+      },
+      "next_due_at": "2026-02-28T09:00:00Z",
+      "one_time": false,
+      "start_at": "2026-01-31T09:00:00Z",
+      "tags": [],
+      "title": "Salary",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "INCOME",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "pay2 POST /api/v1/transactions/{{pay1.next.id}}/pay",
+    "status": 200,
+    "body": {
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 300000,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2026-03-31T09:00:00Z",
+        "id": "\u003cid:16\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:7\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "Salary",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "INCOME",
+        "updated_at": "\u003cts\u003e"
+      },
+      "transaction": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 310000,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2026-02-28T09:00:00Z",
+        "id": "\u003cid:15\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": "2026-03-01T10:00:00Z",
+        "planned": false,
+        "planned_payment_id": "\u003cid:7\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "Salary",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "INCOME",
+        "updated_at": "\u003cts\u003e"
+      }
+    }
+  },
+  {
+    "step": "pay3 POST /api/v1/transactions/{{pay2.next.id}}/pay",
+    "status": 200,
+    "body": {
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 300000,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2026-04-30T09:00:00Z",
+        "id": "\u003cid:17\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:7\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "Salary",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "INCOME",
+        "updated_at": "\u003cts\u003e"
+      },
+      "transaction": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 300000,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2026-03-31T09:00:00Z",
+        "id": "\u003cid:16\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": "2026-04-01T10:00:00Z",
+        "planned": false,
+        "planned_payment_id": "\u003cid:7\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "Salary",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "INCOME",
+        "updated_at": "\u003cts\u003e"
+      }
+    }
+  },
+  {
+    "step": "pay4 POST /api/v1/transactions/{{pay3.next.id}}/pay",
+    "status": 200,
+    "body": {
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 300000,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2026-05-31T09:00:00Z",
+        "id": "\u003cid:18\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:7\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "Salary",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "INCOME",
+        "updated_at": "\u003cts\u003e"
+      },
+      "transaction": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 300000,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2026-04-30T09:00:00Z",
+        "id": "\u003cid:17\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": "2026-05-01T10:00:00Z",
+        "planned": false,
+        "planned_payment_id": "\u003cid:7\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "Salary",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "INCOME",
+        "updated_at": "\u003cts\u003e"
+      }
+    }
+  },
+  {
+    "step": "#33 POST /api/v1/transactions/{{pay1.transaction.id}}/pay",
+    "status": 409,
+    "body": {
+      "error": {
+        "code": "NOT_PLANNED",
+        "message": "transaction is already paid"
+      }
+    }
+  },
+  {
+    "step": "#34 POST /api/v1/transactions/00000000-0000-0000-0000-000000000099/pay",
+    "status": 404,
+    "body": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "resource not found"
+      }
+    }
+  },
+  {
+    "step": "#35 POST /api/v1/transactions/{{p5.next.id}}/pay",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "account_id required to pay a planned item without account"
+      }
+    }
+  },
+  {
+    "step": "pay5 POST /api/v1/transactions/{{p5.next.id}}/pay",
+    "status": 200,
+    "body": {
+      "next": null,
+      "transaction": {
+        "account_id": "\u003cid:2\u003e",
+        "amount": 1,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "USD",
+        "description": "",
+        "due_at": "2099-03-01T00:00:00Z",
+        "id": "\u003cid:14\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": "2026-05-02T10:00:00Z",
+        "planned": false,
+        "planned_payment_id": "\u003cid:13\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "No account",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "EXPENSE",
+        "updated_at": "\u003cts\u003e"
+      }
+    }
+  },
+  {
+    "step": "#37 GET /api/v1/planned/{{p5.id}}",
+    "status": 200,
+    "body": {
+      "account_id": null,
+      "active": false,
+      "amount": 100,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "id": "\u003cid:13\u003e",
+      "interval_n": null,
+      "interval_unit": null,
+      "next": null,
+      "next_due_at": null,
+      "one_time": true,
+      "start_at": "2099-03-01T00:00:00Z",
+      "tags": [],
+      "title": "No account",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "skip1 POST /api/v1/transactions/{{p3.next.id}}/skip",
+    "status": 200,
+    "body": {
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 1500,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2099-01-19T08:00:00Z",
+        "id": "\u003cid:19\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:9\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "Gym",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "EXPENSE",
+        "updated_at": "\u003cts\u003e"
+      }
+    }
+  },
+  {
+    "step": "#39 GET /api/v1/planned/{{p3.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "active": true,
+      "amount": 1500,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "id": "\u003cid:9\u003e",
+      "interval_n": 2,
+      "interval_unit": "WEEK",
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 1500,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2099-01-19T08:00:00Z",
+        "id": "\u003cid:19\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:9\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "Gym",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "EXPENSE",
+        "updated_at": "\u003cts\u003e"
+      },
+      "next_due_at": "2099-01-19T08:00:00Z",
+      "one_time": false,
+      "start_at": "2099-01-05T08:00:00Z",
+      "tags": [],
+      "title": "Gym",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "skip2 POST /api/v1/transactions/{{skip1.next.id}}/skip",
+    "status": 200,
+    "body": {
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 1500,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2099-02-02T08:00:00Z",
+        "id": "\u003cid:20\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:9\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "Gym",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "EXPENSE",
+        "updated_at": "\u003cts\u003e"
+      }
+    }
+  },
+  {
+    "step": "#41 PATCH /api/v1/planned/{{p3.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "active": true,
+      "amount": 2000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "id": "\u003cid:9\u003e",
+      "interval_n": 1,
+      "interval_unit": "WEEK",
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 2000,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2099-01-26T08:00:00Z",
+        "id": "\u003cid:20\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:9\u003e",
+        "source": "MANUAL",
+        "tags": [
+          {
+            "color": "#6B7280",
+            "icon": "tag",
+            "id": "\u003cid:4\u003e",
+            "name": "fixed"
+          }
+        ],
+        "title": "Gym+",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "EXPENSE",
+        "updated_at": "\u003cts\u003e"
+      },
+      "next_due_at": "2099-01-26T08:00:00Z",
+      "one_time": false,
+      "start_at": "2099-01-05T08:00:00Z",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:4\u003e",
+          "name": "fixed"
+        }
+      ],
+      "title": "Gym+",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#42 PATCH /api/v1/planned/{{p3.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "active": true,
+      "amount": 2000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "moved",
+      "id": "\u003cid:9\u003e",
+      "interval_n": 1,
+      "interval_unit": "WEEK",
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 2000,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "moved",
+        "due_at": "2099-02-01T08:00:00Z",
+        "id": "\u003cid:20\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:9\u003e",
+        "source": "MANUAL",
+        "tags": [
+          {
+            "color": "#6B7280",
+            "icon": "tag",
+            "id": "\u003cid:4\u003e",
+            "name": "fixed"
+          }
+        ],
+        "title": "Gym+",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "EXPENSE",
+        "updated_at": "\u003cts\u003e"
+      },
+      "next_due_at": "2099-02-01T08:00:00Z",
+      "one_time": false,
+      "start_at": "2099-02-01T08:00:00Z",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:4\u003e",
+          "name": "fixed"
+        }
+      ],
+      "title": "Gym+",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#43 PATCH /api/v1/planned/{{p3.id}}",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "interval_unit must be DAY, WEEK, MONTH or YEAR (or set one_time)"
+      }
+    }
+  },
+  {
+    "step": "#44 PATCH /api/v1/planned/{{p3.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "active": false,
+      "amount": 2000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "moved",
+      "id": "\u003cid:9\u003e",
+      "interval_n": 1,
+      "interval_unit": "WEEK",
+      "next": null,
+      "next_due_at": null,
+      "one_time": false,
+      "start_at": "2099-02-01T08:00:00Z",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:4\u003e",
+          "name": "fixed"
+        }
+      ],
+      "title": "Gym+",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#45 PATCH /api/v1/planned/{{p3.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "active": true,
+      "amount": 2000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "moved",
+      "id": "\u003cid:9\u003e",
+      "interval_n": 1,
+      "interval_unit": "WEEK",
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 2000,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "moved",
+        "due_at": "2099-02-01T08:00:00Z",
+        "id": "\u003cid:21\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:9\u003e",
+        "source": "MANUAL",
+        "tags": [
+          {
+            "color": "#6B7280",
+            "icon": "tag",
+            "id": "\u003cid:4\u003e",
+            "name": "fixed"
+          }
+        ],
+        "title": "Gym+",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "EXPENSE",
+        "updated_at": "\u003cts\u003e"
+      },
+      "next_due_at": "2099-02-01T08:00:00Z",
+      "one_time": false,
+      "start_at": "2099-02-01T08:00:00Z",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:4\u003e",
+          "name": "fixed"
+        }
+      ],
+      "title": "Gym+",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#46 PATCH /api/v1/planned/{{p1.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "active": false,
+      "amount": 5000,
+      "category_id": "\u003cid:3\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "id": "\u003cid:5\u003e",
+      "interval_n": null,
+      "interval_unit": null,
+      "next": null,
+      "next_due_at": null,
+      "one_time": true,
+      "start_at": "2020-01-10T00:00:00Z",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:4\u003e",
+          "name": "fixed"
+        }
+      ],
+      "title": "Old bill",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#47 PATCH /api/v1/planned/{{p1.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "active": true,
+      "amount": 6000,
+      "category_id": "\u003cid:3\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "id": "\u003cid:5\u003e",
+      "interval_n": null,
+      "interval_unit": null,
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 6000,
+        "category_id": "\u003cid:3\u003e",
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2020-01-10T00:00:00Z",
+        "id": "\u003cid:22\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:5\u003e",
+        "source": "MANUAL",
+        "tags": [
+          {
+            "color": "#6B7280",
+            "icon": "tag",
+            "id": "\u003cid:4\u003e",
+            "name": "fixed"
+          }
+        ],
+        "title": "Old bill",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "EXPENSE",
+        "updated_at": "\u003cts\u003e"
+      },
+      "next_due_at": "2020-01-10T00:00:00Z",
+      "one_time": true,
+      "start_at": "2020-01-10T00:00:00Z",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:4\u003e",
+          "name": "fixed"
+        }
+      ],
+      "title": "Old bill",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#48 PATCH /api/v1/planned/00000000-0000-0000-0000-000000000099",
+    "status": 404,
+    "body": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "resource not found"
+      }
+    }
+  },
+  {
+    "step": "#49 POST /api/v1/transactions/skip-overdue?account={{a2.id}}",
+    "status": 200,
+    "body": {
+      "skipped": 0
+    }
+  },
+  {
+    "step": "#50 POST /api/v1/transactions/skip-overdue?category={{cat1.id}}",
+    "status": 200,
+    "body": {
+      "skipped": 1
+    }
+  },
+  {
+    "step": "#51 GET /api/v1/planned/{{p1.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "active": false,
+      "amount": 6000,
+      "category_id": "\u003cid:3\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "id": "\u003cid:5\u003e",
+      "interval_n": null,
+      "interval_unit": null,
+      "next": null,
+      "next_due_at": null,
+      "one_time": true,
+      "start_at": "2020-01-10T00:00:00Z",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:4\u003e",
+          "name": "fixed"
+        }
+      ],
+      "title": "Old bill",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#52 GET /api/v1/planned/{{p2.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "active": true,
+      "amount": 300000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "id": "\u003cid:7\u003e",
+      "interval_n": 1,
+      "interval_unit": "MONTH",
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 300000,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2026-05-31T09:00:00Z",
+        "id": "\u003cid:18\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:7\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "Salary",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "INCOME",
+        "updated_at": "\u003cts\u003e"
+      },
+      "next_due_at": "2026-05-31T09:00:00Z",
+      "one_time": false,
+      "start_at": "2026-01-31T09:00:00Z",
+      "tags": [],
+      "title": "Salary",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "INCOME",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "t1 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 777,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": "2099-06-01T00:00:00Z",
+      "id": "\u003cid:23\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": null,
+      "planned": true,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Later bill",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#54 GET /api/v1/transactions/{{t1.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 777,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": "2099-06-01T00:00:00Z",
+      "id": "\u003cid:23\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": null,
+      "planned": true,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Later bill",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#55 PATCH /api/v1/transactions/{{t1.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:2\u003e",
+      "amount": 6,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "USD",
+      "description": "",
+      "due_at": "2099-06-01T00:00:00Z",
+      "id": "\u003cid:23\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": null,
+      "planned": true,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Later bill",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#56 POST /api/v1/transactions/{{t1.id}}/pay",
+    "status": 200,
+    "body": {
+      "next": null,
+      "transaction": {
+        "account_id": "\u003cid:2\u003e",
+        "amount": 600,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "USD",
+        "description": "",
+        "due_at": "2099-06-01T00:00:00Z",
+        "id": "\u003cid:23\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": "2026-05-03T10:00:00Z",
+        "planned": false,
+        "planned_payment_id": null,
+        "source": "MANUAL",
+        "tags": [],
+        "title": "Later bill",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "EXPENSE",
+        "updated_at": "\u003cts\u003e"
+      }
+    }
+  },
+  {
+    "step": "#57 PATCH /api/v1/transactions/{{pay2.transaction.id}}",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "a paid occurrence of a planned payment cannot be made unpaid again"
+      }
+    }
+  },
+  {
+    "step": "#58 PATCH /api/v1/transactions/{{pay2.transaction.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 310000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": "2026-02-28T09:00:00Z",
+      "id": "\u003cid:15\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-01T10:00:00Z",
+      "planned": false,
+      "planned_payment_id": "\u003cid:7\u003e",
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Salary March",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "INCOME",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "gp3 GET /api/v1/planned/{{p3.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "active": true,
+      "amount": 2000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "moved",
+      "id": "\u003cid:9\u003e",
+      "interval_n": 1,
+      "interval_unit": "WEEK",
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 2000,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "moved",
+        "due_at": "2099-02-01T08:00:00Z",
+        "id": "\u003cid:21\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:9\u003e",
+        "source": "MANUAL",
+        "tags": [
+          {
+            "color": "#6B7280",
+            "icon": "tag",
+            "id": "\u003cid:4\u003e",
+            "name": "fixed"
+          }
+        ],
+        "title": "Gym+",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "EXPENSE",
+        "updated_at": "\u003cts\u003e"
+      },
+      "next_due_at": "2099-02-01T08:00:00Z",
+      "one_time": false,
+      "start_at": "2099-02-01T08:00:00Z",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:4\u003e",
+          "name": "fixed"
+        }
+      ],
+      "title": "Gym+",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#60 PATCH /api/v1/transactions/{{gp3.next.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 2000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "moved",
+      "due_at": "2099-02-01T08:00:00Z",
+      "id": "\u003cid:21\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2099-01-06T00:00:00Z",
+      "planned": false,
+      "planned_payment_id": "\u003cid:9\u003e",
+      "source": "MANUAL",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:4\u003e",
+          "name": "fixed"
+        }
+      ],
+      "title": "Gym+",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#61 GET /api/v1/planned/{{p3.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "active": true,
+      "amount": 2000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "moved",
+      "id": "\u003cid:9\u003e",
+      "interval_n": 1,
+      "interval_unit": "WEEK",
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 2000,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "moved",
+        "due_at": "2099-02-08T08:00:00Z",
+        "id": "\u003cid:24\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:9\u003e",
+        "source": "MANUAL",
+        "tags": [
+          {
+            "color": "#6B7280",
+            "icon": "tag",
+            "id": "\u003cid:4\u003e",
+            "name": "fixed"
+          }
+        ],
+        "title": "Gym+",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "EXPENSE",
+        "updated_at": "\u003cts\u003e"
+      },
+      "next_due_at": "2099-02-08T08:00:00Z",
+      "one_time": false,
+      "start_at": "2099-02-01T08:00:00Z",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:4\u003e",
+          "name": "fixed"
+        }
+      ],
+      "title": "Gym+",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#62 DELETE /api/v1/transactions/{{p4.next.id}}",
+    "status": 200,
+    "body": {
+      "message": "deleted"
+    }
+  },
+  {
+    "step": "#63 GET /api/v1/planned/{{p4.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "active": true,
+      "amount": 13300,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "id": "\u003cid:11\u003e",
+      "interval_n": 1,
+      "interval_unit": "YEAR",
+      "next": {
+        "account_id": "\u003cid:1\u003e",
+        "amount": 13300,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "NPR",
+        "description": "",
+        "due_at": "2097-02-28T00:00:00Z",
+        "id": "\u003cid:25\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:11\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "Yearly USD",
+        "to_account_id": "\u003cid:2\u003e",
+        "to_amount": 100,
+        "type": "TRANSFER",
+        "updated_at": "\u003cts\u003e"
+      },
+      "next_due_at": "2097-02-28T00:00:00Z",
+      "one_time": false,
+      "start_at": "2096-02-29T00:00:00Z",
+      "tags": [],
+      "title": "Yearly USD",
+      "to_account_id": "\u003cid:2\u003e",
+      "to_amount": 100,
+      "type": "TRANSFER",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "p6 POST /api/v1/planned",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:2\u003e",
+      "active": true,
+      "amount": 50,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "USD",
+      "description": "",
+      "id": "\u003cid:26\u003e",
+      "interval_n": 1,
+      "interval_unit": "DAY",
+      "next": {
+        "account_id": "\u003cid:2\u003e",
+        "amount": 50,
+        "category_id": null,
+        "created_at": "\u003cts\u003e",
+        "currency": "USD",
+        "description": "",
+        "due_at": "2099-05-01T00:00:00Z",
+        "id": "\u003cid:27\u003e",
+        "loan_id": null,
+        "loan_record_id": null,
+        "occurred_at": null,
+        "planned": true,
+        "planned_payment_id": "\u003cid:26\u003e",
+        "source": "MANUAL",
+        "tags": [],
+        "title": "USD sub",
+        "to_account_id": null,
+        "to_amount": null,
+        "type": "EXPENSE",
+        "updated_at": "\u003cts\u003e"
+      },
+      "next_due_at": "2099-05-01T00:00:00Z",
+      "one_time": false,
+      "start_at": "2099-05-01T00:00:00Z",
+      "tags": [],
+      "title": "USD sub",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#65 GET /api/v1/overview?from=2099-01-01\u0026to=2099-12-31",
+    "status": 200,
+    "body": {
+      "balance": 1228067,
+      "currency": "NPR",
+      "expense": 2000,
+      "from": "2099-01-01T00:00:00Z",
+      "income": 0,
+      "missing_rates": [],
+      "overdue": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 300000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2026-05-31T09:00:00Z",
+          "id": "\u003cid:18\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "plan": {
+            "active": true,
+            "id": "\u003cid:7\u003e",
+            "interval_n": 1,
+            "interval_unit": "MONTH",
+            "one_time": false,
+            "start_at": "2026-01-31T09:00:00Z",
+            "title": "Salary"
+          },
+          "planned": true,
+          "planned_payment_id": "\u003cid:7\u003e",
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Salary",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "overdue_expense": 0,
+      "overdue_income": 300000,
+      "projected_balance": 1519417,
+      "to": "2100-01-01T00:00:00Z",
+      "upcoming": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 2000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "moved",
+          "due_at": "2099-02-08T08:00:00Z",
+          "id": "\u003cid:24\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "plan": {
+            "active": true,
+            "id": "\u003cid:9\u003e",
+            "interval_n": 1,
+            "interval_unit": "WEEK",
+            "one_time": false,
+            "start_at": "2099-02-01T08:00:00Z",
+            "title": "Gym+"
+          },
+          "planned": true,
+          "planned_payment_id": "\u003cid:9\u003e",
+          "source": "MANUAL",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "icon": "tag",
+              "id": "\u003cid:4\u003e",
+              "name": "fixed"
+            }
+          ],
+          "title": "Gym+",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:2\u003e",
+          "amount": 50,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "description": "",
+          "due_at": "2099-05-01T00:00:00Z",
+          "id": "\u003cid:27\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "plan": {
+            "active": true,
+            "id": "\u003cid:26\u003e",
+            "interval_n": 1,
+            "interval_unit": "DAY",
+            "one_time": false,
+            "start_at": "2099-05-01T00:00:00Z",
+            "title": "USD sub"
+          },
+          "planned": true,
+          "planned_payment_id": "\u003cid:26\u003e",
+          "source": "MANUAL",
+          "tags": [],
+          "title": "USD sub",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "upcoming_expense": 8650,
+      "upcoming_income": 0
+    }
+  },
+  {
+    "step": "#66 DELETE /api/v1/planned/{{p3.id}}",
+    "status": 200,
+    "body": {
+      "message": "deleted"
+    }
+  },
+  {
+    "step": "#67 DELETE /api/v1/planned/{{p3.id}}",
+    "status": 404,
+    "body": {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "resource not found"
+      }
+    }
+  },
+  {
+    "step": "#68 GET /api/v1/transactions?planned=only\u0026from=2090-01-01\u0026to=2100-01-01",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:2\u003e",
+          "amount": 50,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "USD",
+          "description": "",
+          "due_at": "2099-05-01T00:00:00Z",
+          "id": "\u003cid:27\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "planned": true,
+          "planned_payment_id": "\u003cid:26\u003e",
+          "source": "MANUAL",
+          "tags": [],
+          "title": "USD sub",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 13300,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2097-02-28T00:00:00Z",
+          "id": "\u003cid:25\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "planned": true,
+          "planned_payment_id": "\u003cid:11\u003e",
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Yearly USD",
+          "to_account_id": "\u003cid:2\u003e",
+          "to_amount": 100,
+          "type": "TRANSFER",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#69 DELETE /api/v1/accounts/{{a2.id}}",
+    "status": 200,
+    "body": {
+      "message": "deleted"
+    }
+  },
+  {
+    "step": "#70 GET /api/v1/planned",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "active": true,
+          "amount": 300000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "id": "\u003cid:7\u003e",
+          "interval_n": 1,
+          "interval_unit": "MONTH",
+          "next": {
+            "account_id": "\u003cid:1\u003e",
+            "amount": 300000,
+            "category_id": null,
+            "created_at": "\u003cts\u003e",
+            "currency": "NPR",
+            "description": "",
+            "due_at": "2026-05-31T09:00:00Z",
+            "id": "\u003cid:18\u003e",
+            "loan_id": null,
+            "loan_record_id": null,
+            "occurred_at": null,
+            "planned": true,
+            "planned_payment_id": "\u003cid:7\u003e",
+            "source": "MANUAL",
+            "tags": [],
+            "title": "Salary",
+            "to_account_id": null,
+            "to_amount": null,
+            "type": "INCOME",
+            "updated_at": "\u003cts\u003e"
+          },
+          "next_due_at": "2026-05-31T09:00:00Z",
+          "one_time": false,
+          "start_at": "2026-01-31T09:00:00Z",
+          "tags": [],
+          "title": "Salary",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "active": false,
+          "amount": 6000,
+          "category_id": "\u003cid:3\u003e",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "id": "\u003cid:5\u003e",
+          "interval_n": null,
+          "interval_unit": null,
+          "next": null,
+          "next_due_at": null,
+          "one_time": true,
+          "start_at": "2020-01-10T00:00:00Z",
+          "tags": [
+            {
+              "color": "#6B7280",
+              "icon": "tag",
+              "id": "\u003cid:4\u003e",
+              "name": "fixed"
+            }
+          ],
+          "title": "Old bill",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        },
+        {
+          "account_id": null,
+          "active": false,
+          "amount": 100,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "id": "\u003cid:13\u003e",
+          "interval_n": null,
+          "interval_unit": null,
+          "next": null,
+          "next_due_at": null,
+          "one_time": true,
+          "start_at": "2099-03-01T00:00:00Z",
+          "tags": [],
+          "title": "No account",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "EXPENSE",
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#71 GET /api/v1/overview?from=2099-01-01\u0026to=2099-12-31",
+    "status": 200,
+    "body": {
+      "balance": 1308000,
+      "currency": "NPR",
+      "expense": 2000,
+      "from": "2099-01-01T00:00:00Z",
+      "income": 0,
+      "missing_rates": [],
+      "overdue": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "amount": 300000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2026-05-31T09:00:00Z",
+          "id": "\u003cid:18\u003e",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "plan": {
+            "active": true,
+            "id": "\u003cid:7\u003e",
+            "interval_n": 1,
+            "interval_unit": "MONTH",
+            "one_time": false,
+            "start_at": "2026-01-31T09:00:00Z",
+            "title": "Salary"
+          },
+          "planned": true,
+          "planned_payment_id": "\u003cid:7\u003e",
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Salary",
+          "to_account_id": null,
+          "to_amount": null,
+          "type": "INCOME",
+          "updated_at": "\u003cts\u003e"
+        }
+      ],
+      "overdue_expense": 0,
+      "overdue_income": 300000,
+      "projected_balance": 1608000,
+      "to": "2100-01-01T00:00:00Z",
+      "upcoming": [],
+      "upcoming_expense": 0,
+      "upcoming_income": 0
+    }
+  },
+  {
+    "step": "#72 GET /api/v1/ledger?planned=only\u0026from=2020-01-01\u0026to=2100-01-01",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "account_amount": null,
+          "account_id": "\u003cid:1\u003e",
+          "amount": 300000,
+          "category_id": null,
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "description": "",
+          "due_at": "2026-05-31T09:00:00Z",
+          "expense_id": null,
+          "group_id": null,
+          "group_name": null,
+          "id": "\u003cid:18\u003e",
+          "kind": "TRANSACTION",
+          "loan_id": null,
+          "loan_record_id": null,
+          "occurred_at": null,
+          "planned_payment_id": "\u003cid:7\u003e",
+          "read_only": false,
+          "settlement_id": null,
+          "source": "MANUAL",
+          "tags": [],
+          "title": "Salary",
+          "to_account_amount": null,
+          "to_account_id": null,
+          "to_amount": null,
+          "to_currency": null,
+          "total_amount": null,
+          "type": "INCOME"
+        }
+      ]
+    }
+  },
+  {
+    "step": "#73 GET /api/v1/accounts",
+    "status": 200,
+    "body": {
+      "data": [
+        {
+          "archived": false,
+          "archived_at": null,
+          "balance": 1308000,
+          "balance_base": 1308000,
+          "base_currency": "NPR",
+          "color": "#6B7280",
+          "created_at": "\u003cts\u003e",
+          "currency": "NPR",
+          "icon": "wallet",
+          "id": "\u003cid:1\u003e",
+          "include_in_balance": true,
+          "is_default": true,
+          "missing_rates": [],
+          "name": "Cash",
+          "sort_order": 0,
+          "updated_at": "\u003cts\u003e"
+        }
+      ]
+    }
+  }
+]

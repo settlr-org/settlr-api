@@ -684,6 +684,21 @@ func (s *recordState) apply(req loanRecordReq) string {
 	return ""
 }
 
+// recordAccountMissing reports a client-facing message when a record names an account that does not exist (the
+// foreign key would otherwise surface as a 500).
+func (h *Handler) recordAccountMissing(ctx context.Context, userID uuid.UUID, accountID *uuid.UUID) (string, error) {
+	if accountID == nil {
+		return "", nil
+	}
+	if _, err := h.q().GetAccount(ctx, db.GetAccountParams{ID: *accountID, UserID: userID}); err != nil {
+		if isNoRows(err) {
+			return "account_id not found", nil
+		}
+		return "", err
+	}
+	return "", nil
+}
+
 // saveRecordBooking syncs a record's booking and stores the link on the record.
 func (h *Handler) saveRecordBooking(ctx context.Context, q *db.Queries, l db.Loan, rec db.LoanRecord, aa *int64, keep bool) (db.LoanRecord, string, error) {
 	var ex *db.Transaction
@@ -734,6 +749,13 @@ func (h *Handler) CreateLoanRecord(w http.ResponseWriter, r *http.Request) {
 	}
 	s := recordState{occurredAt: time.Now().UTC()}
 	if msg := s.apply(req); msg != "" {
+		validation(w, msg)
+		return
+	}
+	if msg, err := h.recordAccountMissing(ctx, userID, s.accountID); err != nil {
+		httpx.WriteError(w, r, err)
+		return
+	} else if msg != "" {
 		validation(w, msg)
 		return
 	}
@@ -810,6 +832,14 @@ func (h *Handler) UpdateLoanRecord(w http.ResponseWriter, r *http.Request) {
 		s := recordState{typ: cur.Type, note: cur.Note, amount: cur.Amount, occurredAt: cur.OccurredAt.Time.UTC(), accountID: uuidPtr(cur.AccountID)}
 		if msg := s.apply(req); msg != "" {
 			return vErr(msg)
+		}
+		if req.AccountID.Set {
+			if msg, err := h.recordAccountMissing(ctx, userID, s.accountID); err != nil || msg != "" {
+				if err != nil {
+					return err
+				}
+				return vErr(msg)
+			}
 		}
 		rec, err = qtx.UpdateLoanRecord(ctx, db.UpdateLoanRecordParams{
 			ID: id, UserID: userID, Type: s.typ, Amount: s.amount, Note: s.note,
