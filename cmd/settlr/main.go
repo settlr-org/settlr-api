@@ -84,6 +84,8 @@ func main() {
 	// Refresh needs a valid refresh token, so brute force isn't a concern; clients refresh on every
 	// page load and several tabs (often behind one proxy IP) must not lock users out.
 	refreshLimiter := httpx.NewRateLimiter(300, time.Minute)
+	// GET /rates is public (the on-device wallet needs it without an account); each IP may read it 60 times a minute.
+	ratesLimiter := httpx.NewRateLimiter(60, time.Minute)
 
 	mux := http.NewServeMux()
 
@@ -209,6 +211,10 @@ func main() {
 		// also check original with /settlr prefix
 		if strings.HasPrefix(r.URL.Path, "/settlr") {
 			path = strings.TrimPrefix(r.URL.Path, "/settlr")
+		}
+		if path == "/api/v1/rates" && !ratesLimiter.Allow(httpx.ClientIP(r, cfg.TrustProxyHeaders)+":"+path) {
+			httpx.WriteJSON(w, 429, map[string]any{"error": map[string]string{"code": "RATE_LIMITED", "message": "too many requests"}})
+			return
 		}
 		if strings.HasPrefix(path, "/api/v1/auth/") {
 			limiter := rateLimiter
