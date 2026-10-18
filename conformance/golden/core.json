@@ -2616,14 +2616,47 @@
     }
   },
   {
-    "step": "#69 DELETE /api/v1/transactions/{{t6.id}}",
+    "step": "#69 PATCH /api/v1/transactions/{{dup.id}}",
+    "status": 200,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 3000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "with team",
+      "due_at": null,
+      "id": "\u003cid:16\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-06T12:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [
+        {
+          "color": "chart3",
+          "icon": "tag",
+          "id": "\u003cid:7\u003e",
+          "name": "trip"
+        }
+      ],
+      "title": "Lunch copy",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#70 DELETE /api/v1/transactions/{{t6.id}}",
     "status": 200,
     "body": {
       "message": "deleted"
     }
   },
   {
-    "step": "#70 DELETE /api/v1/transactions/{{t6.id}}",
+    "step": "#71 DELETE /api/v1/transactions/{{t6.id}}",
     "status": 404,
     "body": {
       "error": {
@@ -2633,7 +2666,7 @@
     }
   },
   {
-    "step": "#71 GET /api/v1/ledger?hide_adjustments=true\u0026from=2026-03-01\u0026to=2026-03-31",
+    "step": "#72 GET /api/v1/ledger?hide_adjustments=true\u0026from=2026-03-01\u0026to=2026-03-31",
     "status": 200,
     "body": {
       "data": [
@@ -2743,7 +2776,7 @@
           "kind": "TRANSACTION",
           "loan_id": null,
           "loan_record_id": null,
-          "occurred_at": "2026-03-05T12:00:00Z",
+          "occurred_at": "2026-03-06T12:00:00Z",
           "planned_payment_id": null,
           "read_only": false,
           "settlement_id": null,
@@ -2756,7 +2789,7 @@
               "name": "trip"
             }
           ],
-          "title": "Lunch+",
+          "title": "Lunch copy",
           "to_account_amount": null,
           "to_account_id": null,
           "to_amount": null,
@@ -2805,7 +2838,7 @@
     }
   },
   {
-    "step": "#72 POST /api/v1/accounts/{{a1.id}}/adjust",
+    "step": "#73 POST /api/v1/accounts/{{a1.id}}/adjust",
     "status": 200,
     "body": {
       "account": {
@@ -2851,7 +2884,7 @@
     }
   },
   {
-    "step": "#73 POST /api/v1/accounts/{{a1.id}}/adjust",
+    "step": "#74 POST /api/v1/accounts/{{a1.id}}/adjust",
     "status": 200,
     "body": {
       "account": {
@@ -2876,7 +2909,7 @@
     }
   },
   {
-    "step": "#74 POST /api/v1/accounts/{{a1.id}}/adjust",
+    "step": "#75 POST /api/v1/accounts/{{a1.id}}/adjust",
     "status": 422,
     "body": {
       "error": {
@@ -2886,7 +2919,7 @@
     }
   },
   {
-    "step": "#75 PATCH /api/v1/accounts/{{a2.id}}",
+    "step": "#76 PATCH /api/v1/accounts/{{a2.id}}",
     "status": 422,
     "body": {
       "error": {
@@ -2896,7 +2929,7 @@
     }
   },
   {
-    "step": "#76 PATCH /api/v1/accounts/{{a3.id}}",
+    "step": "#77 PATCH /api/v1/accounts/{{a3.id}}",
     "status": 200,
     "body": {
       "archived": true,
@@ -2918,7 +2951,7 @@
     }
   },
   {
-    "step": "#77 PATCH /api/v1/accounts/{{a2.id}}",
+    "step": "#78 PATCH /api/v1/accounts/{{a2.id}}",
     "status": 200,
     "body": {
       "archived": false,
@@ -2940,7 +2973,7 @@
     }
   },
   {
-    "step": "#78 PATCH /api/v1/accounts/{{a2.id}}",
+    "step": "#79 PATCH /api/v1/accounts/{{a2.id}}",
     "status": 422,
     "body": {
       "error": {
@@ -2950,7 +2983,7 @@
     }
   },
   {
-    "step": "#79 POST /api/v1/accounts/reorder",
+    "step": "#80 POST /api/v1/accounts/reorder",
     "status": 200,
     "body": {
       "data": [
@@ -3012,7 +3045,7 @@
     }
   },
   {
-    "step": "#80 POST /api/v1/accounts/reorder",
+    "step": "#81 POST /api/v1/accounts/reorder",
     "status": 422,
     "body": {
       "error": {
@@ -3022,7 +3055,7 @@
     }
   },
   {
-    "step": "#81 GET /api/v1/me/settings",
+    "step": "#82 GET /api/v1/me/settings",
     "status": 200,
     "body": {
       "hide_balance": false,
@@ -3036,7 +3069,7 @@
     }
   },
   {
-    "step": "#82 PATCH /api/v1/me/settings",
+    "step": "#83 PATCH /api/v1/me/settings",
     "status": 200,
     "body": {
       "hide_balance": true,
@@ -3050,7 +3083,7 @@
     }
   },
   {
-    "step": "#83 PATCH /api/v1/me/settings",
+    "step": "#84 PATCH /api/v1/me/settings",
     "status": 422,
     "body": {
       "error": {
@@ -3060,7 +3093,7 @@
     }
   },
   {
-    "step": "#84 PATCH /api/v1/me/settings",
+    "step": "#85 PATCH /api/v1/me/settings",
     "status": 422,
     "body": {
       "error": {
@@ -3070,7 +3103,7 @@
     }
   },
   {
-    "step": "#85 GET /api/v1/accounts/{{a1.id}}/summary?from=2026-03-01\u0026to=2026-03-31",
+    "step": "#86 GET /api/v1/accounts/{{a1.id}}/summary?from=2026-03-01\u0026to=2026-03-31",
     "status": 200,
     "body": {
       "account_id": "\u003cid:1\u003e",
@@ -3153,7 +3186,7 @@
           "kind": "TRANSACTION",
           "loan_id": null,
           "loan_record_id": null,
-          "occurred_at": "2026-03-05T12:00:00Z",
+          "occurred_at": "2026-03-06T12:00:00Z",
           "planned_payment_id": null,
           "read_only": false,
           "settlement_id": null,
@@ -3166,7 +3199,7 @@
               "name": "trip"
             }
           ],
-          "title": "Lunch+",
+          "title": "Lunch copy",
           "to_account_amount": null,
           "to_account_id": null,
           "to_amount": null,
@@ -3224,7 +3257,7 @@
     }
   },
   {
-    "step": "#86 GET /api/v1/overview?from=2026-03-01\u0026to=2026-03-31",
+    "step": "#87 GET /api/v1/overview?from=2026-03-01\u0026to=2026-03-31",
     "status": 200,
     "body": {
       "balance": 1052700,
@@ -3244,7 +3277,7 @@
     }
   },
   {
-    "step": "#87 PATCH /api/v1/categories/{{cat1.id}}",
+    "step": "#88 PATCH /api/v1/categories/{{cat1.id}}",
     "status": 200,
     "body": {
       "color": "chart4",
@@ -3256,7 +3289,7 @@
     }
   },
   {
-    "step": "#88 GET /api/v1/categories",
+    "step": "#89 GET /api/v1/categories",
     "status": 200,
     "body": {
       "data": [
@@ -3282,7 +3315,7 @@
     }
   },
   {
-    "step": "#89 POST /api/v1/categories/reorder",
+    "step": "#90 POST /api/v1/categories/reorder",
     "status": 200,
     "body": {
       "data": [
@@ -3308,14 +3341,14 @@
     }
   },
   {
-    "step": "#90 DELETE /api/v1/categories/{{cat1.id}}",
+    "step": "#91 DELETE /api/v1/categories/{{cat1.id}}",
     "status": 200,
     "body": {
       "message": "deleted"
     }
   },
   {
-    "step": "#91 GET /api/v1/transactions/{{dup.id}}",
+    "step": "#92 GET /api/v1/transactions/{{dup.id}}",
     "status": 200,
     "body": {
       "account_id": "\u003cid:1\u003e",
@@ -3328,7 +3361,7 @@
       "id": "\u003cid:16\u003e",
       "loan_id": null,
       "loan_record_id": null,
-      "occurred_at": "2026-03-05T12:00:00Z",
+      "occurred_at": "2026-03-06T12:00:00Z",
       "planned": false,
       "planned_payment_id": null,
       "source": "MANUAL",
@@ -3340,7 +3373,7 @@
           "name": "trip"
         }
       ],
-      "title": "Lunch+",
+      "title": "Lunch copy",
       "to_account_id": null,
       "to_amount": null,
       "type": "EXPENSE",
@@ -3348,14 +3381,14 @@
     }
   },
   {
-    "step": "#92 DELETE /api/v1/accounts/{{a3.id}}",
+    "step": "#93 DELETE /api/v1/accounts/{{a3.id}}",
     "status": 200,
     "body": {
       "message": "deleted"
     }
   },
   {
-    "step": "#93 DELETE /api/v1/accounts/{{a3.id}}",
+    "step": "#94 DELETE /api/v1/accounts/{{a3.id}}",
     "status": 404,
     "body": {
       "error": {
@@ -3365,7 +3398,7 @@
     }
   },
   {
-    "step": "#94 GET /api/v1/accounts",
+    "step": "#95 GET /api/v1/accounts",
     "status": 200,
     "body": {
       "data": [
@@ -3409,7 +3442,7 @@
     }
   },
   {
-    "step": "#95 GET /api/v1/ledger?hide_adjustments=true",
+    "step": "#96 GET /api/v1/ledger?hide_adjustments=true",
     "status": 200,
     "body": {
       "data": [
@@ -3489,7 +3522,7 @@
           "kind": "TRANSACTION",
           "loan_id": null,
           "loan_record_id": null,
-          "occurred_at": "2026-03-05T12:00:00Z",
+          "occurred_at": "2026-03-06T12:00:00Z",
           "planned_payment_id": null,
           "read_only": false,
           "settlement_id": null,
@@ -3502,7 +3535,7 @@
               "name": "trip"
             }
           ],
-          "title": "Lunch+",
+          "title": "Lunch copy",
           "to_account_amount": null,
           "to_account_id": null,
           "to_amount": null,
@@ -3551,14 +3584,14 @@
     }
   },
   {
-    "step": "#96 DELETE /api/v1/tags/{{tag1.id}}",
+    "step": "#97 DELETE /api/v1/tags/{{tag1.id}}",
     "status": 200,
     "body": {
       "message": "deleted"
     }
   },
   {
-    "step": "#97 PATCH /api/v1/tags/{{tag2.id}}",
+    "step": "#98 PATCH /api/v1/tags/{{tag2.id}}",
     "status": 200,
     "body": {
       "color": "chart3",
@@ -3571,7 +3604,7 @@
     }
   },
   {
-    "step": "#98 GET /api/v1/tags",
+    "step": "#99 GET /api/v1/tags",
     "status": 200,
     "body": {
       "data": [
@@ -3588,14 +3621,14 @@
     }
   },
   {
-    "step": "#99 DELETE /api/v1/me/rates/USD/NPR",
+    "step": "#100 DELETE /api/v1/me/rates/USD/NPR",
     "status": 200,
     "body": {
       "message": "deleted"
     }
   },
   {
-    "step": "#100 DELETE /api/v1/me/rates/USD/NPR",
+    "step": "#101 DELETE /api/v1/me/rates/USD/NPR",
     "status": 404,
     "body": {
       "error": {
@@ -3605,7 +3638,7 @@
     }
   },
   {
-    "step": "#101 GET /api/v1/accounts",
+    "step": "#102 GET /api/v1/accounts",
     "status": 200,
     "body": {
       "data": [
@@ -3649,7 +3682,7 @@
     }
   },
   {
-    "step": "#102 GET /api/v1/overview?from=2026-03-01\u0026to=2026-03-31",
+    "step": "#103 GET /api/v1/overview?from=2026-03-01\u0026to=2026-03-31",
     "status": 200,
     "body": {
       "balance": 1052700,

@@ -489,6 +489,14 @@
    "id": "dup"
   },
   {
+   "method": "PATCH",
+   "path": "/api/v1/transactions/{{dup.id}}",
+   "body": {
+    "occurred_at": "2026-03-06T12:00:00Z",
+    "title": "Lunch copy"
+   }
+  },
+  {
    "method": "DELETE",
    "path": "/api/v1/transactions/{{t6.id}}"
   },
