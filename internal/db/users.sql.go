@@ -33,7 +33,7 @@ func (q *Queries) CheckFriendshipAccepted(ctx context.Context, arg CheckFriendsh
 }
 
 const getMe = `-- name: GetMe :one
-SELECT name, email, coalesce(avatar_url, '') AS avatar_url, default_currency, timezone, email_verified_at, password_hash IS NOT NULL AS has_password, is_guest
+SELECT name, email, coalesce(avatar_url, '') AS avatar_url, default_currency, timezone, email_verified_at, password_hash IS NOT NULL AS has_password
 FROM users WHERE id = $1
 `
 
@@ -45,7 +45,6 @@ type GetMeRow struct {
 	Timezone        string             `json:"timezone"`
 	EmailVerifiedAt pgtype.Timestamptz `json:"email_verified_at"`
 	HasPassword     interface{}        `json:"has_password"`
-	IsGuest         bool               `json:"is_guest"`
 }
 
 func (q *Queries) GetMe(ctx context.Context, id uuid.UUID) (GetMeRow, error) {
@@ -59,7 +58,6 @@ func (q *Queries) GetMe(ctx context.Context, id uuid.UUID) (GetMeRow, error) {
 		&i.Timezone,
 		&i.EmailVerifiedAt,
 		&i.HasPassword,
-		&i.IsGuest,
 	)
 	return i, err
 }
@@ -169,7 +167,7 @@ SELECT u.id, u.name, u.email, coalesce(u.avatar_url, '') AS avatar_url,
        ) AS requested
 FROM users u
 WHERE u.id <> $2
-  AND u.is_anonymous = false AND u.is_guest = false
+  AND u.is_anonymous = false
   AND (u.name ILIKE $1::text ESCAPE '\' OR u.email ILIKE $1::text ESCAPE '\')
 ORDER BY u.name
 LIMIT 20
