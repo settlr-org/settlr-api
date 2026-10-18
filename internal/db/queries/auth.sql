@@ -39,7 +39,8 @@ INSERT INTO email_verification_tokens (user_id, token_hash, expires_at) VALUES (
 SELECT user_id FROM email_verification_tokens WHERE token_hash = $1 AND expires_at > now() AND verified_at IS NULL LIMIT 1;
 
 -- name: SetEmailVerified :exec
-UPDATE users SET email_verified_at = now(), updated_at = now() WHERE id = $1;
+-- Verifying the address also completes a guest upgrade started with an e-mail and password.
+UPDATE users SET email_verified_at = now(), is_guest = false, updated_at = now() WHERE id = $1;
 
 -- name: MarkEmailVerificationVerified :exec
 UPDATE email_verification_tokens SET verified_at = now() WHERE token_hash = $1;
@@ -102,3 +103,26 @@ WITH rotated AS (
 INSERT INTO sessions (user_id, refresh_token_hash, expires_at, rotated_from, user_agent, ip, created_at)
 SELECT rotated.user_id, $2, now() + interval '30 days', rotated.id, rotated.user_agent, rotated.ip, rotated.created_at FROM rotated
 RETURNING id;
+
+-- name: CreateGuestUser :exec
+INSERT INTO users (id, name, email, password_hash, default_currency, is_guest) VALUES ($1, 'Guest', $2, NULL, $3, true);
+
+-- name: IsGuestUser :one
+SELECT is_guest FROM users WHERE id = $1;
+
+-- Starts an upgrade by e-mail: the account keeps is_guest until the address is verified.
+-- name: StartGuestUpgrade :execrows
+UPDATE users SET name = $2, email = $3, password_hash = $4, updated_at = now() WHERE id = $1 AND is_guest;
+
+-- name: CompleteGuestUpgradeGoogle :execrows
+UPDATE users SET name = $2, email = $3, email_verified_at = now(), is_guest = false, updated_at = now() WHERE id = $1 AND is_guest;
+
+-- name: ListStaleGuests :many
+-- Guests that can never be signed in to again (no live session) and are older than the grace period.
+SELECT u.id FROM users u
+WHERE u.is_guest AND u.created_at < now() - interval '30 days'
+  AND NOT EXISTS (SELECT 1 FROM sessions s WHERE s.user_id = u.id AND s.revoked_at IS NULL AND s.expires_at > now())
+LIMIT 100;
+
+-- name: DeleteUserRow :exec
+DELETE FROM users WHERE id = $1;

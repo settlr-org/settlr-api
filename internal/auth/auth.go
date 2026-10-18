@@ -145,6 +145,9 @@ type Service struct {
 	// denied holds users whose account was just deleted (uuid.UUID → expiry time.Time) so
 	// their still-valid access tokens stop working immediately instead of at expiry.
 	denied sync.Map
+
+	// guests caches IsGuest answers (uuid.UUID → guestEntry) so the group-route gate costs no query per request.
+	guests sync.Map
 }
 
 // DenyUser makes every access token of userID fail authentication until those tokens would

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	db "github.com/settlr-org/settlr-api/internal/db"
 	"github.com/settlr-org/settlr-api/internal/httpx"
@@ -165,4 +166,38 @@ func (h *Handler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 		h.AuthSvc.DenyUser(id)
 	}
 	httpx.WriteJSON(w, 200, map[string]any{"message": "account deleted"})
+}
+
+// PurgeStaleGuests deletes guest accounts that can never be signed in to again (every session expired or revoked,
+// older than 30 days) together with their wallet data. Guests cannot touch group features, so nothing shared
+// references them. It returns how many accounts were removed.
+func PurgeStaleGuests(ctx context.Context, pool *pgxpool.Pool) (int, error) {
+	q := db.New(pool)
+	ids, err := q.ListStaleGuests(ctx)
+	if err != nil {
+		return 0, err
+	}
+	removed := 0
+	for _, id := range ids {
+		tx, err := pool.Begin(ctx)
+		if err != nil {
+			return removed, err
+		}
+		tq := q.WithTx(tx)
+		if _, err = wipeWalletData(ctx, tq, id); err == nil {
+			err = tq.DeleteUserNotifications(ctx, id)
+		}
+		if err == nil {
+			err = tq.DeleteUserRow(ctx, id)
+		}
+		if err == nil {
+			err = tx.Commit(ctx)
+		}
+		_ = tx.Rollback(ctx) // no-op after commit
+		if err != nil {
+			return removed, err
+		}
+		removed++
+	}
+	return removed, nil
 }

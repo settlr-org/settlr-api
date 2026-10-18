@@ -5,7 +5,7 @@
 -- name: SearchUsers :many
 SELECT id, name, coalesce(avatar_url, '') AS avatar_url
 FROM users
-WHERE is_anonymous = false
+WHERE is_anonymous = false AND is_guest = false
   AND (name ILIKE $1::text ESCAPE '\' OR email ILIKE $1::text ESCAPE '\')
 ORDER BY name, id
 LIMIT 10;

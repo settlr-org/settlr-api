@@ -162,7 +162,7 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 		hasPassword = s == "t" || s == "true"
 	}
 	emailVerified := row.EmailVerifiedAt.Valid
-	httpx.WriteJSON(w, 200, map[string]any{"id": id, "name": row.Name, "email": row.Email, "avatar_url": row.AvatarUrl, "default_currency": row.DefaultCurrency, "timezone": row.Timezone, "email_verified": emailVerified, "has_password": hasPassword})
+	httpx.WriteJSON(w, 200, map[string]any{"id": id, "name": row.Name, "email": row.Email, "avatar_url": row.AvatarUrl, "default_currency": row.DefaultCurrency, "timezone": row.Timezone, "email_verified": emailVerified, "has_password": hasPassword, "is_guest": row.IsGuest})
 }
 
 type updateMeReq struct {
