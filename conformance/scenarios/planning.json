@@ -1,0 +1,530 @@
+{
+ "name": "planning",
+ "steps": [
+  {
+   "method": "PATCH",
+   "path": "/api/v1/me",
+   "body": {
+    "default_currency": "NPR"
+   },
+   "quiet": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/accounts",
+   "id": "a1",
+   "body": {
+    "name": "Cash",
+    "currency": "NPR",
+    "initial_balance": 100000
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/accounts",
+   "id": "a2",
+   "body": {
+    "name": "Savings USD",
+    "currency": "USD"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/categories",
+   "id": "cat1",
+   "body": {
+    "name": "Bills",
+    "icon": "home",
+    "color": "chart2"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/tags",
+   "id": "tag1",
+   "body": {
+    "name": "fixed"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/planned",
+   "id": "p1",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 5000,
+    "title": "Old bill",
+    "start_at": "2020-01-10",
+    "one_time": true,
+    "category_id": "{{cat1.id}}",
+    "tag_ids": [
+     "{{tag1.id}}"
+    ]
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/planned",
+   "id": "p2",
+   "body": {
+    "type": "INCOME",
+    "account_id": "{{a1.id}}",
+    "amount": 300000,
+    "title": "Salary",
+    "start_at": "2026-01-31T09:00:00Z",
+    "interval_n": 1,
+    "interval_unit": "month"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/planned",
+   "id": "p3",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 1500,
+    "title": "Gym",
+    "start_at": "2099-01-05T08:00:00Z",
+    "interval_n": 2,
+    "interval_unit": "WEEK"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/planned",
+   "id": "p4",
+   "body": {
+    "type": "TRANSFER",
+    "account_id": "{{a1.id}}",
+    "to_account_id": "{{a2.id}}",
+    "amount": 13300,
+    "to_amount": 100,
+    "title": "Yearly USD",
+    "start_at": "2096-02-29T00:00:00Z",
+    "interval_n": 1,
+    "interval_unit": "YEAR"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/planned",
+   "id": "p5",
+   "body": {
+    "type": "EXPENSE",
+    "amount": 100,
+    "currency": "NPR",
+    "title": "No account",
+    "start_at": "2099-03-01",
+    "one_time": true
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/planned",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 100,
+    "title": "x"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/planned",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 100,
+    "start_at": "2099-01-01",
+    "interval_n": 0
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/planned",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 100,
+    "start_at": "2099-01-01",
+    "interval_n": 1,
+    "interval_unit": "FORTNIGHT"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/planned",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 100,
+    "start_at": "2099-01-01",
+    "interval_n": 1001,
+    "interval_unit": "DAY"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/planned",
+   "body": {
+    "type": "TRANSFER",
+    "account_id": "{{a1.id}}",
+    "to_account_id": "{{a2.id}}",
+    "amount": 100,
+    "start_at": "2099-01-01",
+    "one_time": true
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/planned",
+   "body": {
+    "type": "EXPENSE",
+    "amount": 100,
+    "start_at": "2099-01-01",
+    "one_time": true
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/planned",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 100,
+    "start_at": "2099-01-01",
+    "one_time": true,
+    "tag_ids": [
+     "00000000-0000-0000-0000-000000000099"
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/planned"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/planned?active=true&type=INCOME,EXPENSE"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/planned?active=false"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/planned?active=maybe"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/planned/{{p1.id}}"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/planned/00000000-0000-0000-0000-000000000099"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/transactions?planned=only&from=2020-01-01&to=2100-01-01"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/transactions?planned=all&type=TRANSFER&from=2090-01-01"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/overview?from=2099-01-01&to=2099-12-31"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/accounts/{{a1.id}}/summary?from=2099-01-01&to=2099-12-31"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/categories/{{cat1.id}}/summary?from=2099-01-01&to=2099-12-31"
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions/{{p2.next.id}}/pay",
+   "id": "pay1",
+   "body": {
+    "occurred_at": "2026-02-01T10:00:00Z"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/planned/{{p2.id}}"
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions/{{pay1.next.id}}/pay",
+   "id": "pay2",
+   "body": {
+    "occurred_at": "2026-03-01T10:00:00Z",
+    "amount": 310000
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions/{{pay2.next.id}}/pay",
+   "id": "pay3",
+   "body": {
+    "occurred_at": "2026-04-01T10:00:00Z"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions/{{pay3.next.id}}/pay",
+   "id": "pay4",
+   "body": {
+    "occurred_at": "2026-05-01T10:00:00Z"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions/{{pay1.transaction.id}}/pay"
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions/00000000-0000-0000-0000-000000000099/pay"
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions/{{p5.next.id}}/pay",
+   "body": {
+    "occurred_at": "2026-05-02T10:00:00Z"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions/{{p5.next.id}}/pay",
+   "id": "pay5",
+   "body": {
+    "occurred_at": "2026-05-02T10:00:00Z",
+    "account_id": "{{a2.id}}"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/planned/{{p5.id}}"
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions/{{p3.next.id}}/skip",
+   "id": "skip1"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/planned/{{p3.id}}"
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions/{{skip1.next.id}}/skip",
+   "id": "skip2"
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/planned/{{p3.id}}",
+   "body": {
+    "amount": 2000,
+    "interval_n": 1,
+    "interval_unit": "WEEK",
+    "tag_ids": [
+     "{{tag1.id}}"
+    ],
+    "title": "Gym+"
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/planned/{{p3.id}}",
+   "body": {
+    "start_at": "2099-02-01T08:00:00Z",
+    "description": "moved"
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/planned/{{p3.id}}",
+   "body": {
+    "interval_unit": "BAD"
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/planned/{{p3.id}}",
+   "body": {
+    "active": false
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/planned/{{p3.id}}",
+   "body": {
+    "active": true
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/planned/{{p1.id}}",
+   "body": {
+    "active": false
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/planned/{{p1.id}}",
+   "body": {
+    "active": true,
+    "amount": 6000
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/planned/00000000-0000-0000-0000-000000000099",
+   "body": {
+    "amount": 1
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions/skip-overdue?account={{a2.id}}"
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions/skip-overdue?category={{cat1.id}}"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/planned/{{p1.id}}"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/planned/{{p2.id}}"
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "id": "t1",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 777,
+    "title": "Later bill",
+    "due_at": "2099-06-01"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/transactions/{{t1.id}}"
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/transactions/{{t1.id}}",
+   "body": {
+    "account_id": "{{a2.id}}",
+    "to_account_id": null
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions/{{t1.id}}/pay",
+   "body": {
+    "occurred_at": "2026-05-03T10:00:00Z",
+    "amount": 600
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/transactions/{{pay2.transaction.id}}",
+   "body": {
+    "occurred_at": null,
+    "due_at": "2099-01-01"
+   }
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/transactions/{{pay2.transaction.id}}",
+   "body": {
+    "title": "Salary March"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/planned/{{p3.id}}",
+   "id": "gp3"
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/transactions/{{gp3.next.id}}",
+   "body": {
+    "occurred_at": "2099-01-06T00:00:00Z"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/planned/{{p3.id}}"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/transactions/{{p4.next.id}}"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/planned/{{p4.id}}"
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/planned",
+   "id": "p6",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a2.id}}",
+    "amount": 50,
+    "currency": "USD",
+    "title": "USD sub",
+    "start_at": "2099-05-01",
+    "interval_n": 1,
+    "interval_unit": "DAY"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/overview?from=2099-01-01&to=2099-12-31"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/planned/{{p3.id}}"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/planned/{{p3.id}}"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/transactions?planned=only&from=2090-01-01&to=2100-01-01"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/accounts/{{a2.id}}"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/planned"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/overview?from=2099-01-01&to=2099-12-31"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/ledger?planned=only&from=2020-01-01&to=2100-01-01"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/accounts"
+  }
+ ]
+}

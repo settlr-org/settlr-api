@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -94,9 +95,16 @@ type normalizer struct{ ids map[string]int }
 func (n *normalizer) walk(v any, key string, parent map[string]any) any {
 	switch x := v.(type) {
 	case map[string]any:
+		// Sorted keys: an object holding several new ids (a plan and its pending item) must number them the
+		// same way on every run and in every engine.
+		keys := make([]string, 0, len(x))
+		for k := range x {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
 		out := map[string]any{}
-		for k, val := range x {
-			out[k] = n.walk(val, k, x)
+		for _, k := range keys {
+			out[k] = n.walk(x[k], k, x)
 		}
 		return out
 	case []any:
