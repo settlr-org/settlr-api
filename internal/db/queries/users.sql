@@ -21,7 +21,7 @@ SELECT coalesce(bank_qr_url, '') AS bank_qr_url, coalesce(bank_name, '') AS bank
 FROM users WHERE id = $1 AND is_anonymous = false;
 
 -- name: GetMe :one
-SELECT name, email, coalesce(avatar_url, '') AS avatar_url, default_currency, timezone, email_verified_at, password_hash IS NOT NULL AS has_password
+SELECT name, email, coalesce(avatar_url, '') AS avatar_url, default_currency, timezone, email_verified_at, password_hash IS NOT NULL AS has_password, is_guest
 FROM users WHERE id = $1;
 
 -- name: UpdateUserName :exec
@@ -59,7 +59,7 @@ SELECT u.id, u.name, u.email, coalesce(u.avatar_url, '') AS avatar_url,
        ) AS requested
 FROM users u
 WHERE u.id <> $2
-  AND u.is_anonymous = false
+  AND u.is_anonymous = false AND u.is_guest = false
   AND (u.name ILIKE $1::text ESCAPE '\' OR u.email ILIKE $1::text ESCAPE '\')
 ORDER BY u.name
 LIMIT 20;

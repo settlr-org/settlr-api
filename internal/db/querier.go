@@ -65,6 +65,7 @@ type Querier interface {
 	ClearDefaultAccount(ctx context.Context, userID uuid.UUID) error
 	ClearExpensePayerAccount(ctx context.Context, payerAccountID pgtype.UUID) error
 	ClearSettlementFromAccount(ctx context.Context, fromAccountID pgtype.UUID) error
+	CompleteGuestUpgradeGoogle(ctx context.Context, arg CompleteGuestUpgradeGoogleParams) (int64, error)
 	CompleteIdempotencyKey(ctx context.Context, arg CompleteIdempotencyKeyParams) (int64, error)
 	CountExpensesByGroup(ctx context.Context, groupID uuid.UUID) (int64, error)
 	CountOwnedAccounts(ctx context.Context, arg CountOwnedAccountsParams) (int32, error)
@@ -86,6 +87,7 @@ type Querier interface {
 	CreateGroupInvite(ctx context.Context, arg CreateGroupInviteParams) error
 	CreateGroupInviteNotification(ctx context.Context, arg CreateGroupInviteNotificationParams) error
 	CreateGroupMember(ctx context.Context, arg CreateGroupMemberParams) error
+	CreateGuestUser(ctx context.Context, arg CreateGuestUserParams) error
 	// ---------------------------------------------------------------- loans
 	CreateLoan(ctx context.Context, arg CreateLoanParams) (Loan, error)
 	CreateLoanRecord(ctx context.Context, arg CreateLoanRecordParams) (LoanRecord, error)
@@ -155,6 +157,7 @@ type Querier interface {
 	DeleteUserPasswordResetTokens(ctx context.Context, userID uuid.UUID) error
 	DeleteUserPlannedPayments(ctx context.Context, userID uuid.UUID) (int64, error)
 	DeleteUserRateOverrides(ctx context.Context, userID uuid.UUID) (int64, error)
+	DeleteUserRow(ctx context.Context, id uuid.UUID) error
 	// Sessions hold the device, IP and refresh-token hash.
 	DeleteUserSessions(ctx context.Context, userID uuid.UUID) error
 	DeleteUserSettings(ctx context.Context, userID uuid.UUID) error
@@ -329,6 +332,7 @@ type Querier interface {
 	InsertExpenseSplit(ctx context.Context, arg InsertExpenseSplitParams) error
 	IsExpenseMember(ctx context.Context, arg IsExpenseMemberParams) (bool, error)
 	IsGroupInviteCurrent(ctx context.Context, id uuid.UUID) (bool, error)
+	IsGuestUser(ctx context.Context, id uuid.UUID) (bool, error)
 	// Groups domain queries for sqlc with pgx/v5.
 	// These replace manual Pool.Query/Exec calls in internal/groups/handlers.go
 	// Handler usage: Handler{Pool *pgxpool.Pool, Queries *db.Queries} where Queries wraps the pool.
@@ -405,6 +409,8 @@ type Querier interface {
 	// from_account_id, receiver side: settlement_accounts), never another user's.
 	ListSettlements(ctx context.Context, arg ListSettlementsParams) ([]ListSettlementsRow, error)
 	ListSettlementsByGroup(ctx context.Context, groupID uuid.UUID) ([]ListSettlementsByGroupRow, error)
+	// Guests that can never be signed in to again (no live session) and are older than the grace period.
+	ListStaleGuests(ctx context.Context) ([]uuid.UUID, error)
 	ListTags(ctx context.Context, userID uuid.UUID) ([]Tag, error)
 	ListTagsForTransactions(ctx context.Context, transactionIds []pgtype.UUID) ([]ListTagsForTransactionsRow, error)
 	ListTransactions(ctx context.Context, arg ListTransactionsParams) ([]Transaction, error)
@@ -484,6 +490,7 @@ type Querier interface {
 	SendFriendRequest(ctx context.Context, arg SendFriendRequestParams) error
 	SetAccountSortOrder(ctx context.Context, arg SetAccountSortOrderParams) (int64, error)
 	SetBudgetSortOrder(ctx context.Context, arg SetBudgetSortOrderParams) (int64, error)
+	// Verifying the address also completes a guest upgrade started with an e-mail and password.
 	SetEmailVerified(ctx context.Context, id uuid.UUID) error
 	// ---------------------------------------------------------------- group links
 	SetExpensePayerAccount(ctx context.Context, arg SetExpensePayerAccountParams) error
@@ -509,6 +516,8 @@ type Querier interface {
 	SoftDeleteTransaction(ctx context.Context, arg SoftDeleteTransactionParams) (int64, error)
 	SoftDeleteTransactionByID(ctx context.Context, id uuid.UUID) error
 	SoftDeleteUser(ctx context.Context, arg SoftDeleteUserParams) error
+	// Starts an upgrade by e-mail: the account keeps is_guest until the address is verified.
+	StartGuestUpgrade(ctx context.Context, arg StartGuestUpgradeParams) (int64, error)
 	SumOwedByGroup(ctx context.Context, groupID uuid.UUID) ([]SumOwedByGroupRow, error)
 	SumPaidByGroup(ctx context.Context, groupID uuid.UUID) ([]SumPaidByGroupRow, error)
 	TopUpRecurringSplit(ctx context.Context, arg TopUpRecurringSplitParams) error

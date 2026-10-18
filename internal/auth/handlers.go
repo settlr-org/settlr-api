@@ -58,6 +58,9 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/auth/reset-password", h.ResetPassword)
 	mux.HandleFunc("POST /api/v1/auth/verify-email", h.VerifyEmail)
 	mux.HandleFunc("POST /api/v1/auth/resend-verification", h.ResendVerification)
+	mux.HandleFunc("POST /api/v1/auth/guest", h.CreateGuest)
+	mux.Handle("POST /api/v1/auth/upgrade", Middleware(h.Svc)(http.HandlerFunc(h.UpgradeGuest)))
+	mux.Handle("POST /api/v1/auth/upgrade/google", Middleware(h.Svc)(http.HandlerFunc(h.UpgradeGuestGoogle)))
 	mux.HandleFunc("GET /api/v1/auth/sessions", h.ListSessions)
 	mux.HandleFunc("DELETE /api/v1/auth/sessions/{id}", h.RevokeSessionByID)
 	mux.HandleFunc("DELETE /api/v1/auth/sessions", h.RevokeAllSessions)
@@ -460,6 +463,7 @@ func (h *Handler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = q.SetEmailVerified(r.Context(), userID)
+	h.Svc.ForgetGuest(userID)
 	_ = q.MarkEmailVerificationVerified(r.Context(), hash)
 	httpx.WriteJSON(w, 200, map[string]any{"message": "email verified"})
 }
