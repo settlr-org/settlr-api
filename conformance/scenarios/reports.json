@@ -1,0 +1,432 @@
+{
+ "name": "reports",
+ "steps": [
+  {
+   "method": "PATCH",
+   "path": "/api/v1/me",
+   "body": {
+    "default_currency": "NPR"
+   },
+   "quiet": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/accounts",
+   "id": "a1",
+   "body": {
+    "name": "Cash",
+    "currency": "NPR",
+    "initial_balance": 500000
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/accounts",
+   "id": "a2",
+   "body": {
+    "name": "Hidden",
+    "currency": "NPR",
+    "include_in_balance": false
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/accounts",
+   "id": "a3",
+   "body": {
+    "name": "Dollars",
+    "currency": "USD",
+    "initial_balance": 20000
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/categories",
+   "id": "c1",
+   "body": {
+    "name": "Food",
+    "icon": "restaurant",
+    "color": "chart1"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/categories",
+   "id": "c2",
+   "body": {
+    "name": "Fun",
+    "icon": "gamepad",
+    "color": "chart2"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/categories",
+   "id": "c3",
+   "body": {
+    "name": "Pay",
+    "icon": "bank",
+    "color": "chart3"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/tags",
+   "id": "t1",
+   "body": {
+    "name": "work"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 12000,
+    "occurred_at": "2026-01-03T10:00:00Z",
+    "title": "Groceries",
+    "description": "",
+    "category_id": "{{c1.id}}",
+    "tag_ids": [
+     "{{t1.id}}"
+    ]
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 4500,
+    "occurred_at": "2026-01-04T20:00:00Z",
+    "title": "Cinema",
+    "description": "",
+    "category_id": "{{c2.id}}"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 3000,
+    "occurred_at": "2026-01-31T23:30:00Z",
+    "title": "Late night snack",
+    "description": "",
+    "category_id": "{{c1.id}}"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "INCOME",
+    "account_id": "{{a1.id}}",
+    "amount": 300000,
+    "occurred_at": "2026-02-01T09:00:00Z",
+    "title": "Salary",
+    "description": "",
+    "category_id": "{{c3.id}}"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 20000,
+    "occurred_at": "2026-02-02T10:00:00Z",
+    "title": "Rent",
+    "description": ""
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a2.id}}",
+    "amount": 9000,
+    "occurred_at": "2026-02-03T10:00:00Z",
+    "title": "Hidden spend",
+    "description": "",
+    "category_id": "{{c1.id}}"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a3.id}}",
+    "amount": 1500,
+    "occurred_at": "2026-02-04T12:00:00Z",
+    "title": "Dollar coffee",
+    "description": "",
+    "category_id": "{{c1.id}}"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "INCOME",
+    "account_id": "{{a3.id}}",
+    "amount": 3000,
+    "occurred_at": "2026-02-10T12:00:00Z",
+    "title": "Dollar gig",
+    "description": "",
+    "category_id": "{{c3.id}}",
+    "tag_ids": [
+     "{{t1.id}}"
+    ]
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "TRANSFER",
+    "account_id": "{{a1.id}}",
+    "amount": 13300,
+    "occurred_at": "2026-02-15T09:00:00Z",
+    "title": "Top up USD",
+    "description": "",
+    "to_account_id": "{{a3.id}}",
+    "to_amount": 100
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "TRANSFER",
+    "account_id": "{{a1.id}}",
+    "amount": 5000,
+    "occurred_at": "2026-02-16T09:00:00Z",
+    "title": "To hidden",
+    "description": "",
+    "to_account_id": "{{a2.id}}"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 7000,
+    "occurred_at": "2026-03-05T10:00:00Z",
+    "title": "Dinner out",
+    "description": "",
+    "category_id": "{{c1.id}}",
+    "tag_ids": [
+     "{{t1.id}}"
+    ]
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 2500,
+    "occurred_at": "2026-03-31T23:59:59Z",
+    "title": "End of March",
+    "description": "",
+    "category_id": "{{c2.id}}"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 1100,
+    "occurred_at": "2026-04-01T00:00:00Z",
+    "title": "April fools",
+    "description": "",
+    "category_id": "{{c2.id}}"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/transactions",
+   "body": {
+    "type": "EXPENSE",
+    "account_id": "{{a1.id}}",
+    "amount": 999,
+    "due_at": "2099-01-01",
+    "title": "Planned later"
+   }
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/loans",
+   "body": {
+    "name": "Ram",
+    "type": "LEND",
+    "amount": 10000,
+    "account_id": "{{a1.id}}",
+    "occurred_at": "2026-02-20T00:00:00Z"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports?from=2026-01-01&to=2026-03-31"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports?from=2026-01-01&to=2026-03-31&breakdown=income"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports?from=2026-01-01&to=2026-03-31&breakdown=bogus"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports?from=2026-01-01&to=2026-03-31&account={{a3.id}}"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports?from=2026-01-01&to=2026-03-31&account={{a2.id}}"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports?from=2026-01-01&to=2026-03-31&category={{c1.id}}"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports?from=2026-01-01&to=2026-03-31&category=none"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports?from=2026-01-01&to=2026-03-31&tag={{t1.id}}"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports?from=2026-01-01&to=2026-03-31&q=dollar"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports?from=2026-01-01&to=2026-03-31&excl_q=dinner&min=2000&max=20000"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports?from=2026-01-01&to=2026-03-31&type=EXPENSE"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports?from=2026-01-01&to=2026-03-31&hide_adjustments=true"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports?from=2026-01-01&to=2026-03-31&planned=all"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports?from=2026-03-01&to=2026-02-01"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports?from=2000-01-01&to=2030-01-01"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports?from=2026-01-01&to=2036-01-02"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports?from=2026-01-01&to=2036-01-01"
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/me/settings",
+   "body": {
+    "treat_transfers_as_flow": true
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports?from=2026-01-01&to=2026-03-31"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports?from=2026-01-01&to=2026-03-31&account={{a1.id}}"
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/me/settings",
+   "body": {
+    "treat_transfers_as_flow": false,
+    "month_start_day": 5
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports/trend?from=2026-01-01&to=2026-03-31&bucket=month"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports/trend?from=2026-01-01&to=2026-03-31&bucket=week"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports/trend?from=2026-01-30&to=2026-02-04&bucket=day"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports/trend?from=2026-01-01&to=2026-03-31"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports/trend?from=2026-01-01&to=2026-03-31&bucket=year"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports/trend?from=2026-01-01"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports/trend?from=2020-01-01&to=2026-01-01&bucket=day"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports/trend?from=2026-01-01&to=2026-03-31&bucket=month&category={{c1.id}}"
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/me/settings",
+   "body": {
+    "treat_transfers_as_flow": true,
+    "month_start_day": 1
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports/trend?from=2026-01-01&to=2026-03-31&bucket=month"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports/export.csv?from=2026-01-01&to=2026-03-31"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports/export.csv?from=2026-02-01&to=2026-02-28&hide_adjustments=true&q=dollar"
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/reports/export.csv?from=2026-03-01&to=2026-02-01"
+  }
+ ]
+}

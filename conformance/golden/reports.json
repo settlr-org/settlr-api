@@ -1,0 +1,2088 @@
+[
+  {
+    "step": "#0 PATCH /api/v1/me",
+    "status": 200,
+    "body": null
+  },
+  {
+    "step": "a1 POST /api/v1/accounts",
+    "status": 201,
+    "body": {
+      "archived": false,
+      "archived_at": null,
+      "balance": 500000,
+      "balance_base": 500000,
+      "base_currency": "NPR",
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "wallet",
+      "id": "\u003cid:1\u003e",
+      "include_in_balance": true,
+      "is_default": true,
+      "missing_rates": [],
+      "name": "Cash",
+      "sort_order": 0,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "a2 POST /api/v1/accounts",
+    "status": 201,
+    "body": {
+      "archived": false,
+      "archived_at": null,
+      "balance": 0,
+      "balance_base": 0,
+      "base_currency": "NPR",
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "wallet",
+      "id": "\u003cid:2\u003e",
+      "include_in_balance": false,
+      "is_default": false,
+      "missing_rates": [],
+      "name": "Hidden",
+      "sort_order": 1,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "a3 POST /api/v1/accounts",
+    "status": 201,
+    "body": {
+      "archived": false,
+      "archived_at": null,
+      "balance": 20000,
+      "balance_base": 2660000,
+      "base_currency": "NPR",
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "USD",
+      "icon": "wallet",
+      "id": "\u003cid:3\u003e",
+      "include_in_balance": true,
+      "is_default": false,
+      "missing_rates": [],
+      "name": "Dollars",
+      "sort_order": 2,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "c1 POST /api/v1/categories",
+    "status": 201,
+    "body": {
+      "color": "chart1",
+      "grouping": "Uncategorized",
+      "icon": "restaurant",
+      "id": "\u003cid:4\u003e",
+      "is_system": false,
+      "name": "Food",
+      "sort_order": null
+    }
+  },
+  {
+    "step": "c2 POST /api/v1/categories",
+    "status": 201,
+    "body": {
+      "color": "chart2",
+      "grouping": "Uncategorized",
+      "icon": "gamepad",
+      "id": "\u003cid:5\u003e",
+      "is_system": false,
+      "name": "Fun",
+      "sort_order": null
+    }
+  },
+  {
+    "step": "c3 POST /api/v1/categories",
+    "status": 201,
+    "body": {
+      "color": "chart3",
+      "grouping": "Uncategorized",
+      "icon": "bank",
+      "id": "\u003cid:6\u003e",
+      "is_system": false,
+      "name": "Pay",
+      "sort_order": null
+    }
+  },
+  {
+    "step": "t1 POST /api/v1/tags",
+    "status": 201,
+    "body": {
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "icon": "tag",
+      "id": "\u003cid:7\u003e",
+      "name": "work",
+      "sort_order": 0,
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#8 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 12000,
+      "category_id": "\u003cid:4\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:8\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-01-03T10:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:7\u003e",
+          "name": "work"
+        }
+      ],
+      "title": "Groceries",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#9 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 4500,
+      "category_id": "\u003cid:5\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:9\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-01-04T20:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Cinema",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#10 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 3000,
+      "category_id": "\u003cid:4\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:10\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-01-31T23:30:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Late night snack",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#11 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 300000,
+      "category_id": "\u003cid:6\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:11\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-02-01T09:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Salary",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "INCOME",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#12 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 20000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:12\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-02-02T10:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Rent",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#13 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:2\u003e",
+      "amount": 9000,
+      "category_id": "\u003cid:4\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:13\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-02-03T10:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Hidden spend",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#14 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:3\u003e",
+      "amount": 1500,
+      "category_id": "\u003cid:4\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "USD",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:14\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-02-04T12:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Dollar coffee",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#15 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:3\u003e",
+      "amount": 3000,
+      "category_id": "\u003cid:6\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "USD",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:15\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-02-10T12:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:7\u003e",
+          "name": "work"
+        }
+      ],
+      "title": "Dollar gig",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "INCOME",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#16 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 13300,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:16\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-02-15T09:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Top up USD",
+      "to_account_id": "\u003cid:3\u003e",
+      "to_amount": 100,
+      "type": "TRANSFER",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#17 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 5000,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:17\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-02-16T09:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "To hidden",
+      "to_account_id": "\u003cid:2\u003e",
+      "to_amount": 5000,
+      "type": "TRANSFER",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#18 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 7000,
+      "category_id": "\u003cid:4\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:18\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-05T10:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [
+        {
+          "color": "#6B7280",
+          "icon": "tag",
+          "id": "\u003cid:7\u003e",
+          "name": "work"
+        }
+      ],
+      "title": "Dinner out",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#19 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 2500,
+      "category_id": "\u003cid:5\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:19\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-03-31T23:59:59Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "End of March",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#20 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 1100,
+      "category_id": "\u003cid:5\u003e",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": null,
+      "id": "\u003cid:20\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": "2026-04-01T00:00:00Z",
+      "planned": false,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "April fools",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#21 POST /api/v1/transactions",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 999,
+      "category_id": null,
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "description": "",
+      "due_at": "2099-01-01T00:00:00Z",
+      "id": "\u003cid:21\u003e",
+      "loan_id": null,
+      "loan_record_id": null,
+      "occurred_at": null,
+      "planned": true,
+      "planned_payment_id": null,
+      "source": "MANUAL",
+      "tags": [],
+      "title": "Planned later",
+      "to_account_id": null,
+      "to_amount": null,
+      "type": "EXPENSE",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#22 POST /api/v1/loans",
+    "status": 201,
+    "body": {
+      "account_id": "\u003cid:1\u003e",
+      "amount": 10000,
+      "color": "#6B7280",
+      "created_at": "\u003cts\u003e",
+      "currency": "NPR",
+      "icon": "loan",
+      "id": "\u003cid:22\u003e",
+      "name": "Ram",
+      "note": "",
+      "occurred_at": "2026-02-20T00:00:00Z",
+      "paid": 0,
+      "paid_off": false,
+      "percent": 0,
+      "records_count": 0,
+      "remaining": 10000,
+      "sort_order": 0,
+      "total": 10000,
+      "transaction_id": "\u003cid:23\u003e",
+      "type": "LEND",
+      "updated_at": "\u003cts\u003e"
+    }
+  },
+  {
+    "step": "#23 GET /api/v1/reports?from=2026-01-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "breakdown": "expense",
+      "by_account": [
+        {
+          "account_id": "\u003cid:3\u003e",
+          "base_expense": 199500,
+          "base_income": 399000,
+          "base_net": 199500,
+          "currency": "USD",
+          "expense": 1500,
+          "income": 3000,
+          "name": "Dollars",
+          "net": 1500
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "base_expense": 49000,
+          "base_income": 300000,
+          "base_net": 251000,
+          "currency": "NPR",
+          "expense": 49000,
+          "income": 300000,
+          "name": "Cash",
+          "net": 251000
+        },
+        {
+          "account_id": "\u003cid:2\u003e",
+          "base_expense": 0,
+          "base_income": 0,
+          "base_net": 0,
+          "currency": "NPR",
+          "expense": 0,
+          "income": 0,
+          "name": "Hidden",
+          "net": 0
+        }
+      ],
+      "by_category": [
+        {
+          "amount": 221500,
+          "category_id": "\u003cid:4\u003e",
+          "color": "chart1",
+          "count": 4,
+          "icon": "restaurant",
+          "name": "Food",
+          "percent": 89.1
+        },
+        {
+          "amount": 20000,
+          "category_id": null,
+          "color": "#6B7280",
+          "count": 1,
+          "icon": "tag",
+          "name": "Uncategorized",
+          "percent": 8.1
+        },
+        {
+          "amount": 7000,
+          "category_id": "\u003cid:5\u003e",
+          "color": "chart2",
+          "count": 2,
+          "icon": "gamepad",
+          "name": "Fun",
+          "percent": 2.8
+        }
+      ],
+      "count": 9,
+      "currency": "NPR",
+      "entries_count": 13,
+      "expense": 248500,
+      "from": "2026-01-01T00:00:00Z",
+      "hide_adjustments": false,
+      "income": 699000,
+      "missing_rates": [],
+      "net": 450500,
+      "to": "2026-04-01T00:00:00Z",
+      "transfers_in": 18300,
+      "transfers_out": 18300,
+      "treat_transfers_as_flow": false
+    }
+  },
+  {
+    "step": "#24 GET /api/v1/reports?from=2026-01-01\u0026to=2026-03-31\u0026breakdown=income",
+    "status": 200,
+    "body": {
+      "breakdown": "income",
+      "by_account": [
+        {
+          "account_id": "\u003cid:3\u003e",
+          "base_expense": 199500,
+          "base_income": 399000,
+          "base_net": 199500,
+          "currency": "USD",
+          "expense": 1500,
+          "income": 3000,
+          "name": "Dollars",
+          "net": 1500
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "base_expense": 49000,
+          "base_income": 300000,
+          "base_net": 251000,
+          "currency": "NPR",
+          "expense": 49000,
+          "income": 300000,
+          "name": "Cash",
+          "net": 251000
+        },
+        {
+          "account_id": "\u003cid:2\u003e",
+          "base_expense": 0,
+          "base_income": 0,
+          "base_net": 0,
+          "currency": "NPR",
+          "expense": 0,
+          "income": 0,
+          "name": "Hidden",
+          "net": 0
+        }
+      ],
+      "by_category": [
+        {
+          "amount": 699000,
+          "category_id": "\u003cid:6\u003e",
+          "color": "chart3",
+          "count": 2,
+          "icon": "bank",
+          "name": "Pay",
+          "percent": 100
+        }
+      ],
+      "count": 9,
+      "currency": "NPR",
+      "entries_count": 13,
+      "expense": 248500,
+      "from": "2026-01-01T00:00:00Z",
+      "hide_adjustments": false,
+      "income": 699000,
+      "missing_rates": [],
+      "net": 450500,
+      "to": "2026-04-01T00:00:00Z",
+      "transfers_in": 18300,
+      "transfers_out": 18300,
+      "treat_transfers_as_flow": false
+    }
+  },
+  {
+    "step": "#25 GET /api/v1/reports?from=2026-01-01\u0026to=2026-03-31\u0026breakdown=bogus",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "breakdown must be expense or income"
+      }
+    }
+  },
+  {
+    "step": "#26 GET /api/v1/reports",
+    "status": 200,
+    "body": {
+      "breakdown": "expense",
+      "by_account": [
+        {
+          "account_id": "\u003cid:3\u003e",
+          "base_expense": 199500,
+          "base_income": 399000,
+          "base_net": 199500,
+          "currency": "USD",
+          "expense": 1500,
+          "income": 3000,
+          "name": "Dollars",
+          "net": 1500
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "base_expense": 50100,
+          "base_income": 300000,
+          "base_net": 249900,
+          "currency": "NPR",
+          "expense": 50100,
+          "income": 300000,
+          "name": "Cash",
+          "net": 249900
+        },
+        {
+          "account_id": "\u003cid:2\u003e",
+          "base_expense": 0,
+          "base_income": 0,
+          "base_net": 0,
+          "currency": "NPR",
+          "expense": 0,
+          "income": 0,
+          "name": "Hidden",
+          "net": 0
+        }
+      ],
+      "by_category": [
+        {
+          "amount": 221500,
+          "category_id": "\u003cid:4\u003e",
+          "color": "chart1",
+          "count": 4,
+          "icon": "restaurant",
+          "name": "Food",
+          "percent": 88.7
+        },
+        {
+          "amount": 20000,
+          "category_id": null,
+          "color": "#6B7280",
+          "count": 1,
+          "icon": "tag",
+          "name": "Uncategorized",
+          "percent": 8
+        },
+        {
+          "amount": 8100,
+          "category_id": "\u003cid:5\u003e",
+          "color": "chart2",
+          "count": 3,
+          "icon": "gamepad",
+          "name": "Fun",
+          "percent": 3.3
+        }
+      ],
+      "count": 10,
+      "currency": "NPR",
+      "entries_count": 16,
+      "expense": 249600,
+      "from": null,
+      "hide_adjustments": false,
+      "income": 699000,
+      "missing_rates": [],
+      "net": 449400,
+      "to": null,
+      "transfers_in": 18300,
+      "transfers_out": 18300,
+      "treat_transfers_as_flow": false
+    }
+  },
+  {
+    "step": "#27 GET /api/v1/reports?from=2026-01-01\u0026to=2026-03-31\u0026account={{a3.id}}",
+    "status": 200,
+    "body": {
+      "breakdown": "expense",
+      "by_account": [
+        {
+          "account_id": "\u003cid:3\u003e",
+          "base_expense": 199500,
+          "base_income": 399000,
+          "base_net": 199500,
+          "currency": "USD",
+          "expense": 1500,
+          "income": 3000,
+          "name": "Dollars",
+          "net": 1500
+        }
+      ],
+      "by_category": [
+        {
+          "amount": 199500,
+          "category_id": "\u003cid:4\u003e",
+          "color": "chart1",
+          "count": 1,
+          "icon": "restaurant",
+          "name": "Food",
+          "percent": 100
+        }
+      ],
+      "count": 2,
+      "currency": "NPR",
+      "entries_count": 3,
+      "expense": 199500,
+      "from": "2026-01-01T00:00:00Z",
+      "hide_adjustments": false,
+      "income": 399000,
+      "missing_rates": [],
+      "net": 199500,
+      "to": "2026-04-01T00:00:00Z",
+      "transfers_in": 13300,
+      "transfers_out": 0,
+      "treat_transfers_as_flow": false
+    }
+  },
+  {
+    "step": "#28 GET /api/v1/reports?from=2026-01-01\u0026to=2026-03-31\u0026account={{a2.id}}",
+    "status": 200,
+    "body": {
+      "breakdown": "expense",
+      "by_account": [
+        {
+          "account_id": "\u003cid:2\u003e",
+          "base_expense": 9000,
+          "base_income": 0,
+          "base_net": -9000,
+          "currency": "NPR",
+          "expense": 9000,
+          "income": 0,
+          "name": "Hidden",
+          "net": -9000
+        }
+      ],
+      "by_category": [
+        {
+          "amount": 9000,
+          "category_id": "\u003cid:4\u003e",
+          "color": "chart1",
+          "count": 1,
+          "icon": "restaurant",
+          "name": "Food",
+          "percent": 100
+        }
+      ],
+      "count": 1,
+      "currency": "NPR",
+      "entries_count": 2,
+      "expense": 9000,
+      "from": "2026-01-01T00:00:00Z",
+      "hide_adjustments": false,
+      "income": 0,
+      "missing_rates": [],
+      "net": -9000,
+      "to": "2026-04-01T00:00:00Z",
+      "transfers_in": 5000,
+      "transfers_out": 0,
+      "treat_transfers_as_flow": false
+    }
+  },
+  {
+    "step": "#29 GET /api/v1/reports?from=2026-01-01\u0026to=2026-03-31\u0026category={{c1.id}}",
+    "status": 200,
+    "body": {
+      "breakdown": "expense",
+      "by_account": [
+        {
+          "account_id": "\u003cid:3\u003e",
+          "base_expense": 199500,
+          "base_income": 0,
+          "base_net": -199500,
+          "currency": "USD",
+          "expense": 1500,
+          "income": 0,
+          "name": "Dollars",
+          "net": -1500
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "base_expense": 22000,
+          "base_income": 0,
+          "base_net": -22000,
+          "currency": "NPR",
+          "expense": 22000,
+          "income": 0,
+          "name": "Cash",
+          "net": -22000
+        }
+      ],
+      "by_category": [
+        {
+          "amount": 221500,
+          "category_id": "\u003cid:4\u003e",
+          "color": "chart1",
+          "count": 4,
+          "icon": "restaurant",
+          "name": "Food",
+          "percent": 100
+        }
+      ],
+      "count": 4,
+      "currency": "NPR",
+      "entries_count": 5,
+      "expense": 221500,
+      "from": "2026-01-01T00:00:00Z",
+      "hide_adjustments": false,
+      "income": 0,
+      "missing_rates": [],
+      "net": -221500,
+      "to": "2026-04-01T00:00:00Z",
+      "transfers_in": 0,
+      "transfers_out": 0,
+      "treat_transfers_as_flow": false
+    }
+  },
+  {
+    "step": "#30 GET /api/v1/reports?from=2026-01-01\u0026to=2026-03-31\u0026category=none",
+    "status": 200,
+    "body": {
+      "breakdown": "expense",
+      "by_account": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "base_expense": 20000,
+          "base_income": 0,
+          "base_net": -20000,
+          "currency": "NPR",
+          "expense": 20000,
+          "income": 0,
+          "name": "Cash",
+          "net": -20000
+        },
+        {
+          "account_id": "\u003cid:3\u003e",
+          "base_expense": 0,
+          "base_income": 0,
+          "base_net": 0,
+          "currency": "USD",
+          "expense": 0,
+          "income": 0,
+          "name": "Dollars",
+          "net": 0
+        },
+        {
+          "account_id": "\u003cid:2\u003e",
+          "base_expense": 0,
+          "base_income": 0,
+          "base_net": 0,
+          "currency": "NPR",
+          "expense": 0,
+          "income": 0,
+          "name": "Hidden",
+          "net": 0
+        }
+      ],
+      "by_category": [
+        {
+          "amount": 20000,
+          "category_id": null,
+          "color": "#6B7280",
+          "count": 1,
+          "icon": "tag",
+          "name": "Uncategorized",
+          "percent": 100
+        }
+      ],
+      "count": 1,
+      "currency": "NPR",
+      "entries_count": 4,
+      "expense": 20000,
+      "from": "2026-01-01T00:00:00Z",
+      "hide_adjustments": false,
+      "income": 0,
+      "missing_rates": [],
+      "net": -20000,
+      "to": "2026-04-01T00:00:00Z",
+      "transfers_in": 18300,
+      "transfers_out": 18300,
+      "treat_transfers_as_flow": false
+    }
+  },
+  {
+    "step": "#31 GET /api/v1/reports?from=2026-01-01\u0026to=2026-03-31\u0026tag={{t1.id}}",
+    "status": 200,
+    "body": {
+      "breakdown": "expense",
+      "by_account": [
+        {
+          "account_id": "\u003cid:3\u003e",
+          "base_expense": 0,
+          "base_income": 399000,
+          "base_net": 399000,
+          "currency": "USD",
+          "expense": 0,
+          "income": 3000,
+          "name": "Dollars",
+          "net": 3000
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "base_expense": 19000,
+          "base_income": 0,
+          "base_net": -19000,
+          "currency": "NPR",
+          "expense": 19000,
+          "income": 0,
+          "name": "Cash",
+          "net": -19000
+        }
+      ],
+      "by_category": [
+        {
+          "amount": 19000,
+          "category_id": "\u003cid:4\u003e",
+          "color": "chart1",
+          "count": 2,
+          "icon": "restaurant",
+          "name": "Food",
+          "percent": 100
+        }
+      ],
+      "count": 3,
+      "currency": "NPR",
+      "entries_count": 3,
+      "expense": 19000,
+      "from": "2026-01-01T00:00:00Z",
+      "hide_adjustments": false,
+      "income": 399000,
+      "missing_rates": [],
+      "net": 380000,
+      "to": "2026-04-01T00:00:00Z",
+      "transfers_in": 0,
+      "transfers_out": 0,
+      "treat_transfers_as_flow": false
+    }
+  },
+  {
+    "step": "#32 GET /api/v1/reports?from=2026-01-01\u0026to=2026-03-31\u0026q=dollar",
+    "status": 200,
+    "body": {
+      "breakdown": "expense",
+      "by_account": [
+        {
+          "account_id": "\u003cid:3\u003e",
+          "base_expense": 199500,
+          "base_income": 399000,
+          "base_net": 199500,
+          "currency": "USD",
+          "expense": 1500,
+          "income": 3000,
+          "name": "Dollars",
+          "net": 1500
+        }
+      ],
+      "by_category": [
+        {
+          "amount": 199500,
+          "category_id": "\u003cid:4\u003e",
+          "color": "chart1",
+          "count": 1,
+          "icon": "restaurant",
+          "name": "Food",
+          "percent": 100
+        }
+      ],
+      "count": 2,
+      "currency": "NPR",
+      "entries_count": 2,
+      "expense": 199500,
+      "from": "2026-01-01T00:00:00Z",
+      "hide_adjustments": false,
+      "income": 399000,
+      "missing_rates": [],
+      "net": 199500,
+      "to": "2026-04-01T00:00:00Z",
+      "transfers_in": 0,
+      "transfers_out": 0,
+      "treat_transfers_as_flow": false
+    }
+  },
+  {
+    "step": "#33 GET /api/v1/reports?from=2026-01-01\u0026to=2026-03-31\u0026excl_q=dinner\u0026min=2000\u0026max=20000",
+    "status": 200,
+    "body": {
+      "breakdown": "expense",
+      "by_account": [
+        {
+          "account_id": "\u003cid:3\u003e",
+          "base_expense": 0,
+          "base_income": 399000,
+          "base_net": 399000,
+          "currency": "USD",
+          "expense": 0,
+          "income": 3000,
+          "name": "Dollars",
+          "net": 3000
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "base_expense": 42000,
+          "base_income": 0,
+          "base_net": -42000,
+          "currency": "NPR",
+          "expense": 42000,
+          "income": 0,
+          "name": "Cash",
+          "net": -42000
+        },
+        {
+          "account_id": "\u003cid:2\u003e",
+          "base_expense": 0,
+          "base_income": 0,
+          "base_net": 0,
+          "currency": "NPR",
+          "expense": 0,
+          "income": 0,
+          "name": "Hidden",
+          "net": 0
+        }
+      ],
+      "by_category": [
+        {
+          "amount": 20000,
+          "category_id": null,
+          "color": "#6B7280",
+          "count": 1,
+          "icon": "tag",
+          "name": "Uncategorized",
+          "percent": 47.6
+        },
+        {
+          "amount": 15000,
+          "category_id": "\u003cid:4\u003e",
+          "color": "chart1",
+          "count": 2,
+          "icon": "restaurant",
+          "name": "Food",
+          "percent": 35.7
+        },
+        {
+          "amount": 7000,
+          "category_id": "\u003cid:5\u003e",
+          "color": "chart2",
+          "count": 2,
+          "icon": "gamepad",
+          "name": "Fun",
+          "percent": 16.7
+        }
+      ],
+      "count": 6,
+      "currency": "NPR",
+      "entries_count": 10,
+      "expense": 42000,
+      "from": "2026-01-01T00:00:00Z",
+      "hide_adjustments": false,
+      "income": 399000,
+      "missing_rates": [],
+      "net": 357000,
+      "to": "2026-04-01T00:00:00Z",
+      "transfers_in": 18300,
+      "transfers_out": 18300,
+      "treat_transfers_as_flow": false
+    }
+  },
+  {
+    "step": "#34 GET /api/v1/reports?from=2026-01-01\u0026to=2026-03-31\u0026type=EXPENSE",
+    "status": 200,
+    "body": {
+      "breakdown": "expense",
+      "by_account": [
+        {
+          "account_id": "\u003cid:3\u003e",
+          "base_expense": 199500,
+          "base_income": 0,
+          "base_net": -199500,
+          "currency": "USD",
+          "expense": 1500,
+          "income": 0,
+          "name": "Dollars",
+          "net": -1500
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "base_expense": 49000,
+          "base_income": 0,
+          "base_net": -49000,
+          "currency": "NPR",
+          "expense": 49000,
+          "income": 0,
+          "name": "Cash",
+          "net": -49000
+        }
+      ],
+      "by_category": [
+        {
+          "amount": 221500,
+          "category_id": "\u003cid:4\u003e",
+          "color": "chart1",
+          "count": 4,
+          "icon": "restaurant",
+          "name": "Food",
+          "percent": 89.1
+        },
+        {
+          "amount": 20000,
+          "category_id": null,
+          "color": "#6B7280",
+          "count": 1,
+          "icon": "tag",
+          "name": "Uncategorized",
+          "percent": 8.1
+        },
+        {
+          "amount": 7000,
+          "category_id": "\u003cid:5\u003e",
+          "color": "chart2",
+          "count": 2,
+          "icon": "gamepad",
+          "name": "Fun",
+          "percent": 2.8
+        }
+      ],
+      "count": 7,
+      "currency": "NPR",
+      "entries_count": 9,
+      "expense": 248500,
+      "from": "2026-01-01T00:00:00Z",
+      "hide_adjustments": false,
+      "income": 0,
+      "missing_rates": [],
+      "net": -248500,
+      "to": "2026-04-01T00:00:00Z",
+      "transfers_in": 0,
+      "transfers_out": 0,
+      "treat_transfers_as_flow": false
+    }
+  },
+  {
+    "step": "#35 GET /api/v1/reports?from=2026-01-01\u0026to=2026-03-31\u0026hide_adjustments=true",
+    "status": 200,
+    "body": {
+      "breakdown": "expense",
+      "by_account": [
+        {
+          "account_id": "\u003cid:3\u003e",
+          "base_expense": 199500,
+          "base_income": 399000,
+          "base_net": 199500,
+          "currency": "USD",
+          "expense": 1500,
+          "income": 3000,
+          "name": "Dollars",
+          "net": 1500
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "base_expense": 49000,
+          "base_income": 300000,
+          "base_net": 251000,
+          "currency": "NPR",
+          "expense": 49000,
+          "income": 300000,
+          "name": "Cash",
+          "net": 251000
+        },
+        {
+          "account_id": "\u003cid:2\u003e",
+          "base_expense": 0,
+          "base_income": 0,
+          "base_net": 0,
+          "currency": "NPR",
+          "expense": 0,
+          "income": 0,
+          "name": "Hidden",
+          "net": 0
+        }
+      ],
+      "by_category": [
+        {
+          "amount": 221500,
+          "category_id": "\u003cid:4\u003e",
+          "color": "chart1",
+          "count": 4,
+          "icon": "restaurant",
+          "name": "Food",
+          "percent": 89.1
+        },
+        {
+          "amount": 20000,
+          "category_id": null,
+          "color": "#6B7280",
+          "count": 1,
+          "icon": "tag",
+          "name": "Uncategorized",
+          "percent": 8.1
+        },
+        {
+          "amount": 7000,
+          "category_id": "\u003cid:5\u003e",
+          "color": "chart2",
+          "count": 2,
+          "icon": "gamepad",
+          "name": "Fun",
+          "percent": 2.8
+        }
+      ],
+      "count": 9,
+      "currency": "NPR",
+      "entries_count": 13,
+      "expense": 248500,
+      "from": "2026-01-01T00:00:00Z",
+      "hide_adjustments": true,
+      "income": 699000,
+      "missing_rates": [],
+      "net": 450500,
+      "to": "2026-04-01T00:00:00Z",
+      "transfers_in": 18300,
+      "transfers_out": 18300,
+      "treat_transfers_as_flow": false
+    }
+  },
+  {
+    "step": "#36 GET /api/v1/reports?from=2026-01-01\u0026to=2026-03-31\u0026planned=all",
+    "status": 200,
+    "body": {
+      "breakdown": "expense",
+      "by_account": [
+        {
+          "account_id": "\u003cid:3\u003e",
+          "base_expense": 199500,
+          "base_income": 399000,
+          "base_net": 199500,
+          "currency": "USD",
+          "expense": 1500,
+          "income": 3000,
+          "name": "Dollars",
+          "net": 1500
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "base_expense": 49000,
+          "base_income": 300000,
+          "base_net": 251000,
+          "currency": "NPR",
+          "expense": 49000,
+          "income": 300000,
+          "name": "Cash",
+          "net": 251000
+        },
+        {
+          "account_id": "\u003cid:2\u003e",
+          "base_expense": 0,
+          "base_income": 0,
+          "base_net": 0,
+          "currency": "NPR",
+          "expense": 0,
+          "income": 0,
+          "name": "Hidden",
+          "net": 0
+        }
+      ],
+      "by_category": [
+        {
+          "amount": 221500,
+          "category_id": "\u003cid:4\u003e",
+          "color": "chart1",
+          "count": 4,
+          "icon": "restaurant",
+          "name": "Food",
+          "percent": 89.1
+        },
+        {
+          "amount": 20000,
+          "category_id": null,
+          "color": "#6B7280",
+          "count": 1,
+          "icon": "tag",
+          "name": "Uncategorized",
+          "percent": 8.1
+        },
+        {
+          "amount": 7000,
+          "category_id": "\u003cid:5\u003e",
+          "color": "chart2",
+          "count": 2,
+          "icon": "gamepad",
+          "name": "Fun",
+          "percent": 2.8
+        }
+      ],
+      "count": 9,
+      "currency": "NPR",
+      "entries_count": 13,
+      "expense": 248500,
+      "from": "2026-01-01T00:00:00Z",
+      "hide_adjustments": false,
+      "income": 699000,
+      "missing_rates": [],
+      "net": 450500,
+      "to": "2026-04-01T00:00:00Z",
+      "transfers_in": 18300,
+      "transfers_out": 18300,
+      "treat_transfers_as_flow": false
+    }
+  },
+  {
+    "step": "#37 GET /api/v1/reports?from=2026-03-01\u0026to=2026-02-01",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "to must be after from"
+      }
+    }
+  },
+  {
+    "step": "#38 GET /api/v1/reports?from=2000-01-01\u0026to=2030-01-01",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "the date range is limited to 10 years"
+      }
+    }
+  },
+  {
+    "step": "#39 GET /api/v1/reports?from=2026-01-01\u0026to=2036-01-02",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "the date range is limited to 10 years"
+      }
+    }
+  },
+  {
+    "step": "#40 GET /api/v1/reports?from=2026-01-01\u0026to=2036-01-01",
+    "status": 200,
+    "body": {
+      "breakdown": "expense",
+      "by_account": [
+        {
+          "account_id": "\u003cid:3\u003e",
+          "base_expense": 199500,
+          "base_income": 399000,
+          "base_net": 199500,
+          "currency": "USD",
+          "expense": 1500,
+          "income": 3000,
+          "name": "Dollars",
+          "net": 1500
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "base_expense": 50100,
+          "base_income": 300000,
+          "base_net": 249900,
+          "currency": "NPR",
+          "expense": 50100,
+          "income": 300000,
+          "name": "Cash",
+          "net": 249900
+        },
+        {
+          "account_id": "\u003cid:2\u003e",
+          "base_expense": 0,
+          "base_income": 0,
+          "base_net": 0,
+          "currency": "NPR",
+          "expense": 0,
+          "income": 0,
+          "name": "Hidden",
+          "net": 0
+        }
+      ],
+      "by_category": [
+        {
+          "amount": 221500,
+          "category_id": "\u003cid:4\u003e",
+          "color": "chart1",
+          "count": 4,
+          "icon": "restaurant",
+          "name": "Food",
+          "percent": 88.7
+        },
+        {
+          "amount": 20000,
+          "category_id": null,
+          "color": "#6B7280",
+          "count": 1,
+          "icon": "tag",
+          "name": "Uncategorized",
+          "percent": 8
+        },
+        {
+          "amount": 8100,
+          "category_id": "\u003cid:5\u003e",
+          "color": "chart2",
+          "count": 3,
+          "icon": "gamepad",
+          "name": "Fun",
+          "percent": 3.3
+        }
+      ],
+      "count": 10,
+      "currency": "NPR",
+      "entries_count": 16,
+      "expense": 249600,
+      "from": "2026-01-01T00:00:00Z",
+      "hide_adjustments": false,
+      "income": 699000,
+      "missing_rates": [],
+      "net": 449400,
+      "to": "2036-01-02T00:00:00Z",
+      "transfers_in": 18300,
+      "transfers_out": 18300,
+      "treat_transfers_as_flow": false
+    }
+  },
+  {
+    "step": "#41 PATCH /api/v1/me/settings",
+    "status": 200,
+    "body": {
+      "hide_balance": false,
+      "hide_income": false,
+      "month_start_day": 1,
+      "onboarded_at": null,
+      "reminder_enabled": false,
+      "reminder_time": "20:00",
+      "theme": "auto",
+      "treat_transfers_as_flow": true
+    }
+  },
+  {
+    "step": "#42 GET /api/v1/reports?from=2026-01-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "breakdown": "expense",
+      "by_account": [
+        {
+          "account_id": "\u003cid:3\u003e",
+          "base_expense": 199500,
+          "base_income": 412300,
+          "base_net": 212800,
+          "currency": "USD",
+          "expense": 1500,
+          "income": 3100,
+          "name": "Dollars",
+          "net": 1600
+        },
+        {
+          "account_id": "\u003cid:1\u003e",
+          "base_expense": 67300,
+          "base_income": 300000,
+          "base_net": 232700,
+          "currency": "NPR",
+          "expense": 67300,
+          "income": 300000,
+          "name": "Cash",
+          "net": 232700
+        },
+        {
+          "account_id": "\u003cid:2\u003e",
+          "base_expense": 0,
+          "base_income": 5000,
+          "base_net": 5000,
+          "currency": "NPR",
+          "expense": 0,
+          "income": 5000,
+          "name": "Hidden",
+          "net": 5000
+        }
+      ],
+      "by_category": [
+        {
+          "amount": 221500,
+          "category_id": "\u003cid:4\u003e",
+          "color": "chart1",
+          "count": 4,
+          "icon": "restaurant",
+          "name": "Food",
+          "percent": 89.1
+        },
+        {
+          "amount": 20000,
+          "category_id": null,
+          "color": "#6B7280",
+          "count": 1,
+          "icon": "tag",
+          "name": "Uncategorized",
+          "percent": 8.1
+        },
+        {
+          "amount": 7000,
+          "category_id": "\u003cid:5\u003e",
+          "color": "chart2",
+          "count": 2,
+          "icon": "gamepad",
+          "name": "Fun",
+          "percent": 2.8
+        }
+      ],
+      "count": 11,
+      "currency": "NPR",
+      "entries_count": 13,
+      "expense": 266800,
+      "from": "2026-01-01T00:00:00Z",
+      "hide_adjustments": false,
+      "income": 717300,
+      "missing_rates": [],
+      "net": 450500,
+      "to": "2026-04-01T00:00:00Z",
+      "transfers_in": 18300,
+      "transfers_out": 18300,
+      "treat_transfers_as_flow": true
+    }
+  },
+  {
+    "step": "#43 GET /api/v1/reports?from=2026-01-01\u0026to=2026-03-31\u0026account={{a1.id}}",
+    "status": 200,
+    "body": {
+      "breakdown": "expense",
+      "by_account": [
+        {
+          "account_id": "\u003cid:1\u003e",
+          "base_expense": 67300,
+          "base_income": 300000,
+          "base_net": 232700,
+          "currency": "NPR",
+          "expense": 67300,
+          "income": 300000,
+          "name": "Cash",
+          "net": 232700
+        }
+      ],
+      "by_category": [
+        {
+          "amount": 22000,
+          "category_id": "\u003cid:4\u003e",
+          "color": "chart1",
+          "count": 3,
+          "icon": "restaurant",
+          "name": "Food",
+          "percent": 44.9
+        },
+        {
+          "amount": 20000,
+          "category_id": null,
+          "color": "#6B7280",
+          "count": 1,
+          "icon": "tag",
+          "name": "Uncategorized",
+          "percent": 40.8
+        },
+        {
+          "amount": 7000,
+          "category_id": "\u003cid:5\u003e",
+          "color": "chart2",
+          "count": 2,
+          "icon": "gamepad",
+          "name": "Fun",
+          "percent": 14.3
+        }
+      ],
+      "count": 9,
+      "currency": "NPR",
+      "entries_count": 10,
+      "expense": 67300,
+      "from": "2026-01-01T00:00:00Z",
+      "hide_adjustments": false,
+      "income": 300000,
+      "missing_rates": [],
+      "net": 232700,
+      "to": "2026-04-01T00:00:00Z",
+      "transfers_in": 0,
+      "transfers_out": 18300,
+      "treat_transfers_as_flow": true
+    }
+  },
+  {
+    "step": "#44 PATCH /api/v1/me/settings",
+    "status": 200,
+    "body": {
+      "hide_balance": false,
+      "hide_income": false,
+      "month_start_day": 5,
+      "onboarded_at": null,
+      "reminder_enabled": false,
+      "reminder_time": "20:00",
+      "theme": "auto",
+      "treat_transfers_as_flow": false
+    }
+  },
+  {
+    "step": "#45 GET /api/v1/reports/trend?from=2026-01-01\u0026to=2026-03-31\u0026bucket=month",
+    "status": 200,
+    "body": {
+      "bucket": "month",
+      "buckets": [
+        {
+          "end": "2026-01-05T00:00:00Z",
+          "expense": 16500,
+          "income": 0,
+          "net": -16500,
+          "start": "2025-12-05T00:00:00Z"
+        },
+        {
+          "end": "2026-02-05T00:00:00Z",
+          "expense": 222500,
+          "income": 300000,
+          "net": 77500,
+          "start": "2026-01-05T00:00:00Z"
+        },
+        {
+          "end": "2026-03-05T00:00:00Z",
+          "expense": 0,
+          "income": 399000,
+          "net": 399000,
+          "start": "2026-02-05T00:00:00Z"
+        },
+        {
+          "end": "2026-04-05T00:00:00Z",
+          "expense": 9500,
+          "income": 0,
+          "net": -9500,
+          "start": "2026-03-05T00:00:00Z"
+        }
+      ],
+      "currency": "NPR",
+      "from": "2026-01-01T00:00:00Z",
+      "missing_rates": [],
+      "to": "2026-04-01T00:00:00Z"
+    }
+  },
+  {
+    "step": "#46 GET /api/v1/reports/trend?from=2026-01-01\u0026to=2026-03-31\u0026bucket=week",
+    "status": 200,
+    "body": {
+      "bucket": "week",
+      "buckets": [
+        {
+          "end": "2026-01-05T00:00:00Z",
+          "expense": 16500,
+          "income": 0,
+          "net": -16500,
+          "start": "2025-12-29T00:00:00Z"
+        },
+        {
+          "end": "2026-01-12T00:00:00Z",
+          "expense": 0,
+          "income": 0,
+          "net": 0,
+          "start": "2026-01-05T00:00:00Z"
+        },
+        {
+          "end": "2026-01-19T00:00:00Z",
+          "expense": 0,
+          "income": 0,
+          "net": 0,
+          "start": "2026-01-12T00:00:00Z"
+        },
+        {
+          "end": "2026-01-26T00:00:00Z",
+          "expense": 0,
+          "income": 0,
+          "net": 0,
+          "start": "2026-01-19T00:00:00Z"
+        },
+        {
+          "end": "2026-02-02T00:00:00Z",
+          "expense": 3000,
+          "income": 300000,
+          "net": 297000,
+          "start": "2026-01-26T00:00:00Z"
+        },
+        {
+          "end": "2026-02-09T00:00:00Z",
+          "expense": 219500,
+          "income": 0,
+          "net": -219500,
+          "start": "2026-02-02T00:00:00Z"
+        },
+        {
+          "end": "2026-02-16T00:00:00Z",
+          "expense": 0,
+          "income": 399000,
+          "net": 399000,
+          "start": "2026-02-09T00:00:00Z"
+        },
+        {
+          "end": "2026-02-23T00:00:00Z",
+          "expense": 0,
+          "income": 0,
+          "net": 0,
+          "start": "2026-02-16T00:00:00Z"
+        },
+        {
+          "end": "2026-03-02T00:00:00Z",
+          "expense": 0,
+          "income": 0,
+          "net": 0,
+          "start": "2026-02-23T00:00:00Z"
+        },
+        {
+          "end": "2026-03-09T00:00:00Z",
+          "expense": 7000,
+          "income": 0,
+          "net": -7000,
+          "start": "2026-03-02T00:00:00Z"
+        },
+        {
+          "end": "2026-03-16T00:00:00Z",
+          "expense": 0,
+          "income": 0,
+          "net": 0,
+          "start": "2026-03-09T00:00:00Z"
+        },
+        {
+          "end": "2026-03-23T00:00:00Z",
+          "expense": 0,
+          "income": 0,
+          "net": 0,
+          "start": "2026-03-16T00:00:00Z"
+        },
+        {
+          "end": "2026-03-30T00:00:00Z",
+          "expense": 0,
+          "income": 0,
+          "net": 0,
+          "start": "2026-03-23T00:00:00Z"
+        },
+        {
+          "end": "2026-04-06T00:00:00Z",
+          "expense": 2500,
+          "income": 0,
+          "net": -2500,
+          "start": "2026-03-30T00:00:00Z"
+        }
+      ],
+      "currency": "NPR",
+      "from": "2026-01-01T00:00:00Z",
+      "missing_rates": [],
+      "to": "2026-04-01T00:00:00Z"
+    }
+  },
+  {
+    "step": "#47 GET /api/v1/reports/trend?from=2026-01-30\u0026to=2026-02-04\u0026bucket=day",
+    "status": 200,
+    "body": {
+      "bucket": "day",
+      "buckets": [
+        {
+          "end": "2026-01-31T00:00:00Z",
+          "expense": 0,
+          "income": 0,
+          "net": 0,
+          "start": "2026-01-30T00:00:00Z"
+        },
+        {
+          "end": "2026-02-01T00:00:00Z",
+          "expense": 3000,
+          "income": 0,
+          "net": -3000,
+          "start": "2026-01-31T00:00:00Z"
+        },
+        {
+          "end": "2026-02-02T00:00:00Z",
+          "expense": 0,
+          "income": 300000,
+          "net": 300000,
+          "start": "2026-02-01T00:00:00Z"
+        },
+        {
+          "end": "2026-02-03T00:00:00Z",
+          "expense": 20000,
+          "income": 0,
+          "net": -20000,
+          "start": "2026-02-02T00:00:00Z"
+        },
+        {
+          "end": "2026-02-04T00:00:00Z",
+          "expense": 0,
+          "income": 0,
+          "net": 0,
+          "start": "2026-02-03T00:00:00Z"
+        },
+        {
+          "end": "2026-02-05T00:00:00Z",
+          "expense": 199500,
+          "income": 0,
+          "net": -199500,
+          "start": "2026-02-04T00:00:00Z"
+        }
+      ],
+      "currency": "NPR",
+      "from": "2026-01-30T00:00:00Z",
+      "missing_rates": [],
+      "to": "2026-02-05T00:00:00Z"
+    }
+  },
+  {
+    "step": "#48 GET /api/v1/reports/trend?from=2026-01-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": {
+      "bucket": "month",
+      "buckets": [
+        {
+          "end": "2026-01-05T00:00:00Z",
+          "expense": 16500,
+          "income": 0,
+          "net": -16500,
+          "start": "2025-12-05T00:00:00Z"
+        },
+        {
+          "end": "2026-02-05T00:00:00Z",
+          "expense": 222500,
+          "income": 300000,
+          "net": 77500,
+          "start": "2026-01-05T00:00:00Z"
+        },
+        {
+          "end": "2026-03-05T00:00:00Z",
+          "expense": 0,
+          "income": 399000,
+          "net": 399000,
+          "start": "2026-02-05T00:00:00Z"
+        },
+        {
+          "end": "2026-04-05T00:00:00Z",
+          "expense": 9500,
+          "income": 0,
+          "net": -9500,
+          "start": "2026-03-05T00:00:00Z"
+        }
+      ],
+      "currency": "NPR",
+      "from": "2026-01-01T00:00:00Z",
+      "missing_rates": [],
+      "to": "2026-04-01T00:00:00Z"
+    }
+  },
+  {
+    "step": "#49 GET /api/v1/reports/trend?from=2026-01-01\u0026to=2026-03-31\u0026bucket=year",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "bucket must be day, week or month"
+      }
+    }
+  },
+  {
+    "step": "#50 GET /api/v1/reports/trend?from=2026-01-01",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "from and to are required"
+      }
+    }
+  },
+  {
+    "step": "#51 GET /api/v1/reports/trend?from=2020-01-01\u0026to=2026-01-01\u0026bucket=day",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "the range spans more than 400 day buckets; use a larger bucket or a shorter range"
+      }
+    }
+  },
+  {
+    "step": "#52 GET /api/v1/reports/trend?from=2026-01-01\u0026to=2026-03-31\u0026bucket=month\u0026category={{c1.id}}",
+    "status": 200,
+    "body": {
+      "bucket": "month",
+      "buckets": [
+        {
+          "end": "2026-01-05T00:00:00Z",
+          "expense": 12000,
+          "income": 0,
+          "net": -12000,
+          "start": "2025-12-05T00:00:00Z"
+        },
+        {
+          "end": "2026-02-05T00:00:00Z",
+          "expense": 202500,
+          "income": 0,
+          "net": -202500,
+          "start": "2026-01-05T00:00:00Z"
+        },
+        {
+          "end": "2026-03-05T00:00:00Z",
+          "expense": 0,
+          "income": 0,
+          "net": 0,
+          "start": "2026-02-05T00:00:00Z"
+        },
+        {
+          "end": "2026-04-05T00:00:00Z",
+          "expense": 7000,
+          "income": 0,
+          "net": -7000,
+          "start": "2026-03-05T00:00:00Z"
+        }
+      ],
+      "currency": "NPR",
+      "from": "2026-01-01T00:00:00Z",
+      "missing_rates": [],
+      "to": "2026-04-01T00:00:00Z"
+    }
+  },
+  {
+    "step": "#53 PATCH /api/v1/me/settings",
+    "status": 200,
+    "body": {
+      "hide_balance": false,
+      "hide_income": false,
+      "month_start_day": 1,
+      "onboarded_at": null,
+      "reminder_enabled": false,
+      "reminder_time": "20:00",
+      "theme": "auto",
+      "treat_transfers_as_flow": true
+    }
+  },
+  {
+    "step": "#54 GET /api/v1/reports/trend?from=2026-01-01\u0026to=2026-03-31\u0026bucket=month",
+    "status": 200,
+    "body": {
+      "bucket": "month",
+      "buckets": [
+        {
+          "end": "2026-02-01T00:00:00Z",
+          "expense": 19500,
+          "income": 0,
+          "net": -19500,
+          "start": "2026-01-01T00:00:00Z"
+        },
+        {
+          "end": "2026-03-01T00:00:00Z",
+          "expense": 237800,
+          "income": 717300,
+          "net": 479500,
+          "start": "2026-02-01T00:00:00Z"
+        },
+        {
+          "end": "2026-04-01T00:00:00Z",
+          "expense": 9500,
+          "income": 0,
+          "net": -9500,
+          "start": "2026-03-01T00:00:00Z"
+        }
+      ],
+      "currency": "NPR",
+      "from": "2026-01-01T00:00:00Z",
+      "missing_rates": [],
+      "to": "2026-04-01T00:00:00Z"
+    }
+  },
+  {
+    "step": "#55 GET /api/v1/reports/export.csv?from=2026-01-01\u0026to=2026-03-31",
+    "status": 200,
+    "body": "date,kind,type,title,description,account,to_account,category,tags,amount_minor,amount,currency,to_amount_minor,to_amount,to_currency,base_amount,base_currency,group,source\n2026-03-31T23:59:59Z,TRANSACTION,EXPENSE,End of March,,Cash,,Fun,,2500,25.00,NPR,,,,25.00,NPR,,MANUAL\n2026-03-05T10:00:00Z,TRANSACTION,EXPENSE,Dinner out,,Cash,,Food,work,7000,70.00,NPR,,,,70.00,NPR,,MANUAL\n2026-02-20T00:00:00Z,TRANSACTION,EXPENSE,Ram,,Cash,,,,10000,100.00,NPR,,,,100.00,NPR,,LOAN\n2026-02-16T09:00:00Z,TRANSACTION,TRANSFER,To hidden,,Cash,Hidden,,,5000,50.00,NPR,5000,50.00,NPR,50.00,NPR,,MANUAL\n2026-02-15T09:00:00Z,TRANSACTION,TRANSFER,Top up USD,,Cash,Dollars,,,13300,133.00,NPR,100,1.00,USD,133.00,NPR,,MANUAL\n2026-02-10T12:00:00Z,TRANSACTION,INCOME,Dollar gig,,Dollars,,Pay,work,3000,30.00,USD,,,,3990.00,NPR,,MANUAL\n2026-02-04T12:00:00Z,TRANSACTION,EXPENSE,Dollar coffee,,Dollars,,Food,,1500,15.00,USD,,,,1995.00,NPR,,MANUAL\n2026-02-03T10:00:00Z,TRANSACTION,EXPENSE,Hidden spend,,Hidden,,Food,,9000,90.00,NPR,,,,90.00,NPR,,MANUAL\n2026-02-02T10:00:00Z,TRANSACTION,EXPENSE,Rent,,Cash,,,,20000,200.00,NPR,,,,200.00,NPR,,MANUAL\n2026-02-01T09:00:00Z,TRANSACTION,INCOME,Salary,,Cash,,Pay,,300000,3000.00,NPR,,,,3000.00,NPR,,MANUAL\n2026-01-31T23:30:00Z,TRANSACTION,EXPENSE,Late night snack,,Cash,,Food,,3000,30.00,NPR,,,,30.00,NPR,,MANUAL\n2026-01-04T20:00:00Z,TRANSACTION,EXPENSE,Cinema,,Cash,,Fun,,4500,45.00,NPR,,,,45.00,NPR,,MANUAL\n2026-01-03T10:00:00Z,TRANSACTION,EXPENSE,Groceries,,Cash,,Food,work,12000,120.00,NPR,,,,120.00,NPR,,MANUAL\n"
+  },
+  {
+    "step": "#56 GET /api/v1/reports/export.csv?from=2026-02-01\u0026to=2026-02-28\u0026hide_adjustments=true\u0026q=dollar",
+    "status": 200,
+    "body": "date,kind,type,title,description,account,to_account,category,tags,amount_minor,amount,currency,to_amount_minor,to_amount,to_currency,base_amount,base_currency,group,source\n2026-02-10T12:00:00Z,TRANSACTION,INCOME,Dollar gig,,Dollars,,Pay,work,3000,30.00,USD,,,,3990.00,NPR,,MANUAL\n2026-02-04T12:00:00Z,TRANSACTION,EXPENSE,Dollar coffee,,Dollars,,Food,,1500,15.00,USD,,,,1995.00,NPR,,MANUAL\n"
+  },
+  {
+    "step": "#57 GET /api/v1/reports/export.csv?from=2026-03-01\u0026to=2026-02-01",
+    "status": 422,
+    "body": {
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "to must be after from"
+      }
+    }
+  }
+]
